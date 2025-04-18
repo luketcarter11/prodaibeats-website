@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 248, 248, 248;
+  --background-rgb: 12, 12, 12;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Montserrat', sans-serif;
+  background-color: rgb(var(--background-rgb));
+  color: rgb(var(--foreground-rgb));
+  font-size: 1rem;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+  scroll-behavior: smooth;
+}
+
+h1, h2, h3, h4, h5 {
+  font-family: 'Fjalla One', sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button, input, textarea {
+  font-family: inherit;
+  outline: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Custom autofill styles for all browsers */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+select:-webkit-autofill,
+textarea:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px #121212 inset !important;
+  -webkit-text-fill-color: white !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Firefox autofill */
+input:autofill,
+select:autofill,
+textarea:autofill {
+  background-color: #121212 !important;
+  color: white !important;
+}
+
+/* Microsoft Edge autofill */
+input:-ms-input-placeholder:-webkit-autofill,
+textarea:-ms-input-placeholder:-webkit-autofill,
+select:-ms-input-placeholder:-webkit-autofill {
+  background-color: #121212 !important;
+  color: white !important;
+}
+
+/* Ensure autofilled inputs maintain dark backgrounds */
+@supports (-webkit-appearance: none) {
+  input,
+  select,
+  textarea {
+    background-color: #121212 !important;
+  }
+}

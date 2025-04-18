@@ -1,0 +1,20 @@
+{
+  "active": true,
+  "nextRun": "2025-04-19T21:32:26.936Z",
+  "sources": [
+    {
+      "id": "b02bff95-0230-437c-8192-c76b7c1165bd",
+      "source": "https://www.youtube.com/channel/UCBVjMGOIkavEAhyqpxJ73Dw",
+      "type": "channel",
+      "lastChecked": null,
+      "active": true
+    }
+  ],
+  "logs": [
+    {
+      "timestamp": "2025-04-18T21:32:26.938Z",
+      "message": "Scheduler activated via script",
+      "type": "info"
+    }
+  ]
+}
