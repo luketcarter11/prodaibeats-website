@@ -56,7 +56,6 @@ export class Scheduler {
         .select('json_state')
         .order('updated_at', { ascending: false })
         .limit(1)
-        .single()
 
       if (error) {
         console.error('❌ Error loading scheduler state from Supabase:', error)
@@ -77,24 +76,26 @@ export class Scheduler {
 
       console.log('✅ Received data from Supabase:', JSON.stringify(data))
 
-      if (data?.json_state) {
-        try {
-          // Handle both string and object formats
-          if (typeof data.json_state === 'string') {
-            this.state = JSON.parse(data.json_state)
-          } else {
-            this.state = data.json_state
-          }
-          console.log('✅ Successfully parsed state:', JSON.stringify(this.state))
-        } catch (parseError) {
-          console.error('❌ Error parsing JSON state:', parseError)
-          this.state = DEFAULT_STATE
-          this.addLog(`Error parsing state: ${parseError instanceof Error ? parseError.message : 'Invalid JSON'}`, 'error')
-        }
-      } else {
+      if (!data || data.length === 0) {
         console.log('ℹ️ No existing state found, using default state')
         this.state = DEFAULT_STATE
         await this.saveState()
+        return
+      }
+
+      try {
+        const stateData = data[0].json_state
+        // Handle both string and object formats
+        if (typeof stateData === 'string') {
+          this.state = JSON.parse(stateData)
+        } else {
+          this.state = stateData
+        }
+        console.log('✅ Successfully parsed state:', JSON.stringify(this.state))
+      } catch (parseError) {
+        console.error('❌ Error parsing JSON state:', parseError)
+        this.state = DEFAULT_STATE
+        this.addLog(`Error parsing state: ${parseError instanceof Error ? parseError.message : 'Invalid JSON'}`, 'error')
       }
     } catch (error) {
       console.error('❌ Unexpected error in loadState:', error)

@@ -1,0 +1,12 @@
+# Run the track uploader script every hour
+0 * * * * /var/www/prodai/scripts/vps-track-uploader.sh > /var/www/prodai/logs/track-uploader-cron.log 2>&1
+
+# Optionally, run a YouTube downloader script to fetch new tracks from YouTube channels
+# 0 */6 * * * /var/www/prodai/scripts/youtube-downloader.sh > /var/www/prodai/logs/youtube-downloader.log 2>&1
+
+# Keep the tracks directory clean by removing old temporary files once a day
+0 3 * * * find /tmp/track-processing -type f -mtime +2 -delete
+
+# To install this crontab:
+# crontab -e
+# Then paste these lines 
