@@ -9,40 +9,6 @@ export interface LicenseTier {
   features: string[]
 }
 
-// Manually import JSON data instead of using fs
-// This is imported statically at build time in Next.js
-import tracksData from '../../data/tracks.json'
-
-/**
- * Get tracks data from the statically imported JSON
- * @returns Array of tracks from imported data
- */
-const getTracksData = (): Track[] => {
-  try {
-    // Format tracks to match our Track interface
-    return tracksData.map((track: any) => ({
-      id: track.videoId || track.id || track.slug,
-      title: track.title,
-      artist: track.artist || 'ProDAI',
-      coverUrl: track.cover || `/tracks/${track.slug}/cover.jpg`,
-      price: track.price || 29.99,
-      bpm: track.bpm || 140,
-      key: track.key || 'Am',
-      duration: track.duration || '0:00',
-      tags: track.tags || ['UK Drill', 'Beat'],
-      audioUrl: track.audio || `/tracks/${track.slug}/${track.slug}.mp3`,
-      licenseType: track.licenseType || 'Non-Exclusive',
-      slug: track.slug,
-      videoId: track.videoId,
-      downloadDate: track.downloadDate
-    }));
-  } catch (error) {
-    console.error('Error processing tracks data:', error);
-    // Fallback to sample track if there's an error
-    return [sampleTrack];
-  }
-};
-
 // Sample track as fallback
 const sampleTrack: Track = {
   id: 'test_12345',
@@ -58,33 +24,111 @@ const sampleTrack: Track = {
   licenseType: 'Non-Exclusive'
 }
 
-// Export tracks array
-export const tracks = getTracksData();
+// Cache tracks with expiration
+let cachedTracks: Track[] | null = null
+let cacheTimestamp: number | null = null
+const CACHE_DURATION = 60 * 1000 // 1 minute in milliseconds
 
-export function getTrackBySlug(slug: string): Track | null {
-  const allTracks = getTracksData();
+/**
+ * Fetch tracks from the API instead of importing them directly
+ * @returns Array of tracks from API
+ */
+const fetchTracksData = async (): Promise<Track[]> => {
+  try {
+    // Check cache first
+    const now = Date.now()
+    if (cachedTracks && cacheTimestamp && (now - cacheTimestamp < CACHE_DURATION)) {
+      console.log('Using cached tracks data')
+      return cachedTracks
+    }
+
+    // Fetch fresh data from our API endpoint
+    console.log('Fetching tracks from API endpoint')
+    const response = await fetch('/api/tracks')
+    
+    if (!response.ok) {
+      console.error('Error fetching tracks from API:', response.statusText)
+      return [sampleTrack]
+    }
+    
+    const tracksData = await response.json()
+    
+    // Format tracks to match our Track interface
+    const formattedTracks = tracksData.map((track: any) => ({
+      id: track.videoId || track.id || track.slug,
+      title: track.title,
+      artist: track.artist || 'ProDAI',
+      coverUrl: track.cover || `/tracks/${track.slug}/cover.jpg`,
+      price: track.price || 29.99,
+      bpm: track.bpm || 140,
+      key: track.key || 'Am',
+      duration: track.duration || '0:00',
+      tags: track.tags || ['UK Drill', 'Beat'],
+      audioUrl: track.audio || `/audio/${track.slug}/${track.slug}.mp3`, // Updated to use /audio path
+      licenseType: track.licenseType || 'Non-Exclusive',
+      slug: track.slug,
+      videoId: track.videoId,
+      downloadDate: track.downloadDate
+    }))
+    
+    // Update cache
+    cachedTracks = formattedTracks
+    cacheTimestamp = now
+    
+    return formattedTracks
+  } catch (error) {
+    console.error('Error processing tracks data:', error)
+    return [sampleTrack]
+  }
+}
+
+// Client-side compatible track fetching
+let clientTracksPromise: Promise<Track[]> | null = null
+
+/**
+ * Get tracks data - handles both client and server environments
+ */
+export const getTracksData = async (): Promise<Track[]> => {
+  // On client-side, we use a singleton promise to avoid multiple fetches
+  if (typeof window !== 'undefined') {
+    if (!clientTracksPromise) {
+      clientTracksPromise = fetchTracksData()
+    }
+    return clientTracksPromise
+  }
+  
+  // On server-side, fetch fresh every time
+  return fetchTracksData()
+}
+
+/**
+ * Export tracks with a lazy promise to be resolved at runtime
+ * This acts as a placeholder until the actual data is loaded
+ */
+export const tracks: Track[] = [sampleTrack]
+
+// Expose an async function to get tracks
+export async function getTrackBySlug(slug: string): Promise<Track | null> {
+  const allTracks = await getTracksData()
   return allTracks.find((track) => 
     track.slug === slug || track.id === slug || track.videoId === slug
-  ) || null;
+  ) || null
 }
 
-export function getFeaturedTracks(): Track[] {
-  // Ensure we always return an array from the imported data
-  return getTracksData();
+export async function getFeaturedTracks(): Promise<Track[]> {
+  return getTracksData()
 }
 
-// Add missing getNewReleases function
-export function getNewReleases(): Track[] {
-  // Return the tracks sorted by most recent
-  const allTracks = getTracksData();
+export async function getNewReleases(): Promise<Track[]> {
+  const allTracks = await getTracksData()
   
   // Sort by creation date if available
   return [...allTracks].sort((a, b) => {
     // Use downloadDate or fall back to random sorting
-    const dateA = a.downloadDate ? new Date(a.downloadDate).getTime() : 0;
-    const dateB = b.downloadDate ? new Date(b.downloadDate).getTime() : 0;
-    return dateB - dateA;
-  });
+    const dateA = a.downloadDate ? new Date(a.downloadDate).getTime() : 0
+    const dateB = b.downloadDate ? new Date(b.downloadDate).getTime() : 0
+    return dateB - dateA
+  })
 }
 
 export const licenseTiers: LicenseTier[] = [

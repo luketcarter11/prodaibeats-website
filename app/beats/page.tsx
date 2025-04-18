@@ -64,17 +64,22 @@ function BeatsContent({ onTrackPlay }: BeatsContentProps) {
 
   // ✅ Load tracks
   useEffect(() => {
-    try {
-      const fetchedTracks = getFeaturedTracks()
-      setTracks(fetchedTracks)
-      setError(null)
-    } catch (error) {
-      console.error('Failed to fetch tracks:', error)
-      setError('Failed to load tracks. Please try again later.')
-      setTracks([])
-    } finally {
-      setIsLoading(false)
+    async function loadTracks() {
+      setIsLoading(true)
+      try {
+        const fetchedTracks = await getFeaturedTracks()
+        setTracks(fetchedTracks)
+        setError(null)
+      } catch (error) {
+        console.error('Failed to fetch tracks:', error)
+        setError('Failed to load tracks. Please try again later.')
+        setTracks([])
+      } finally {
+        setIsLoading(false)
+      }
     }
+    
+    loadTracks()
   }, [])
 
   // ✅ Apply filters from URL on load
