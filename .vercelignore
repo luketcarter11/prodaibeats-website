@@ -9,4 +9,9 @@ README.md
 .DS_Store
 .cursor
 scripts
-.env.example 
+.env.example
+# Exclude audio files to reduce deployment size
+tracks
+downloadTracks.js
+downloaded.json
+tracklist.json 

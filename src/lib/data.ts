@@ -14,13 +14,13 @@ const sampleTrack: Track = {
   id: 'test_12345',
   title: 'Sample Track',
   artist: 'Test Artist',
-  coverUrl: '/images/covers/sample_track.jpg',
+  coverUrl: 'https://storage.example.com/prodai-beats/images/covers/sample_track.jpg',
   price: 12.99,
   bpm: 100,
   key: 'Am',
   duration: '0:30',
   tags: ['Test', 'Sample'],
-  audioUrl: '/audio/sample_track.mp3',
+  audioUrl: 'https://storage.example.com/prodai-beats/audio/sample_track.mp3',
   licenseType: 'Non-Exclusive'
 }
 
@@ -58,13 +58,13 @@ const fetchTracksData = async (): Promise<Track[]> => {
       id: track.videoId || track.id || track.slug,
       title: track.title,
       artist: track.artist || 'ProDAI',
-      coverUrl: track.cover || `/tracks/${track.slug}/cover.jpg`,
+      coverUrl: track.coverImage || track.cover || `https://storage.example.com/prodai-beats/tracks/${track.slug}/cover.jpg`,
       price: track.price || 29.99,
       bpm: track.bpm || 140,
       key: track.key || 'Am',
       duration: track.duration || '0:00',
       tags: track.tags || ['UK Drill', 'Beat'],
-      audioUrl: track.audio || `/audio/${track.slug}/${track.slug}.mp3`, // Updated to use /audio path
+      audioUrl: track.audioUrl || track.audio || `https://storage.example.com/prodai-beats/audio/${track.slug}/${track.slug}.mp3`,
       licenseType: track.licenseType || 'Non-Exclusive',
       slug: track.slug,
       videoId: track.videoId,
