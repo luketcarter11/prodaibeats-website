@@ -4,7 +4,7 @@ import path from 'path';
 
 // For development: use public URLs if external storage is not yet set up
 const usePublicFallback = true;
-const storageBaseUrl = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://storage.example.com/prodai-beats';
+const storageBaseUrl = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://cdn.prodaibeats.com';
 
 // Mock tracks data
 const tracks = [
@@ -111,24 +111,39 @@ const tracks = [
  */
 export async function GET(request: NextRequest) {
   try {
-    // Path to the tracks JSON file
-    const tracksFilePath = path.join(process.cwd(), 'tracklist.json');
+    let tracksData = [];
     
-    // Check if the tracks file exists
-    if (!fs.existsSync(tracksFilePath)) {
-      console.log('Tracks file not found:', tracksFilePath);
-      return NextResponse.json({ tracks: [] });
+    // In production, don't attempt local file operations
+    if (process.env.NODE_ENV === 'production') {
+      console.log('In production environment, using fallback data');
+      return NextResponse.json(tracks);
     }
     
-    // Read the tracks data
-    const tracksData = fs.readFileSync(tracksFilePath, 'utf8');
-    const tracks = JSON.parse(tracksData);
+    // Only for development: try to read from local file
+    try {
+      // Path to the tracks JSON file
+      const tracksFilePath = path.join(process.cwd(), 'tracklist.json');
+      
+      // Check if the tracks file exists
+      if (fs.existsSync(tracksFilePath)) {
+        // Read the tracks data
+        const rawData = fs.readFileSync(tracksFilePath, 'utf8');
+        tracksData = JSON.parse(rawData);
+        
+        // Log track count for debugging
+        console.log(`Loaded ${tracksData.length} tracks from JSON file`);
+      } else {
+        console.log('Tracks file not found, using fallback data');
+        tracksData = tracks;
+      }
+    } catch (fileError) {
+      console.error('Error reading local tracks file:', fileError);
+      // Fallback to hardcoded tracks
+      tracksData = tracks;
+    }
     
-    // Log track count for debugging
-    console.log(`Loaded ${tracks.length} tracks from JSON file`);
-    
-    // Return all tracks
-    return NextResponse.json(tracks);
+    // Return tracks data
+    return NextResponse.json(tracksData);
   } catch (error) {
     console.error('Error fetching tracks:', error);
     

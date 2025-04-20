@@ -9,18 +9,21 @@ export interface LicenseTier {
   features: string[]
 }
 
+// CDN base URL
+const CDN_BASE_URL = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://cdn.prodaibeats.com'
+
 // Sample track as fallback
 const sampleTrack: Track = {
   id: 'test_12345',
   title: 'Sample Track',
   artist: 'Test Artist',
-  coverUrl: 'https://storage.example.com/prodai-beats/images/covers/sample_track.jpg',
+  coverUrl: `${CDN_BASE_URL}/images/covers/sample_track.jpg`,
   price: 12.99,
   bpm: 100,
   key: 'Am',
   duration: '0:30',
   tags: ['Test', 'Sample'],
-  audioUrl: 'https://storage.example.com/prodai-beats/audio/sample_track.mp3',
+  audioUrl: `${CDN_BASE_URL}/audio/sample_track.mp3`,
   licenseType: 'Non-Exclusive'
 }
 
@@ -58,13 +61,13 @@ const fetchTracksData = async (): Promise<Track[]> => {
       id: track.videoId || track.id || track.slug,
       title: track.title,
       artist: track.artist || 'ProDAI',
-      coverUrl: track.coverImage || track.cover || `https://storage.example.com/prodai-beats/tracks/${track.slug}/cover.jpg`,
+      coverUrl: track.coverImage || track.cover || `${CDN_BASE_URL}/images/tracks/${track.slug}/cover.jpg`,
       price: track.price || 29.99,
       bpm: track.bpm || 140,
       key: track.key || 'Am',
       duration: track.duration || '0:00',
       tags: track.tags || ['UK Drill', 'Beat'],
-      audioUrl: track.audioUrl || track.audio || `https://storage.example.com/prodai-beats/audio/${track.slug}/${track.slug}.mp3`,
+      audioUrl: track.audioUrl || track.audio || `${CDN_BASE_URL}/audio/${track.slug}/${track.slug}.mp3`,
       licenseType: track.licenseType || 'Non-Exclusive',
       slug: track.slug,
       videoId: track.videoId,
