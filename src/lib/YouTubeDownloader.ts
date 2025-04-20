@@ -8,8 +8,11 @@ import { updateTracksData } from './scanTracks'
 import { Track } from '@/types/track'
 import { trackHistory } from './models/TrackHistory'
 import { getScheduler } from './models/Scheduler'
+import { uploadFileToR2 } from './r2Uploader'
 
 const execPromise = util.promisify(exec)
+const isProd = process.env.NODE_ENV === 'production';
+const CDN_BASE_URL = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://cdn.prodaibeats.com';
 
 interface DownloadResult {
   success: boolean
@@ -45,23 +48,35 @@ export class YouTubeDownloader {
         }
       }
       
-      // Create necessary directories
-      const publicDir = path.join(process.cwd(), 'public')
-      const audioDir = path.join(publicDir, 'audio')
-      const coverDir = path.join(publicDir, 'images/covers')
-      const dataDir = path.join(process.cwd(), 'data')
-      
-      await fsPromises.mkdir(audioDir, { recursive: true })
-      await fsPromises.mkdir(coverDir, { recursive: true })
-      await fsPromises.mkdir(dataDir, { recursive: true })
-      
       // Generate a unique ID for the track
       const trackId = `track_${uuidv4().replace(/-/g, '').substring(0, 16)}`
       
-      // Set up file paths
-      const audioFilePath = path.join(audioDir, `${trackId}.mp3`)
-      const coverFilePath = path.join(coverDir, `${trackId}.jpg`)
-      const metadataFilePath = path.join(dataDir, `${trackId}.json`)
+      // Set paths differently based on environment
+      let audioFilePath, coverFilePath, metadataFilePath;
+      
+      // In production, use temp directory
+      if (isProd) {
+        const tempDir = path.join('/tmp', trackId);
+        await fsPromises.mkdir(tempDir, { recursive: true });
+        
+        audioFilePath = path.join(tempDir, `audio.mp3`);
+        coverFilePath = path.join(tempDir, `cover.jpg`);
+        metadataFilePath = path.join(tempDir, `metadata.json`);
+      } else {
+        // In development, use local filesystem
+        const publicDir = path.join(process.cwd(), 'public');
+        const audioDir = path.join(publicDir, 'audio');
+        const coverDir = path.join(publicDir, 'images/covers');
+        const dataDir = path.join(process.cwd(), 'data');
+        
+        await fsPromises.mkdir(audioDir, { recursive: true });
+        await fsPromises.mkdir(coverDir, { recursive: true });
+        await fsPromises.mkdir(dataDir, { recursive: true });
+        
+        audioFilePath = path.join(audioDir, `${trackId}.mp3`);
+        coverFilePath = path.join(coverDir, `${trackId}.jpg`);
+        metadataFilePath = path.join(dataDir, `${trackId}.json`);
+      }
       
       // Download metadata first to check if the track exists and get info
       const metadataResult = await this.downloadMetadata(url, metadataFilePath)
@@ -96,18 +111,48 @@ export class YouTubeDownloader {
         return thumbnailResult
       }
       
+      // Define URLs based on environment
+      let audioUrl, coverUrl;
+      
+      // In production, upload files to R2 and use CDN URLs
+      if (isProd) {
+        try {
+          // Upload files to R2
+          const audioR2Path = `audio/${trackId}.mp3`;
+          const coverR2Path = `images/covers/${trackId}.jpg`;
+          
+          await uploadFileToR2(audioFilePath, audioR2Path);
+          await uploadFileToR2(coverFilePath, coverR2Path);
+          
+          audioUrl = `${CDN_BASE_URL}/${audioR2Path}`;
+          coverUrl = `${CDN_BASE_URL}/${coverR2Path}`;
+          
+          console.log('Files uploaded to R2:', { audioUrl, coverUrl });
+        } catch (uploadError) {
+          console.error('Error uploading to R2:', uploadError);
+          return {
+            success: false,
+            message: 'Failed to upload files to R2 storage'
+          };
+        }
+      } else {
+        // In development, use local file paths
+        audioUrl = `/audio/${trackId}.mp3`;
+        coverUrl = `/images/covers/${trackId}.jpg`;
+      }
+      
       // Create track data
       const trackData = {
         id: trackId,
         title: metadata.title,
         artist: metadata.artist,
-        coverUrl: `/images/covers/${trackId}.jpg`,
+        coverUrl: coverUrl,
         price: 12.99, // Default to the usual price
         bpm: 0,  // Will be set during import
         key: 'Unknown',  // Will be set during import
         duration: metadata.duration || '0:00',
         tags: metadata.tags || [],
-        audioUrl: `/audio/${trackId}.mp3`,
+        audioUrl: audioUrl,
         licenseType: 'Non-Exclusive' // Default license type
       }
       
@@ -116,8 +161,8 @@ export class YouTubeDownloader {
         ...metadata,
         trackId,
         youtubeId,
-        audioUrl: `/audio/${trackId}.mp3`,
-        coverUrl: `/images/covers/${trackId}.jpg`,
+        audioUrl: audioUrl,
+        coverUrl: coverUrl,
         sourceUrl: url,
         downloadDate: new Date().toISOString()
       }
@@ -125,7 +170,7 @@ export class YouTubeDownloader {
       fs.writeFileSync(metadataFilePath, JSON.stringify(fullMetadata, null, 2))
       
       // Add to track history
-      const trackUrl = `/tracks/${trackId}`
+      const trackUrl = `${CDN_BASE_URL}/tracks/${trackId}`;
       await trackHistory.addTrack({
         youtubeId,
         title: metadata.title,
@@ -144,6 +189,21 @@ export class YouTubeDownloader {
       
       // Add to tracks data
       await updateTracksData([trackData as Track])
+      
+      // Clean up temp files in production
+      if (isProd) {
+        try {
+          fs.unlinkSync(audioFilePath);
+          fs.unlinkSync(coverFilePath);
+          fs.unlinkSync(metadataFilePath);
+          
+          const tempDir = path.dirname(audioFilePath);
+          fs.rmdirSync(tempDir);
+        } catch (cleanupError) {
+          console.warn('Error cleaning up temp files:', cleanupError);
+          // Non-fatal, continue
+        }
+      }
       
       return {
         success: true,
