@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { updateTracksData } from './scanTracks'
 import { Track } from '@/types/track'
 import { trackHistory } from './models/TrackHistory'
-import { scheduler } from './models/Scheduler'
+import { getScheduler } from './models/Scheduler'
 
 const execPromise = util.promisify(exec)
 
@@ -351,13 +351,14 @@ export class YouTubeDownloader {
   static async downloadAllFromSource(sourceId: string): Promise<{ success: boolean; message: string; downloaded: number; failed: number; skipped: number }> {
     try {
       // Get source from scheduler
-      const status = await scheduler.getStatus()
+      const schedulerInstance = await getScheduler()
+      const status = schedulerInstance.getStatus()
       const source = status.sources.find(s => s.id === sourceId)
       
       if (!source) {
         return {
           success: false,
-          message: 'Source not found',
+          message: `Source with ID ${sourceId} not found`,
           downloaded: 0,
           failed: 0,
           skipped: 0
@@ -365,10 +366,11 @@ export class YouTubeDownloader {
       }
       
       // Add log entry
-      scheduler.addLog(
+      const schedulerLog = await getScheduler()
+      schedulerLog.addLog(
         `Starting download from ${source.type}: ${source.source}`,
         'info',
-        source.id
+        sourceId
       )
       
       // Create a temporary file for the video URLs
@@ -386,10 +388,10 @@ export class YouTubeDownloader {
       
       // Check if the file was created
       if (!fs.existsSync(tempFile)) {
-        scheduler.addLog(
+        schedulerLog.addLog(
           `Failed to get video list from ${source.type}`,
           'error',
-          source.id
+          sourceId
         )
         
         return {
@@ -429,29 +431,29 @@ export class YouTubeDownloader {
         
         if (result.success) {
           downloaded++
-          scheduler.addLog(
+          schedulerLog.addLog(
             `Downloaded track: ${result.trackData?.title || videoId}`,
             'success',
-            source.id
+            sourceId
           )
         } else {
           failed++
-          scheduler.addLog(
+          schedulerLog.addLog(
             `Failed to download track: ${videoId} - ${result.message}`,
             'error',
-            source.id
+            sourceId
           )
         }
       }
       
       // Update the last checked time
-      await scheduler.updateSourceLastChecked(source.id)
+      await schedulerInstance.updateSourceLastChecked(source.id)
       
       // Add final log entry
-      scheduler.addLog(
+      schedulerLog.addLog(
         `Completed download from ${source.type}. Downloaded: ${downloaded}, Failed: ${failed}, Skipped: ${skipped}`,
         'info',
-        source.id
+        sourceId
       )
       
       return {
@@ -479,8 +481,11 @@ export class YouTubeDownloader {
    */
   static async runScheduler(): Promise<{ success: boolean; message: string; results: any[] }> {
     try {
+      // Get initialized scheduler instance
+      const schedulerInstance = await getScheduler()
+      
       // Get all active sources
-      const sources = await scheduler.getActiveSources()
+      const sources = schedulerInstance.getActiveSources()
       
       if (sources.length === 0) {
         return {
@@ -505,7 +510,7 @@ export class YouTubeDownloader {
       }
       
       // Update the next run time
-      await scheduler.updateNextRun()
+      await schedulerInstance.updateNextRun()
       
       return {
         success: true,
