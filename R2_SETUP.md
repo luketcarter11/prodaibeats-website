@@ -33,9 +33,10 @@ Set the following environment variables:
 
 ```
 R2_ACCESS_KEY_ID=3cb677b9b6722a66a2dc626c404d8c4e
-R2_SECRET_ACCESS_KEY=your_secret_access_key
-R2_ENDPOINT=https://your-account-id.r2.cloudflarestorage.com
-R2_BUCKET=prodai-tracks
+R2_SECRET_ACCESS_KEY=4be2351ef455d794b1675a2fd8b57dfe6044fff21d85713dc9e8355fcdda
+R2_ENDPOINT=https://1992471ec8cc523889f80797e15a0529.r2.cloudflarestorage.com
+R2_BUCKET=prodai-beats-storage
+NEXT_PUBLIC_STORAGE_BASE_URL=https://pub-c059baad842f47laaa2labb935e98d.r2.dev
 ```
 
 For local development, add these to your `.env.local` file.
