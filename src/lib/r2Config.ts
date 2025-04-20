@@ -4,16 +4,16 @@
  */
 
 // Use the exact S3 Compatible API endpoint for Cloudflare R2
-export const R2_ENDPOINT = 'https://1992471ec8cc523889f80797e15a0529.r2.cloudflarestorage.com';
+export const R2_ENDPOINT = 'https://1992471ec8cc52388f80797e15a0529.r2.cloudflarestorage.com';
 
 // Default bucket name
-export const R2_BUCKET_NAME = process.env.R2_BUCKET || 'prodai-tracks';
+export const R2_BUCKET_NAME = process.env.R2_BUCKET || 'prodai-beats-storage';
 
 // Path constants
 export const SCHEDULER_STATE_KEY = 'scheduler/scheduler.json';
 
 // CDN Base URL
-export const CDN_BASE_URL = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://cdn.prodaibeats.com';
+export const CDN_BASE_URL = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
 
 // Environment detection
 export const isProd = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
