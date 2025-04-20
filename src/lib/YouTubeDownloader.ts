@@ -124,6 +124,8 @@ export class YouTubeDownloader {
           const audioExists = await fileExistsInR2(audioR2Path);
           const coverExists = await fileExistsInR2(coverR2Path);
           
+          console.log(`📦 Uploading to R2: audio=${audioFilePath}, cover=${coverFilePath}`);
+          
           if (!audioExists) {
             await uploadFileToR2(audioFilePath, audioR2Path);
           } else {
@@ -479,6 +481,9 @@ export class YouTubeDownloader {
       // Read the video URLs
       const videoIds = fs.readFileSync(tempFile, 'utf8').split('\n').filter(Boolean)
       
+      // Add debugging log
+      console.log("✅ yt-dlp returned video IDs:", videoIds);
+      
       // Clean up
       fs.unlinkSync(tempFile)
       
@@ -498,6 +503,9 @@ export class YouTubeDownloader {
         
         // Construct the full URL
         const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
+        
+        // Log before downloading
+        console.log(`🎧 Downloading audio for: ${videoId} (${videoUrl})`);
         
         // Download the track
         const result = await this.downloadTrack(videoUrl, source.type, source.id)
@@ -529,6 +537,9 @@ export class YouTubeDownloader {
         sourceId
       )
       
+      // Add debugging log
+      console.log(`💾 Saved state to R2 for source: ${sourceId}`);
+      
       return {
         success: true,
         message: `Completed download from ${source.type}`,
@@ -537,13 +548,12 @@ export class YouTubeDownloader {
         skipped
       }
     } catch (error) {
-      console.error('Error downloading from source:', error)
-      
+      console.error('Error downloading all tracks:', error)
       return {
         success: false,
         message: error instanceof Error ? error.message : 'An unknown error occurred',
         downloaded: 0,
-        failed: 0, 
+        failed: 0,
         skipped: 0
       }
     }
@@ -568,11 +578,14 @@ export class YouTubeDownloader {
         }
       }
       
+      console.log(`🔄 Starting scheduler run for ${sources.length} active sources`);
+      
       // Results for each source
       const results = []
       
       // Process each source
       for (const source of sources) {
+        console.log(`📁 Processing source: ${source.source} (${source.type})`);
         const result = await this.downloadAllFromSource(source.id)
         results.push({
           sourceId: source.id,
@@ -584,6 +597,8 @@ export class YouTubeDownloader {
       
       // Update the next run time
       await schedulerInstance.updateNextRun()
+      
+      console.log(`💾 Updated next run time in R2`);
       
       return {
         success: true,
@@ -600,4 +615,4 @@ export class YouTubeDownloader {
       }
     }
   }
-} 
+}
