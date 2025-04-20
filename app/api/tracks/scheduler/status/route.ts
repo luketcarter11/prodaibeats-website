@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 
 // Return the actual scheduler status
 export async function GET() {
+  // Force trigger rebuild - 2025-04-20
   console.log('DEBUG: GET /api/tracks/scheduler/status called at', new Date().toISOString())
   
   try {
@@ -36,4 +37,5 @@ export async function POST() {
   
   // Get status using getStatus() method which exists in the Scheduler class
   return NextResponse.json(await schedulerInstance.getStatus())
-} 
+}
+// force trigger 
