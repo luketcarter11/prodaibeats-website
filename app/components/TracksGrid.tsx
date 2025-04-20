@@ -2,24 +2,43 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { PlayIcon, PauseIcon } from '@heroicons/react/24/solid';
+import { Track } from '@/types/track';
+import { PlayIcon, PauseIcon } from '@radix-ui/react-icons';
 
-interface Track {
+// Define a type for tracks that might have different property names
+type SrcTrack = {
   id: string;
   title: string;
   artist: string;
-  coverUrl: string;
-  audioUrl: string;
-  duration: number;
+  coverImage: string;
   uploadDate: string;
+  audioUrl: string;
+  downloadDate?: string;
+  createdAt?: string;
+};
+
+// Union type to handle both track formats
+type AnyTrack = Track | SrcTrack;
+
+// Type guard to check which type of track we're dealing with
+function hasCoverUrl(track: AnyTrack): track is Track {
+  return 'coverUrl' in track;
+}
+
+// Helper function to get cover image regardless of track type
+function getCoverImage(track: AnyTrack): string {
+  if (hasCoverUrl(track)) {
+    return track.coverUrl || '/images/default-cover.jpg';
+  }
+  return track.coverImage || '/images/default-cover.jpg';
 }
 
 export default function TracksGrid() {
-  const [tracks, setTracks] = useState<Track[]>([]);
+  const [tracks, setTracks] = useState<AnyTrack[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentTrack, setCurrentTrack] = useState<string | null>(null);
-  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const fetchTracks = async () => {
@@ -28,107 +47,171 @@ export default function TracksGrid() {
         const response = await fetch('/api/tracks');
         
         if (!response.ok) {
-          throw new Error(`Failed to fetch tracks: ${response.status}`);
+          throw new Error(`Error: ${response.status}`);
         }
         
         const data = await response.json();
-        setTracks(data.tracks);
+        
+        // Handle different API response formats
+        let tracksList: AnyTrack[] = [];
+        if (Array.isArray(data)) {
+          tracksList = data;
+        } else if (data.tracks && Array.isArray(data.tracks)) {
+          tracksList = data.tracks;
+        } else {
+          throw new Error('Invalid response format');
+        }
+        
+        console.log('Tracks loaded:', tracksList.length);
+        setTracks(tracksList);
         setError(null);
       } catch (err) {
-        setError('Failed to load tracks. Please try again later.');
-        console.error(err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch tracks');
+        console.error('Error fetching tracks:', err);
       } finally {
         setLoading(false);
       }
     };
-
+    
     fetchTracks();
   }, []);
 
-  const handlePlayPause = (trackId: string, audioUrl: string) => {
-    if (currentTrack === trackId) {
-      // Pause current track
-      audio?.pause();
-      setCurrentTrack(null);
-      setAudio(null);
-    } else {
-      // Stop previous audio if playing
-      if (audio) {
-        audio.pause();
+  useEffect(() => {
+    return () => {
+      // Cleanup function
+      if (audioElement) {
+        audioElement.pause();
+        audioElement.src = '';
       }
-      
-      // Play new track
-      const newAudio = new Audio(audioUrl);
-      newAudio.play().catch(e => console.error('Audio playback failed:', e));
-      setCurrentTrack(trackId);
-      setAudio(newAudio);
-      
-      // Set up ended event to reset state
-      newAudio.onended = () => {
-        setCurrentTrack(null);
-        setAudio(null);
-      };
+    };
+  }, [audioElement]);
+
+  const handlePlayPause = (track: AnyTrack) => {
+    if (currentlyPlaying === track.id) {
+      // Pause current track
+      if (audioElement) {
+        audioElement.pause();
+        setCurrentlyPlaying(null);
+      }
+      return;
     }
+
+    try {
+      // Create new audio element if one doesn't exist
+      const audio = audioElement || new Audio();
+      
+      // Set new audio source
+      audio.src = track.audioUrl;
+      
+      // Play the audio
+      audio.play()
+        .then(() => {
+          setCurrentlyPlaying(track.id);
+          setAudioElement(audio);
+        })
+        .catch((err) => {
+          console.error('Error playing audio:', err);
+          setError('Failed to play audio');
+        });
+      
+      // When audio ends, reset the currently playing state
+      audio.onended = () => {
+        setCurrentlyPlaying(null);
+      };
+    } catch (err) {
+      console.error('Error with audio playback:', err);
+      setError('Failed to play audio');
+    }
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Unknown date';
+    
+    try {
+      const date = new Date(dateString);
+      return new Intl.DateTimeFormat('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      }).format(date);
+    } catch (err) {
+      console.error('Error formatting date:', err);
+      return 'Unknown date';
+    }
+  };
+
+  // Helper to determine which date field to use
+  const getDisplayDate = (track: AnyTrack): string | undefined => {
+    if ('downloadDate' in track) return track.downloadDate;
+    if ('createdAt' in track) return track.createdAt;
+    if ('uploadDate' in track) return track.uploadDate;
+    return undefined;
   };
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex justify-center items-center min-h-[400px] text-red-500">
-        <p>{error}</p>
+      <div className="bg-red-100 p-4 rounded-md">
+        <p className="text-red-600">Error: {error}</p>
+        <button 
+          className="mt-2 text-sm underline text-blue-600"
+          onClick={() => window.location.reload()}
+        >
+          Try again
+        </button>
       </div>
     );
   }
 
   if (tracks.length === 0) {
     return (
-      <div className="flex justify-center items-center min-h-[400px] text-gray-500">
-        <p>No tracks available at the moment.</p>
+      <div className="text-center p-8">
+        <p className="text-gray-500">No tracks found</p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 p-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       {tracks.map((track) => (
         <div 
           key={track.id} 
-          className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300"
+          className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300"
         >
           <div className="relative aspect-square">
             <Image
-              src={track.coverUrl}
-              alt={`${track.title} by ${track.artist}`}
+              src={getCoverImage(track)}
+              alt={`${track.title} cover art`}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               className="object-cover"
+              priority={parseInt(track.id) <= 3}
             />
             <button
-              onClick={() => handlePlayPause(track.id, track.audioUrl)}
-              className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 opacity-0 hover:opacity-100 transition-opacity duration-300"
-              aria-label={currentTrack === track.id ? `Pause ${track.title}` : `Play ${track.title}`}
-              tabIndex={0}
+              onClick={() => handlePlayPause(track)}
+              className="absolute inset-0 w-full h-full flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity duration-200"
+              aria-label={currentlyPlaying === track.id ? `Pause ${track.title}` : `Play ${track.title}`}
             >
-              {currentTrack === track.id ? (
-                <PauseIcon className="h-16 w-16 text-white" />
-              ) : (
-                <PlayIcon className="h-16 w-16 text-white" />
-              )}
+              <div className="bg-white/90 rounded-full p-4">
+                {currentlyPlaying === track.id ? (
+                  <PauseIcon className="h-6 w-6 text-purple-600" />
+                ) : (
+                  <PlayIcon className="h-6 w-6 text-purple-600" />
+                )}
+              </div>
             </button>
           </div>
           <div className="p-4">
-            <h3 className="font-bold text-lg truncate">{track.title}</h3>
-            <p className="text-gray-600 dark:text-gray-400 truncate">{track.artist}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-              {new Date(track.uploadDate).toLocaleDateString()}
-            </p>
+            <h3 className="font-bold text-lg line-clamp-1">{track.title}</h3>
+            <p className="text-gray-600">{track.artist}</p>
+            <p className="text-sm text-gray-500 mt-2">{formatDate(getDisplayDate(track))}</p>
           </div>
         </div>
       ))}
