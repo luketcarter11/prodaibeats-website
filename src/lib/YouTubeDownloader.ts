@@ -8,11 +8,10 @@ import { updateTracksData } from './scanTracks'
 import { Track } from '@/types/track'
 import { trackHistory } from './models/TrackHistory'
 import { getScheduler } from './models/Scheduler'
-import { uploadFileToR2 } from './r2Uploader'
+import { uploadFileToR2, fileExistsInR2 } from './r2Uploader'
+import { isProd, getR2PublicUrl, CDN_BASE_URL } from './r2Config'
 
 const execPromise = util.promisify(exec)
-const isProd = process.env.NODE_ENV === 'production';
-const CDN_BASE_URL = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://cdn.prodaibeats.com';
 
 interface DownloadResult {
   success: boolean
@@ -121,13 +120,27 @@ export class YouTubeDownloader {
           const audioR2Path = `audio/${trackId}.mp3`;
           const coverR2Path = `images/covers/${trackId}.jpg`;
           
-          await uploadFileToR2(audioFilePath, audioR2Path);
-          await uploadFileToR2(coverFilePath, coverR2Path);
+          // Check if the files already exist in R2
+          const audioExists = await fileExistsInR2(audioR2Path);
+          const coverExists = await fileExistsInR2(coverR2Path);
           
-          audioUrl = `${CDN_BASE_URL}/${audioR2Path}`;
-          coverUrl = `${CDN_BASE_URL}/${coverR2Path}`;
+          if (!audioExists) {
+            await uploadFileToR2(audioFilePath, audioR2Path);
+          } else {
+            console.log(`Audio file already exists in R2: ${audioR2Path}`);
+          }
           
-          console.log('Files uploaded to R2:', { audioUrl, coverUrl });
+          if (!coverExists) {
+            await uploadFileToR2(coverFilePath, coverR2Path);
+          } else {
+            console.log(`Cover file already exists in R2: ${coverR2Path}`);
+          }
+          
+          // Generate CDN URLs
+          audioUrl = getR2PublicUrl(audioR2Path);
+          coverUrl = getR2PublicUrl(coverR2Path);
+          
+          console.log('R2 file paths:', { audioUrl, coverUrl });
         } catch (uploadError) {
           console.error('Error uploading to R2:', uploadError);
           return {
@@ -170,7 +183,7 @@ export class YouTubeDownloader {
       fs.writeFileSync(metadataFilePath, JSON.stringify(fullMetadata, null, 2))
       
       // Add to track history
-      const trackUrl = `${CDN_BASE_URL}/tracks/${trackId}`;
+      const trackUrl = getR2PublicUrl(`tracks/${trackId}`);
       await trackHistory.addTrack({
         youtubeId,
         title: metadata.title,

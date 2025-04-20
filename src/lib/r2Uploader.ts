@@ -1,88 +1,97 @@
 import fs from 'fs';
 import path from 'path';
-import { S3Client, PutObjectCommand, ObjectCannedACL } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { R2_ENDPOINT, R2_BUCKET_NAME, getR2PublicUrl, hasR2Credentials } from './r2Config';
 
-// MIME type mapping for common file extensions
+// Mime type mapping for common file extensions
 const MIME_TYPES: Record<string, string> = {
   '.mp3': 'audio/mpeg',
+  '.m4a': 'audio/mp4',
   '.wav': 'audio/wav',
+  '.ogg': 'audio/ogg',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.png': 'image/png',
+  '.webp': 'image/webp',
   '.gif': 'image/gif',
   '.json': 'application/json',
-  '.txt': 'text/plain',
 };
 
 // Initialize S3 client with Cloudflare R2 credentials
-const r2Client = new S3Client({
+const s3Client = new S3Client({
   region: 'auto',
-  endpoint: process.env.R2_ENDPOINT || 'https://1992471ec8cc523889f80797e15a0529.r2.cloudflarestorage.com',
+  endpoint: process.env.R2_ENDPOINT || R2_ENDPOINT,
   credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID || 'c616c808af752cc71682ff6dc323a6c1',
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || 'bd63d4b189cf4cde3264d1ce7f4ad36f102f90486ed09c3eb50fc4dc533fff',
+    accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
   },
 });
 
-const BUCKET_NAME = process.env.R2_BUCKET || 'prodai-tracks';
-
 /**
- * Uploads a file to Cloudflare R2 storage
- * @param filepath Local file path to upload
- * @param key R2 object key (path within bucket)
- * @param contentType Optional MIME type, auto-detected if not provided
- * @returns Public URL of the uploaded file
+ * Upload a file to R2 storage
+ * @param filePath Local file path to upload
+ * @param r2Key Key (path) where to store the file in R2
+ * @returns Public URL for the uploaded file
  */
-export const uploadFileToR2 = async (
-  filepath: string,
-  key: string,
-  contentType?: string
-): Promise<string> => {
+export async function uploadFileToR2(filePath: string, r2Key: string): Promise<string> {
   try {
+    // Check if we have the required credentials
+    if (!hasR2Credentials()) {
+      throw new Error('R2 credentials not found in environment variables');
+    }
+
     // Check if file exists
-    if (!fs.existsSync(filepath)) {
-      throw new Error(`File not found at path: ${filepath}`);
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
     }
 
+    // Auto-detect content type based on file extension
+    const fileExtension = path.extname(filePath).toLowerCase();
+    const contentType = MIME_TYPES[fileExtension] || 'application/octet-stream';
+    
     // Read file content
-    const fileContent = fs.readFileSync(filepath);
+    const fileContent = fs.readFileSync(filePath);
     
-    // Auto-detect content type if not provided
-    let detectedContentType = contentType;
-    if (!detectedContentType) {
-      const ext = path.extname(filepath).toLowerCase();
-      detectedContentType = MIME_TYPES[ext] || 'application/octet-stream';
-    }
-
-    // Set upload parameters
-    const params = {
-      Bucket: BUCKET_NAME,
-      Key: key,
-      Body: fileContent,
-      ContentType: detectedContentType,
-      // Make object publicly accessible
-      ACL: 'public-read' as ObjectCannedACL,
-    };
-
     // Upload to R2
-    console.log(`Uploading file to R2: ${filepath} -> ${key}`);
-    await r2Client.send(new PutObjectCommand(params));
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: r2Key,
+        Body: fileContent,
+        ContentType: contentType,
+      })
+    );
     
-    // Construct and return the public URL
-    const publicUrl = `${process.env.R2_ENDPOINT || 'https://1992471ec8cc523889f80797e15a0529.r2.cloudflarestorage.com'}/${BUCKET_NAME}/${key}`;
-    console.log(`File uploaded successfully. Public URL: ${publicUrl}`);
-    return publicUrl;
+    console.log(`File uploaded to R2: ${r2Key}`);
+    
+    // Construct the public URL
+    return getR2PublicUrl(r2Key);
   } catch (error) {
-    console.error('R2 Upload Failed:', error);
+    console.error('Error uploading to R2:', error);
     throw error;
   }
-};
+}
 
 /**
- * Get the public URL for an object in R2
- * @param key R2 object key
- * @returns Public URL
+ * Check if a file exists in R2 storage
+ * @param r2Key Key (path) to check in R2
+ * @returns True if file exists, false otherwise
  */
-export const getR2PublicUrl = (key: string): string => {
-  return `${process.env.R2_ENDPOINT || 'https://1992471ec8cc523889f80797e15a0529.r2.cloudflarestorage.com'}/${BUCKET_NAME}/${key}`;
-}; 
+export async function fileExistsInR2(r2Key: string): Promise<boolean> {
+  try {
+    // Check if we have the required credentials
+    if (!hasR2Credentials()) {
+      return false;
+    }
+    
+    await s3Client.send(
+      new HeadObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: r2Key,
+      })
+    );
+    return true;
+  } catch (error) {
+    return false;
+  }
+} 
