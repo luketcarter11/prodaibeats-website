@@ -32,7 +32,7 @@ If you haven't already:
 Set the following environment variables:
 
 ```
-R2_ACCESS_KEY_ID=your_access_key_id
+R2_ACCESS_KEY_ID=3cb677b9b6722a66a2dc626c404d8c4e
 R2_SECRET_ACCESS_KEY=your_secret_access_key
 R2_ENDPOINT=https://your-account-id.r2.cloudflarestorage.com
 R2_BUCKET=prodai-tracks
