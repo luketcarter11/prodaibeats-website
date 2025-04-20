@@ -2,6 +2,7 @@
  * Cloudflare R2 Configuration
  * Shared constants and settings for R2 storage
  */
+import { S3Client } from '@aws-sdk/client-s3';
 
 // Use the exact S3 Compatible API endpoint for Cloudflare R2
 export const R2_ENDPOINT = 'https://1992471ec8cc52388f80797e15a0529.r2.cloudflarestorage.com';
@@ -22,6 +23,16 @@ export const isProd = process.env.VERCEL === '1' || process.env.NODE_ENV === 'pr
 export const hasR2Credentials = (): boolean => {
   return !!(process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY);
 };
+
+// Create a properly configured S3 client for R2
+export const r2Client = new S3Client({
+  region: 'auto', // Required, even though R2 ignores it
+  endpoint: process.env.R2_ENDPOINT || R2_ENDPOINT,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  },
+});
 
 // Get the public URL for an object in R2
 export const getR2PublicUrl = (key: string): string => {

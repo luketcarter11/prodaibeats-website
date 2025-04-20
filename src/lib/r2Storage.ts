@@ -1,11 +1,10 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, NoSuchKey } from '@aws-sdk/client-s3';
-import { R2_ENDPOINT, R2_BUCKET_NAME, isProd, hasR2Credentials } from './r2Config';
+import { PutObjectCommand, GetObjectCommand, NoSuchKey } from '@aws-sdk/client-s3';
+import { R2_BUCKET_NAME, isProd, hasR2Credentials, r2Client } from './r2Config';
 
 /**
  * R2-based storage system for saving application state to JSON files in Cloudflare R2
  */
 export class R2Storage {
-  private client: S3Client;
   private bucketName: string;
   private isReady: boolean;
 
@@ -15,16 +14,6 @@ export class R2Storage {
     
     // Log the initialization for debugging
     console.log(`🔧 Initializing R2Storage, isReady: ${this.isReady}, isProd: ${isProd}`);
-    
-    // Initialize S3 client with Cloudflare R2 credentials
-    this.client = new S3Client({
-      region: 'auto',
-      endpoint: process.env.R2_ENDPOINT || R2_ENDPOINT,
-      credentials: {
-        accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
-      },
-    });
     
     this.bucketName = R2_BUCKET_NAME;
   }
@@ -55,7 +44,7 @@ export class R2Storage {
       };
 
       // Upload to R2
-      await this.client.send(new PutObjectCommand(objectParams));
+      await r2Client.send(new PutObjectCommand(objectParams));
       console.log(`✅ Successfully saved data to R2: ${key}`);
     } catch (error) {
       console.error(`❌ Error saving to R2 (${key}):`, error);
@@ -85,7 +74,7 @@ export class R2Storage {
       };
 
       // Get object from R2
-      const response = await this.client.send(new GetObjectCommand(objectParams));
+      const response = await r2Client.send(new GetObjectCommand(objectParams));
       
       // Convert readable stream to string
       const chunks: Uint8Array[] = [];
