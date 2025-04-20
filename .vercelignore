@@ -1,17 +1,22 @@
 .github
 .git
 .vscode
-.env.local
-.env.*.local
 node_modules
 README.md
 *.log
 .DS_Store
 .cursor
 scripts
+.env.local
+.env.*.local
 .env.example
-# Exclude audio files to reduce deployment size
-tracks
-downloadTracks.js
-downloaded.json
-tracklist.json 
+
+# Allow everything under app/api/tracks
+# Only exclude top-level raw audio files if needed
+/downloadTracks.js
+/downloaded.json
+/tracklist.json
+
+# Ignore large local-only audio storage (if needed)
+public/tracks/*
+public/audio/*
