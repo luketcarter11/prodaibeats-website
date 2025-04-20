@@ -1,7 +1,5 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, NoSuchKey } from '@aws-sdk/client-s3';
-
-// Detect if we're in production (Vercel) or development
-const isProd = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
+import { R2_ENDPOINT, R2_BUCKET_NAME, isProd, hasR2Credentials } from './r2Config';
 
 /**
  * R2-based storage system for saving application state to JSON files in Cloudflare R2
@@ -12,14 +10,8 @@ export class R2Storage {
   private isReady: boolean;
 
   constructor() {
-    // Make sure we have environment variables
-    const hasRequiredCredentials = 
-      !!process.env.R2_ACCESS_KEY_ID && 
-      !!process.env.R2_SECRET_ACCESS_KEY &&
-      !!process.env.R2_ENDPOINT;
-
     // Set ready flag - only use R2 if we have credentials and are in production
-    this.isReady = isProd || hasRequiredCredentials;
+    this.isReady = isProd || hasR2Credentials();
     
     // Log the initialization for debugging
     console.log(`🔧 Initializing R2Storage, isReady: ${this.isReady}, isProd: ${isProd}`);
@@ -27,14 +19,14 @@ export class R2Storage {
     // Initialize S3 client with Cloudflare R2 credentials
     this.client = new S3Client({
       region: 'auto',
-      endpoint: process.env.R2_ENDPOINT,
+      endpoint: process.env.R2_ENDPOINT || R2_ENDPOINT,
       credentials: {
         accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
         secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
       },
     });
     
-    this.bucketName = process.env.R2_BUCKET || 'prodai-tracks';
+    this.bucketName = R2_BUCKET_NAME;
   }
 
   /**
