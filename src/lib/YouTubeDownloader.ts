@@ -448,104 +448,98 @@ export class YouTubeDownloader {
         sourceId
       )
       
-      // Create a temporary file for the video URLs
-      const tempFile = path.join(process.cwd(), 'data', `temp_urls_${Date.now()}.txt`)
+      // Use yt-dlp to get all video IDs from the channel or playlist, capturing stdout directly
+      let command = `yt-dlp --flat-playlist --get-id "${source.source}"`
+      console.log(`Executing command: ${command}`);
       
-      // Use yt-dlp to get all video URLs from the channel or playlist
-      let command
-      if (source.type === 'channel') {
-        command = `yt-dlp --flat-playlist --get-id "${source.source}" > "${tempFile}"`
-      } else { // playlist
-        command = `yt-dlp --flat-playlist --get-id "${source.source}" > "${tempFile}"`
-      }
-      
-      await execPromise(command)
-      
-      // Check if the file was created
-      if (!fs.existsSync(tempFile)) {
+      try {
+        // Execute command and capture stdout directly
+        const { stdout } = await execPromise(command);
+        
+        // Parse video IDs from stdout
+        const videoIds = stdout.trim().split('\n').filter(Boolean);
+        
+        // Add debugging log
+        console.log(`✅ yt-dlp extracted ${videoIds.length} video IDs successfully`);
+        if (videoIds.length > 0) {
+          console.log(`Sample IDs: ${videoIds.slice(0, 3).join(', ')}${videoIds.length > 3 ? '...' : ''}`);
+        }
+        
+        // Download each video
+        let downloaded = 0
+        let failed = 0
+        let skipped = 0
+        
+        for (const videoId of videoIds) {
+          // Check if this video has already been downloaded
+          const exists = await trackHistory.exists(videoId)
+          
+          if (exists) {
+            skipped++
+            continue
+          }
+          
+          // Construct the full URL
+          const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
+          
+          // Log before downloading
+          console.log(`🎧 Downloading audio for: ${videoId} (${videoUrl})`);
+          
+          // Download the track
+          const result = await this.downloadTrack(videoUrl, source.type, source.id)
+          
+          if (result.success) {
+            downloaded++
+            schedulerLog.addLog(
+              `Downloaded track: ${result.trackData?.title || videoId}`,
+              'success',
+              sourceId
+            )
+          } else {
+            failed++
+            schedulerLog.addLog(
+              `Failed to download track: ${videoId} - ${result.message}`,
+              'error',
+              sourceId
+            )
+          }
+        }
+        
+        // Update the last checked time
+        await schedulerInstance.updateSourceLastChecked(source.id)
+        
+        // Add final log entry
         schedulerLog.addLog(
-          `Failed to get video list from ${source.type}`,
-          'error',
+          `Completed download from ${source.type}. Downloaded: ${downloaded}, Failed: ${failed}, Skipped: ${skipped}`,
+          'info',
           sourceId
         )
         
+        // Add debugging log
+        console.log(`💾 Saved state to R2 for source: ${sourceId}`);
+        
+        return {
+          success: true,
+          message: `Completed download from ${source.type}`,
+          downloaded,
+          failed,
+          skipped
+        }
+      } catch (execError: any) {
+        console.error('Error executing yt-dlp command:', execError);
+        schedulerLog.addLog(
+          `Failed to extract video IDs from ${source.type}: ${execError.message || 'Unknown error'}`,
+          'error',
+          sourceId
+        );
+        
         return {
           success: false,
-          message: 'Failed to get video list',
+          message: `Error executing yt-dlp command: ${execError.message || 'Unknown error'}`,
           downloaded: 0,
           failed: 0,
           skipped: 0
-        }
-      }
-      
-      // Read the video URLs
-      const videoIds = fs.readFileSync(tempFile, 'utf8').split('\n').filter(Boolean)
-      
-      // Add debugging log
-      console.log("✅ yt-dlp returned video IDs:", videoIds);
-      
-      // Clean up
-      fs.unlinkSync(tempFile)
-      
-      // Download each video
-      let downloaded = 0
-      let failed = 0
-      let skipped = 0
-      
-      for (const videoId of videoIds) {
-        // Check if this video has already been downloaded
-        const exists = await trackHistory.exists(videoId)
-        
-        if (exists) {
-          skipped++
-          continue
-        }
-        
-        // Construct the full URL
-        const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
-        
-        // Log before downloading
-        console.log(`🎧 Downloading audio for: ${videoId} (${videoUrl})`);
-        
-        // Download the track
-        const result = await this.downloadTrack(videoUrl, source.type, source.id)
-        
-        if (result.success) {
-          downloaded++
-          schedulerLog.addLog(
-            `Downloaded track: ${result.trackData?.title || videoId}`,
-            'success',
-            sourceId
-          )
-        } else {
-          failed++
-          schedulerLog.addLog(
-            `Failed to download track: ${videoId} - ${result.message}`,
-            'error',
-            sourceId
-          )
-        }
-      }
-      
-      // Update the last checked time
-      await schedulerInstance.updateSourceLastChecked(source.id)
-      
-      // Add final log entry
-      schedulerLog.addLog(
-        `Completed download from ${source.type}. Downloaded: ${downloaded}, Failed: ${failed}, Skipped: ${skipped}`,
-        'info',
-        sourceId
-      )
-      
-      // Add debugging log
-      console.log(`💾 Saved state to R2 for source: ${sourceId}`);
-      
-      return {
-        success: true,
-        message: `Completed download from ${source.type}`,
-        downloaded,
-        failed,
-        skipped
+        };
       }
     } catch (error) {
       console.error('Error downloading all tracks:', error)
