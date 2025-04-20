@@ -315,3 +315,42 @@ pip install -U yt-dlp
 
 2. Check folder permissions for write access
 3. For YouTube rate limiting issues, try running the script later 
+
+# ProdAI Beats Platform
+
+A music marketplace platform for AI-generated beats with advanced track management features.
+
+## API Routes Structure
+
+The application uses Next.js App Router for organizing API routes. To avoid conflicts between routes in production, we follow these best practices:
+
+### Route Organization
+
+- `/api/tracks/*` - Main tracks API routes for accessing and managing tracks
+- `/api/tracks/scheduler/*` - Scheduler-related API routes (sources, status, run, toggle)
+- `/api/cron-jobs/*` - Cron job endpoints that should be called by external services
+
+### Route Conflicts Fix
+
+To prevent route conflicts in Next.js 13+ App Router, we've carefully structured nested routes to avoid having both a catch-all route and a more specific route at the same level. For example:
+
+❌ **Problematic Structure (Avoid This)**
+```
+/api/tracks/scheduler/route.ts
+/api/tracks/scheduler/status/route.ts
+/api/tracks/scheduler/run/route.ts
+```
+
+✅ **Correct Structure**
+```
+/api/tracks/scheduler/status/route.ts
+/api/tracks/scheduler/run/route.ts
+/api/tracks/scheduler/sources/route.ts
+/api/tracks/scheduler/toggle/route.ts
+```
+
+Note: We've moved the `/api/cron/scheduler` endpoint to `/api/cron-jobs/scheduler` to avoid potential conflicts with the tracks scheduler endpoints.
+
+## Setup and Configuration
+
+(Other sections of your README would go here) 
