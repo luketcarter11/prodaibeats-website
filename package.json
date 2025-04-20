@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "mkdir -p data && touch data/scheduler.json && echo '{\"active\":false,\"nextRun\":null,\"sources\":[],\"logs\":[]}' > data/scheduler.json && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "formatjs": "npx prettier --write 'src/**/*.js'"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.787.0",
