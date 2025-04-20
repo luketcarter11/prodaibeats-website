@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getScheduler } from '@/lib/models/Scheduler'
 
+// Mark this route as dynamic to ensure it's not statically optimized
+export const dynamic = 'force-dynamic'
+
 // Add a new source
 export async function POST(request: NextRequest) {
   try {
