@@ -1,9 +1,8 @@
 import { v4 as uuidv4 } from 'uuid'
-import { supabase } from '@/lib/supabaseClient' // ✅ Import the shared client
+import { fileStorage } from '@/lib/fileStorage'
 
-// Log the Supabase client to verify it's properly initialized
-console.log('🔄 Supabase client imported in Scheduler.ts:', 
-  supabase ? '✅ Client loaded successfully' : '❌ Client is undefined');
+// Log migration notice
+console.log('🔄 Scheduler now using local file storage')
 
 export interface SchedulerSource {
   id: string
@@ -41,109 +40,34 @@ export class Scheduler {
 
   async loadState(): Promise<void> {
     try {
-      console.log('📥 Loading scheduler state from Supabase...')
+      console.log('📥 Loading scheduler state from local file...')
       
-      // Check if supabase client is available
-      if (!supabase) {
-        console.error('❌ Cannot load state: Supabase client is null')
-        this.addLog('Error loading state: Supabase client is not available', 'error')
-        return
-      }
-      
-      console.log('🔍 Querying scheduler_state table with no auth restrictions...')
-      const { data, error } = await supabase
-        .from('scheduler_state')
-        .select('json_state')
-        .order('updated_at', { ascending: false })
-        .limit(1)
-
-      if (error) {
-        console.error('❌ Error loading scheduler state from Supabase:', error)
-        console.error('Error details:', {
-          message: error.message,
-          code: error.code,
-          hint: error.hint,
-          details: error.details
-        })
-        console.error('💡 This might be due to RLS policies - make sure RLS is disabled on the scheduler_state table')
-        
-        // Add to logs if state exists
-        if (this.state) {
-          this.addLog(`Error loading state: ${error.message}`, 'error')
-        }
-        return
-      }
-
-      console.log('✅ Received data from Supabase:', JSON.stringify(data))
-
-      if (!data || data.length === 0) {
-        console.log('ℹ️ No existing state found, using default state')
-        this.state = DEFAULT_STATE
-        await this.saveState()
-        return
-      }
-
       try {
-        const stateData = data[0].json_state
-        // Handle both string and object formats
-        if (typeof stateData === 'string') {
-          this.state = JSON.parse(stateData)
-        } else {
-          this.state = stateData
-        }
-        console.log('✅ Successfully parsed state:', JSON.stringify(this.state))
+        // Load state from file
+        this.state = await fileStorage.load<SchedulerState>('scheduler', DEFAULT_STATE)
+        console.log('✅ Successfully loaded state from file')
       } catch (parseError) {
-        console.error('❌ Error parsing JSON state:', parseError)
+        console.error('❌ Error loading state from file:', parseError)
         this.state = DEFAULT_STATE
-        this.addLog(`Error parsing state: ${parseError instanceof Error ? parseError.message : 'Invalid JSON'}`, 'error')
+        this.addLog(`Error loading state: ${parseError instanceof Error ? parseError.message : 'Invalid format'}`, 'error')
+        await this.saveState() // Save the default state
       }
     } catch (error) {
       console.error('❌ Unexpected error in loadState:', error)
-      console.error('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error)))
       this.addLog(`Unexpected error loading state: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error')
     }
   }
 
   async saveState(): Promise<boolean> {
     try {
-      console.log('📤 Saving scheduler state to Supabase...')
-      console.log('State being saved:', JSON.stringify(this.state))
+      console.log('📤 Saving scheduler state to local file...')
       
-      // Check if supabase client is available
-      if (!supabase) {
-        console.error('❌ Cannot save state: Supabase client is null')
-        this.addLog('Error saving state: Supabase client is not available', 'error')
-        return false
-      }
-      
-      console.log('💾 Inserting into scheduler_state table with RLS disabled...')
-      // Ensure we're inserting a valid object for JSONB, not a string
-      const { error } = await supabase
-        .from('scheduler_state')
-        .insert({ 
-          json_state: this.state,
-          updated_at: new Date().toISOString()
-        })
-
-      if (error) {
-        console.error('❌ Error saving scheduler state to Supabase:', error)
-        console.error('Error details:', {
-          message: error.message,
-          code: error.code,
-          hint: error.hint,
-          details: error.details
-        })
-        console.error('💡 Verify that RLS is disabled on the scheduler_state table in Supabase')
-        this.addLog(`Error saving state: ${error.message}`, 'error')
-        return false
-      }
-
-      console.log('✅ Successfully saved scheduler state')
+      await fileStorage.save('scheduler', this.state)
+      console.log('✅ Successfully saved scheduler state to file')
       return true
     } catch (error) {
-      console.error('❌ Unexpected error in saveState:', error)
-      console.error('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error)))
-      this.addLog(`Unexpected error saving state: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error')
+      console.error('❌ Error saving state to file:', error)
+      this.addLog(`Error saving state: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error')
       return false
     }
   }
@@ -250,38 +174,35 @@ export class Scheduler {
   }
 
   async updateNextRun() {
-    if (!this.state.active) return
-    this.state.nextRun = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-    await this.saveState()
+    if (this.state.active) {
+      this.state.nextRun = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      await this.saveState()
+    }
   }
 
   async updateSourceLastChecked(id: string) {
-    return this.updateSource(id, {
-      lastChecked: new Date().toISOString()
-    })
+    return this.updateSource(id, { lastChecked: new Date().toISOString() })
   }
 
   shouldRun(): boolean {
-    if (!this.state.active || !this.state.nextRun) return false
-    return new Date() >= new Date(this.state.nextRun)
+    return (
+      !!this.state.active &&
+      !!this.state.nextRun &&
+      new Date() >= new Date(this.state.nextRun)
+    )
   }
 }
 
-let schedulerInstance: Scheduler | null = null
+// Singleton instance
+let instance: Scheduler | null = null
+
 export const getScheduler = async (): Promise<Scheduler> => {
-  if (!schedulerInstance) {
-    schedulerInstance = new Scheduler()
-    await schedulerInstance.loadState()
+  if (!instance) {
+    instance = new Scheduler()
+    await instance.loadState()
   }
-  
-  return schedulerInstance
+  return instance
 }
 
-// Initialize the scheduler with the state loaded
-let scheduler: Scheduler | null = null;
-(async () => {
-  scheduler = await getScheduler()
-})();
-
-// Export the scheduler instance
-export { scheduler }
+// Export singleton for convenience
+export const scheduler = await getScheduler()
