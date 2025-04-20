@@ -13,7 +13,7 @@ export const R2_BUCKET_NAME = process.env.R2_BUCKET || 'prodai-beats-storage';
 export const SCHEDULER_STATE_KEY = 'scheduler/scheduler.json';
 
 // CDN Base URL
-export const CDN_BASE_URL = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
+export const CDN_BASE_URL = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f47laaa2labb935e98d.r2.dev';
 
 // Environment detection
 export const isProd = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
