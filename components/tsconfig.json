@@ -5,11 +5,12 @@
     "esModuleInterop": true,
     "baseUrl": "..",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*", "./types/*"],
+      "~/*": ["./*"]
     }
   },
   "include": [
     "**/*.ts",
     "**/*.tsx"
   ]
-} 
+}
