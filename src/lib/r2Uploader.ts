@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { S3Client, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
-import { R2_ENDPOINT, R2_BUCKET_NAME, getR2PublicUrl, hasR2Credentials } from './r2Config';
+import { PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { R2_BUCKET_NAME, getR2PublicUrl, hasR2Credentials, r2Client } from './r2Config';
 
 // Mime type mapping for common file extensions
 const MIME_TYPES: Record<string, string> = {
@@ -16,16 +16,6 @@ const MIME_TYPES: Record<string, string> = {
   '.gif': 'image/gif',
   '.json': 'application/json',
 };
-
-// Initialize S3 client with Cloudflare R2 credentials
-const s3Client = new S3Client({
-  region: 'auto',
-  endpoint: process.env.R2_ENDPOINT || R2_ENDPOINT,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
-  },
-});
 
 /**
  * Upload a file to R2 storage
@@ -53,7 +43,7 @@ export async function uploadFileToR2(filePath: string, r2Key: string): Promise<s
     const fileContent = fs.readFileSync(filePath);
     
     // Upload to R2
-    await s3Client.send(
+    await r2Client.send(
       new PutObjectCommand({
         Bucket: R2_BUCKET_NAME,
         Key: r2Key,
@@ -84,7 +74,7 @@ export async function fileExistsInR2(r2Key: string): Promise<boolean> {
       return false;
     }
     
-    await s3Client.send(
+    await r2Client.send(
       new HeadObjectCommand({
         Bucket: R2_BUCKET_NAME,
         Key: r2Key,
