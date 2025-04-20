@@ -2,11 +2,39 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Track } from '../src/types/track';
+import { Track } from '../types/track';
 import { PlayIcon, PauseIcon } from '@radix-ui/react-icons';
 
+// Define a type for tracks that might have different property names
+type SrcTrack = {
+  id: string;
+  title: string;
+  artist: string;
+  coverImage: string;
+  uploadDate: string;
+  audioUrl: string;
+  downloadDate?: string;
+  createdAt?: string;
+};
+
+// Union type to handle both track formats
+type AnyTrack = Track | SrcTrack;
+
+// Type guard to check which type of track we're dealing with
+function hasCoverUrl(track: AnyTrack): track is Track {
+  return 'coverUrl' in track;
+}
+
+// Helper function to get cover image regardless of track type
+function getCoverImage(track: AnyTrack): string {
+  if (hasCoverUrl(track)) {
+    return track.coverUrl || '/images/default-cover.jpg';
+  }
+  return track.coverImage || '/images/default-cover.jpg';
+}
+
 export default function TracksGrid() {
-  const [tracks, setTracks] = useState<Track[]>([]);
+  const [tracks, setTracks] = useState<AnyTrack[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
@@ -25,7 +53,7 @@ export default function TracksGrid() {
         const data = await response.json();
         
         // Handle different API response formats
-        let tracksList: Track[] = [];
+        let tracksList: AnyTrack[] = [];
         if (Array.isArray(data)) {
           tracksList = data;
         } else if (data.tracks && Array.isArray(data.tracks)) {
@@ -58,7 +86,7 @@ export default function TracksGrid() {
     };
   }, [audioElement]);
 
-  const handlePlayPause = (track: Track) => {
+  const handlePlayPause = (track: AnyTrack) => {
     if (currentlyPlaying === track.id) {
       // Pause current track
       if (audioElement) {
@@ -112,6 +140,14 @@ export default function TracksGrid() {
     }
   };
 
+  // Helper to determine which date field to use
+  const getDisplayDate = (track: AnyTrack): string | undefined => {
+    if ('downloadDate' in track) return track.downloadDate;
+    if ('createdAt' in track) return track.createdAt;
+    if ('uploadDate' in track) return track.uploadDate;
+    return undefined;
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -151,7 +187,7 @@ export default function TracksGrid() {
         >
           <div className="relative aspect-square">
             <Image
-              src={track.coverUrl || '/images/default-cover.jpg'}
+              src={getCoverImage(track)}
               alt={`${track.title} cover art`}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -175,7 +211,7 @@ export default function TracksGrid() {
           <div className="p-4">
             <h3 className="font-bold text-lg line-clamp-1">{track.title}</h3>
             <p className="text-gray-600">{track.artist}</p>
-            <p className="text-sm text-gray-500 mt-2">{formatDate(track.downloadDate || track.createdAt)}</p>
+            <p className="text-sm text-gray-500 mt-2">{formatDate(getDisplayDate(track))}</p>
           </div>
         </div>
       ))}
