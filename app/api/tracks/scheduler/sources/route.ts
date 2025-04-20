@@ -4,6 +4,12 @@ import { getScheduler } from '@/lib/models/Scheduler'
 // Mark this route as dynamic to ensure it's not statically optimized
 export const dynamic = 'force-dynamic'
 
+// Simple GET handler for debugging
+export async function GET() {
+  console.log('GET /api/tracks/scheduler/sources - Debug endpoint reached')
+  return NextResponse.json({ message: "Sources API endpoint is working", timestamp: new Date().toISOString() });
+}
+
 // Add a new source
 export async function POST(request: NextRequest) {
   try {
