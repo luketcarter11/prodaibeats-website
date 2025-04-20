@@ -1,7 +1,7 @@
-export const dynamic = 'force-dynamic'
-
 import { NextResponse } from 'next/server'
 import { getScheduler } from '@/lib/models/Scheduler'
+
+export const dynamic = 'force-dynamic'
 
 // Simple GET handler for debugging
 export async function GET() {
