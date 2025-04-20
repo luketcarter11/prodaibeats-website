@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getScheduler } from '@/lib/models/Scheduler'
 
+// Mark this route as dynamic to ensure it's not statically optimized
+export const dynamic = 'force-dynamic'
+
+// Simple GET handler for debugging
+export async function GET() {
+  console.log('GET /api/tracks/scheduler/toggle - Debug endpoint reached')
+  return NextResponse.json({ message: "Toggle API endpoint is working", timestamp: new Date().toISOString() });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()

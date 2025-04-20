@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server'
 import { YouTubeDownloader } from '@/lib/YouTubeDownloader'
 
+// Mark this route as dynamic to ensure it's not statically optimized
+export const dynamic = 'force-dynamic'
+
+// Simple GET handler for debugging
+export async function GET() {
+  console.log('GET /api/tracks/scheduler/run - Debug endpoint reached')
+  return NextResponse.json({ message: "Run API endpoint is working", timestamp: new Date().toISOString() });
+}
+
 export async function POST() {
   try {
     // This is an asynchronous operation that may take time
