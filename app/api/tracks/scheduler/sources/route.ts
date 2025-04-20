@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { scheduler, getScheduler } from '@/lib/models/Scheduler'
+import { getScheduler } from '@/lib/models/Scheduler'
 
 // Add a new source
 export async function POST(request: NextRequest) {
