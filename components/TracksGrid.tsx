@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import type { Track } from '../src/types/track';
+import type { Track } from '@/types/track';
 import { PlayIcon, PauseIcon } from '@radix-ui/react-icons';
 
 // Define a type for tracks that might have different property names
