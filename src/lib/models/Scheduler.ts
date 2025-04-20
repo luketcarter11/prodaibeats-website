@@ -1,8 +1,11 @@
 import { v4 as uuidv4 } from 'uuid'
-import { fileStorage } from '@/lib/fileStorage'
+import { r2Storage } from '@/lib/r2Storage'
 
 // Log migration notice
-console.log('🔄 Scheduler now using local file storage')
+console.log('🔄 Scheduler now using Cloudflare R2 for storage')
+
+// R2 storage path for scheduler data
+const SCHEDULER_KEY = 'scheduler/scheduler.json'
 
 export interface SchedulerSource {
   id: string
@@ -26,7 +29,7 @@ export interface SchedulerState {
   logs: SchedulerLog[]
 }
 
-const DEFAULT_STATE: SchedulerState = {
+export const DEFAULT_STATE: SchedulerState = {
   active: false,
   nextRun: null,
   sources: [],
@@ -40,14 +43,14 @@ export class Scheduler {
 
   async loadState(): Promise<void> {
     try {
-      console.log('📥 Loading scheduler state from local file...')
+      console.log('📥 Loading scheduler state from R2...')
       
       try {
-        // Load state from file
-        this.state = await fileStorage.load<SchedulerState>('scheduler', DEFAULT_STATE)
-        console.log('✅ Successfully loaded state from file')
+        // Load state from R2
+        this.state = await r2Storage.load<SchedulerState>(SCHEDULER_KEY, DEFAULT_STATE)
+        console.log('✅ Successfully loaded state from R2')
       } catch (parseError) {
-        console.error('❌ Error loading state from file:', parseError)
+        console.error('❌ Error loading state from R2:', parseError)
         this.state = DEFAULT_STATE
         this.addLog(`Error loading state: ${parseError instanceof Error ? parseError.message : 'Invalid format'}`, 'error')
         await this.saveState() // Save the default state
@@ -60,13 +63,13 @@ export class Scheduler {
 
   async saveState(): Promise<boolean> {
     try {
-      console.log('📤 Saving scheduler state to local file...')
+      console.log('📤 Saving scheduler state to R2...')
       
-      await fileStorage.save('scheduler', this.state)
-      console.log('✅ Successfully saved scheduler state to file')
+      await r2Storage.save(SCHEDULER_KEY, this.state)
+      console.log('✅ Successfully saved scheduler state to R2')
       return true
     } catch (error) {
-      console.error('❌ Error saving state to file:', error)
+      console.error('❌ Error saving state to R2:', error)
       this.addLog(`Error saving state: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error')
       return false
     }
