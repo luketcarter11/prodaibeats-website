@@ -1,4 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
 
 // For development: use public URLs if external storage is not yet set up
 const usePublicFallback = true;
@@ -104,17 +106,38 @@ const tracks = [
   }
 ];
 
-export async function GET() {
+/**
+ * API route for fetching all tracks
+ */
+export async function GET(request: NextRequest) {
   try {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Path to the tracks JSON file
+    const tracksFilePath = path.join(process.cwd(), 'tracklist.json');
     
-    return NextResponse.json({ tracks });
+    // Check if the tracks file exists
+    if (!fs.existsSync(tracksFilePath)) {
+      console.log('Tracks file not found:', tracksFilePath);
+      return NextResponse.json({ tracks: [] });
+    }
+    
+    // Read the tracks data
+    const tracksData = fs.readFileSync(tracksFilePath, 'utf8');
+    const tracks = JSON.parse(tracksData);
+    
+    // Log track count for debugging
+    console.log(`Loaded ${tracks.length} tracks from JSON file`);
+    
+    // Return all tracks
+    return NextResponse.json(tracks);
   } catch (error) {
-    console.error('Error in tracks API:', error);
-    return new NextResponse(JSON.stringify({ error: 'Failed to fetch tracks' }), { 
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    console.error('Error fetching tracks:', error);
+    
+    return NextResponse.json(
+      { 
+        error: 'Failed to fetch tracks',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    );
   }
 } 
