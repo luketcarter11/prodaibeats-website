@@ -22,9 +22,9 @@ The class is environment-aware and will:
 The R2 storage system uses the following environment variables:
 
 - `R2_ACCESS_KEY_ID` - 3cb677b9b6722a66a2dc626c404d8c4e
-- `R2_SECRET_ACCESS_KEY` - Your Cloudflare R2 secret access key
-- `R2_ENDPOINT` - The endpoint URL for your R2 bucket
-- `R2_BUCKET` - The name of your R2 bucket (defaults to 'prodai-tracks')
+- `R2_SECRET_ACCESS_KEY` - 4be2351ef455d794b1675a2fd8b57dfe6044fff21d85713dc9e8355fcdda
+- `R2_ENDPOINT` - https://1992471ec8cc523889f80797e15a0529.r2.cloudflarestorage.com
+- `R2_BUCKET` - prodai-beats-storage
 
 These variables should be set in your environment or in your `.env` file for local development.
 
