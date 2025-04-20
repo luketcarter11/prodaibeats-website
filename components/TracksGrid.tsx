@@ -2,13 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Track as BaseTrack } from '../types/track';
+import { Track } from '../src/types/track';
 import { PlayIcon, PauseIcon } from '@radix-ui/react-icons';
-
-// Extended Track type to handle both coverImage and coverUrl
-interface Track extends BaseTrack {
-  coverUrl?: string;
-}
 
 export default function TracksGrid() {
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -20,28 +15,42 @@ export default function TracksGrid() {
   useEffect(() => {
     const fetchTracks = async () => {
       try {
+        setLoading(true);
         const response = await fetch('/api/tracks');
         
         if (!response.ok) {
-          throw new Error('Failed to fetch tracks');
+          throw new Error(`Error: ${response.status}`);
         }
         
         const data = await response.json();
-        setTracks(data.tracks);
+        
+        // Handle different API response formats
+        let tracksList: Track[] = [];
+        if (Array.isArray(data)) {
+          tracksList = data;
+        } else if (data.tracks && Array.isArray(data.tracks)) {
+          tracksList = data.tracks;
+        } else {
+          throw new Error('Invalid response format');
+        }
+        
+        console.log('Tracks loaded:', tracksList.length);
+        setTracks(tracksList);
+        setError(null);
       } catch (err) {
-        setError('Failed to load tracks. Please try again later.');
+        setError(err instanceof Error ? err.message : 'Failed to fetch tracks');
         console.error('Error fetching tracks:', err);
       } finally {
         setLoading(false);
       }
     };
-
+    
     fetchTracks();
   }, []);
 
   useEffect(() => {
-    // Cleanup audio on component unmount
     return () => {
+      // Cleanup function
       if (audioElement) {
         audioElement.pause();
         audioElement.src = '';
@@ -54,46 +63,81 @@ export default function TracksGrid() {
       // Pause current track
       if (audioElement) {
         audioElement.pause();
+        setCurrentlyPlaying(null);
       }
-      setCurrentlyPlaying(null);
-    } else {
-      // Play new track
-      if (audioElement) {
-        audioElement.pause();
-      }
+      return;
+    }
+
+    try {
+      // Create new audio element if one doesn't exist
+      const audio = audioElement || new Audio();
       
-      const audio = new Audio(track.audioUrl);
-      audio.play();
-      audio.addEventListener('ended', () => setCurrentlyPlaying(null));
+      // Set new audio source
+      audio.src = track.audioUrl;
       
-      setAudioElement(audio);
-      setCurrentlyPlaying(track.id);
+      // Play the audio
+      audio.play()
+        .then(() => {
+          setCurrentlyPlaying(track.id);
+          setAudioElement(audio);
+        })
+        .catch((err) => {
+          console.error('Error playing audio:', err);
+          setError('Failed to play audio');
+        });
+      
+      // When audio ends, reset the currently playing state
+      audio.onended = () => {
+        setCurrentlyPlaying(null);
+      };
+    } catch (err) {
+      console.error('Error with audio playback:', err);
+      setError('Failed to play audio');
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Unknown date';
+    
+    try {
+      const date = new Date(dateString);
+      return new Intl.DateTimeFormat('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      }).format(date);
+    } catch (err) {
+      console.error('Error formatting date:', err);
+      return 'Unknown date';
+    }
   };
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="text-center p-4 bg-red-50 rounded-lg max-w-md">
-          <h3 className="text-lg font-semibold text-red-600 mb-2">Error</h3>
-          <p className="text-red-500">{error}</p>
-        </div>
+      <div className="bg-red-100 p-4 rounded-md">
+        <p className="text-red-600">Error: {error}</p>
+        <button 
+          className="mt-2 text-sm underline text-blue-600"
+          onClick={() => window.location.reload()}
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  if (tracks.length === 0) {
+    return (
+      <div className="text-center p-8">
+        <p className="text-gray-500">No tracks found</p>
       </div>
     );
   }
@@ -103,11 +147,11 @@ export default function TracksGrid() {
       {tracks.map((track) => (
         <div 
           key={track.id} 
-          className="bg-card rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300"
+          className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300"
         >
           <div className="relative aspect-square">
             <Image
-              src={track.coverImage || track.coverUrl || ''}
+              src={track.coverUrl || '/images/default-cover.jpg'}
               alt={`${track.title} cover art`}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -121,17 +165,17 @@ export default function TracksGrid() {
             >
               <div className="bg-white/90 rounded-full p-4">
                 {currentlyPlaying === track.id ? (
-                  <PauseIcon className="h-6 w-6 text-primary" />
+                  <PauseIcon className="h-6 w-6 text-purple-600" />
                 ) : (
-                  <PlayIcon className="h-6 w-6 text-primary" />
+                  <PlayIcon className="h-6 w-6 text-purple-600" />
                 )}
               </div>
             </button>
           </div>
           <div className="p-4">
             <h3 className="font-bold text-lg line-clamp-1">{track.title}</h3>
-            <p className="text-muted-foreground">{track.artist}</p>
-            <p className="text-sm text-muted-foreground mt-2">{formatDate(track.uploadDate)}</p>
+            <p className="text-gray-600">{track.artist}</p>
+            <p className="text-sm text-gray-500 mt-2">{formatDate(track.downloadDate || track.createdAt)}</p>
           </div>
         </div>
       ))}
