@@ -11,12 +11,10 @@ scripts
 .env.*.local
 .env.example
 
-# Allow everything under app/api/tracks
-# Only exclude top-level raw audio files if needed
 /downloadTracks.js
 /downloaded.json
 /tracklist.json
 
-# Ignore large local-only audio storage (if needed)
+# ✅ Ignore the contents of tracks but not the folder
 public/tracks/*
-public/audio/*
+!public/tracks/.keep
