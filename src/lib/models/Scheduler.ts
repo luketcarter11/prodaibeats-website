@@ -27,19 +27,60 @@ export interface SchedulerState {
   nextRun: string | null
   sources: SchedulerSource[]
   logs: SchedulerLog[]
+  downloadedTrackIds: string[] // Track IDs that have been downloaded
 }
 
 export const DEFAULT_STATE: SchedulerState = {
   active: false,
   nextRun: null,
   sources: [],
-  logs: []
+  logs: [],
+  downloadedTrackIds: []
 }
 
 export class Scheduler {
   private state: SchedulerState = DEFAULT_STATE
+  public initializationPromise: Promise<void>
 
-  constructor() {}
+  constructor() {
+    // Initialize asynchronously
+    this.initializationPromise = this.initialize()
+  }
+
+  private async initialize(): Promise<void> {
+    try {
+      console.log('🔧 Initializing Scheduler...')
+      
+      // Wait for R2Storage to be ready
+      await r2Storage.waitForReady()
+      console.log('✅ R2Storage is ready')
+      
+      // Load initial state
+      await this.loadState()
+      console.log('✅ Loaded scheduler state')
+      
+      // If no sources exist, add the default YouTube Music playlist
+      if (this.state.sources.length === 0) {
+        console.log('📌 Adding default YouTube Music playlist')
+        await this.addSource({
+          source: 'https://www.youtube.com/playlist?list=OLAK5uy_nC5Iu04SUxpwy7gh9VZ3wRy_-1HfxTIV8',
+          type: 'playlist'
+        })
+      }
+      
+      // If scheduler is active but nextRun is null, set it
+      if (this.state.active && !this.state.nextRun) {
+        this.state.nextRun = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        await this.saveState()
+        console.log('⏰ Set next run time for active scheduler')
+      }
+      
+      console.log('✅ Scheduler initialization complete')
+    } catch (error) {
+      console.error('❌ Failed to initialize Scheduler:', error)
+      this.addLog(`Failed to initialize: ${error instanceof Error ? error.message : String(error)}`, 'error')
+    }
+  }
 
   async loadState(): Promise<void> {
     try {
@@ -188,24 +229,41 @@ export class Scheduler {
   }
 
   shouldRun(): boolean {
-    return (
-      !!this.state.active &&
-      !!this.state.nextRun &&
-      new Date() >= new Date(this.state.nextRun)
-    )
+    const now = new Date()
+    const nextRun = this.state.nextRun ? new Date(this.state.nextRun) : null
+    
+    console.log('🔍 Scheduler check:', {
+      active: this.state.active,
+      nextRun: nextRun?.toISOString(),
+      now: now.toISOString(),
+      shouldRun: Boolean(this.state.active && nextRun && now >= nextRun)
+    })
+    
+    return Boolean(this.state.active && nextRun && now >= nextRun)
   }
 }
 
 // Singleton instance
 let instance: Scheduler | null = null
+let initializationPromise: Promise<Scheduler> | null = null
 
 export const getScheduler = async (): Promise<Scheduler> => {
-  if (!instance) {
-    instance = new Scheduler()
-    await instance.loadState()
+  if (!initializationPromise) {
+    initializationPromise = (async () => {
+      if (!instance) {
+        console.log('🔄 Creating new Scheduler instance')
+        instance = new Scheduler()
+        await instance.initializationPromise
+        console.log('✅ Scheduler instance initialized')
+      }
+      return instance
+    })()
   }
-  return instance
+  return initializationPromise
 }
 
-// Export singleton for convenience
-export const scheduler = await getScheduler()
+// Initialize scheduler but don't export the promise
+const initScheduler = getScheduler()
+
+// Export a function to get the initialized scheduler
+export const getInitializedScheduler = () => initScheduler

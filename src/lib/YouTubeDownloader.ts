@@ -36,9 +36,30 @@ export class YouTubeDownloader {
         }
       }
       
-      // Check if this track has already been downloaded
+      // Get scheduler instance
+      const scheduler = await getScheduler()
+      const state = scheduler.getState()
+      
+      // Check if track is already in downloadedTrackIds
+      if (state.downloadedTrackIds?.includes(youtubeId)) {
+        console.log(`⏭️ Skipping already downloaded track: ${youtubeId}`)
+        return {
+          success: false,
+          message: 'Track has already been downloaded',
+          youtubeId
+        }
+      }
+      
+      // Check if this track has already been downloaded (legacy check)
       const existingTrack = await trackHistory.getTrackByYoutubeId(youtubeId)
       if (existingTrack) {
+        // Add to downloadedTrackIds if found in legacy system
+        if (!state.downloadedTrackIds) {
+          state.downloadedTrackIds = []
+        }
+        state.downloadedTrackIds.push(youtubeId)
+        await scheduler.saveState()
+        
         return {
           success: false,
           message: 'Track has already been downloaded',
@@ -80,7 +101,12 @@ export class YouTubeDownloader {
       // Download metadata first to check if the track exists and get info
       const metadataResult = await this.downloadMetadata(url, metadataFilePath)
       if (!metadataResult.success) {
-        return metadataResult
+        console.log(`❌ Metadata error: ${metadataResult.message}`)
+        return {
+          success: false,
+          message: metadataResult.message,
+          youtubeId
+        }
       }
       
       // Check if the video is truly a music track (should have metadata for a music track)
@@ -110,122 +136,111 @@ export class YouTubeDownloader {
         return thumbnailResult
       }
       
-      // Define URLs based on environment
-      let audioUrl, coverUrl;
+      // Define R2 paths
+      const audioR2Path = `tracks/${trackId}.mp3`
+      const coverR2Path = `covers/${trackId}.jpg`
       
-      // In production, upload files to R2 and use CDN URLs
-      if (isProd) {
-        try {
-          // Upload files to R2
-          const audioR2Path = `audio/${trackId}.mp3`;
-          const coverR2Path = `images/covers/${trackId}.jpg`;
-          
-          // Check if the files already exist in R2
-          const audioExists = await fileExistsInR2(audioR2Path);
-          const coverExists = await fileExistsInR2(coverR2Path);
-          
-          console.log(`📦 Uploading to R2: audio=${audioFilePath}, cover=${coverFilePath}`);
-          
-          if (!audioExists) {
-            await uploadFileToR2(audioFilePath, audioR2Path);
-          } else {
-            console.log(`Audio file already exists in R2: ${audioR2Path}`);
-          }
-          
-          if (!coverExists) {
-            await uploadFileToR2(coverFilePath, coverR2Path);
-          } else {
-            console.log(`Cover file already exists in R2: ${coverR2Path}`);
-          }
-          
-          // Generate CDN URLs
-          audioUrl = getR2PublicUrl(audioR2Path);
-          coverUrl = getR2PublicUrl(coverR2Path);
-          
-          console.log('R2 file paths:', { audioUrl, coverUrl });
-        } catch (uploadError) {
-          console.error('Error uploading to R2:', uploadError);
-          return {
-            success: false,
-            message: 'Failed to upload files to R2 storage'
-          };
+      // Upload files to R2
+      console.log(`📦 Uploading to R2: audio=${audioR2Path}, cover=${coverR2Path}`)
+      
+      try {
+        // Upload audio file
+        const audioBuffer = fs.readFileSync(audioFilePath)
+        await uploadFileToR2(audioFilePath, audioR2Path)
+        console.log(`✅ Uploaded audio to R2: ${audioR2Path}`)
+        
+        // Download and upload thumbnail
+        const imageRes = await fetch(metadata.thumbnail)
+        const imageBuffer = Buffer.from(await imageRes.arrayBuffer())
+        await uploadFileToR2(coverFilePath, coverR2Path)
+        console.log(`✅ Uploaded cover to R2: ${coverR2Path}`)
+        
+        // Generate public URLs
+        const audioUrl = getR2PublicUrl(audioR2Path)
+        const coverUrl = getR2PublicUrl(coverR2Path)
+        
+        // Create track data
+        const trackData = {
+          id: trackId,
+          title: metadata.title,
+          artist: metadata.artist,
+          coverUrl: coverUrl,
+          price: 12.99,
+          bpm: 0,
+          key: 'Unknown',
+          duration: metadata.duration,
+          tags: metadata.tags,
+          audioUrl: audioUrl,
+          licenseType: 'Non-Exclusive'
         }
-      } else {
-        // In development, use local file paths
-        audioUrl = `/audio/${trackId}.mp3`;
-        coverUrl = `/images/covers/${trackId}.jpg`;
-      }
-      
-      // Create track data
-      const trackData = {
-        id: trackId,
-        title: metadata.title,
-        artist: metadata.artist,
-        coverUrl: coverUrl,
-        price: 12.99, // Default to the usual price
-        bpm: 0,  // Will be set during import
-        key: 'Unknown',  // Will be set during import
-        duration: metadata.duration || '0:00',
-        tags: metadata.tags || [],
-        audioUrl: audioUrl,
-        licenseType: 'Non-Exclusive' // Default license type
-      }
-      
-      // Save full metadata to the JSON file
-      const fullMetadata = {
-        ...metadata,
-        trackId,
-        youtubeId,
-        audioUrl: audioUrl,
-        coverUrl: coverUrl,
-        sourceUrl: url,
-        downloadDate: new Date().toISOString()
-      }
-      
-      fs.writeFileSync(metadataFilePath, JSON.stringify(fullMetadata, null, 2))
-      
-      // Add to track history
-      const trackUrl = getR2PublicUrl(`tracks/${trackId}`);
-      await trackHistory.addTrack({
-        youtubeId,
-        title: metadata.title,
-        artist: metadata.artist,
-        sourceUrl: url,
-        localPath: {
-          audio: audioFilePath,
-          cover: coverFilePath,
-          metadata: metadataFilePath
-        },
-        websiteUrl: trackUrl,
-        websiteId: trackId,
-        sourceType,
-        sourceId
-      })
-      
-      // Add to tracks data
-      await updateTracksData([trackData as Track])
-      
-      // Clean up temp files in production
-      if (isProd) {
-        try {
-          fs.unlinkSync(audioFilePath);
-          fs.unlinkSync(coverFilePath);
-          fs.unlinkSync(metadataFilePath);
-          
-          const tempDir = path.dirname(audioFilePath);
-          fs.rmdirSync(tempDir);
-        } catch (cleanupError) {
-          console.warn('Error cleaning up temp files:', cleanupError);
-          // Non-fatal, continue
+        
+        // Save full metadata
+        const fullMetadata = {
+          ...metadata,
+          trackId,
+          youtubeId,
+          audioUrl,
+          coverUrl,
+          sourceUrl: url,
+          downloadDate: new Date().toISOString()
         }
-      }
-      
-      return {
-        success: true,
-        message: 'Track downloaded successfully',
-        trackId,
-        youtubeId,
-        trackData
+        
+        fs.writeFileSync(metadataFilePath, JSON.stringify(fullMetadata, null, 2))
+        
+        // Add to track history
+        await trackHistory.addTrack({
+          youtubeId,
+          title: metadata.title,
+          artist: metadata.artist,
+          sourceUrl: url,
+          localPath: {
+            audio: audioFilePath,
+            cover: coverFilePath,
+            metadata: metadataFilePath
+          },
+          websiteUrl: audioUrl,
+          websiteId: trackId,
+          sourceType,
+          sourceId
+        })
+        
+        // Add to tracks data
+        await updateTracksData([trackData as Track])
+        
+        // Add to downloadedTrackIds
+        if (!state.downloadedTrackIds) {
+          state.downloadedTrackIds = []
+        }
+        state.downloadedTrackIds.push(youtubeId)
+        await scheduler.saveState()
+        
+        // Clean up temp files in production
+        if (isProd) {
+          try {
+            fs.unlinkSync(audioFilePath)
+            fs.unlinkSync(coverFilePath)
+            fs.unlinkSync(metadataFilePath)
+            
+            const tempDir = path.dirname(audioFilePath)
+            fs.rmdirSync(tempDir)
+          } catch (cleanupError) {
+            console.warn('Error cleaning up temp files:', cleanupError)
+          }
+        }
+        
+        return {
+          success: true,
+          message: 'Track downloaded and uploaded successfully',
+          trackId,
+          youtubeId,
+          trackData
+        }
+      } catch (uploadError) {
+        console.error('Error uploading to R2:', uploadError)
+        return {
+          success: false,
+          message: 'Failed to upload files to R2 storage'
+        }
       }
     } catch (error) {
       console.error('Error downloading track:', error)
@@ -279,72 +294,44 @@ export class YouTubeDownloader {
    */
   private static async downloadMetadata(url: string, outputPath: string): Promise<{ success: boolean; message: string; metadata?: any }> {
     try {
-      // Create a temporary file for the metadata
-      const tempFile = path.join(process.cwd(), 'data', `temp_${Date.now()}.json`)
+      // Get metadata using JSON output format
+      const { stdout } = await execPromise(`yt-dlp --print-json --skip-download ${url}`)
+      const metadata = JSON.parse(stdout)
       
-      // Use yt-dlp to get metadata
-      const command = `yt-dlp --skip-download --print-json --no-warnings "${url}" > "${tempFile}"`
-      
-      await execPromise(command)
-      
-      // Check if the file was created
-      if (!fs.existsSync(tempFile)) {
+      // Validate duration - skip if too short (likely not a full track)
+      if (!metadata.duration || metadata.duration < 30) {
         return {
           success: false,
-          message: 'Failed to download metadata'
+          message: 'Track too short (less than 30 seconds) - likely not a full track'
         }
       }
       
-      // Read the metadata
-      const metadataRaw = fs.readFileSync(tempFile, 'utf8')
-      let metadata
-      
-      try {
-        metadata = JSON.parse(metadataRaw)
-      } catch (e) {
-        fs.unlinkSync(tempFile)
-        return {
-          success: false,
-          message: 'Invalid metadata format'
-        }
-      }
-      
-      // Extract relevant music metadata
-      const extractedMetadata = {
-        title: metadata.title || '',
-        artist: metadata.artist || metadata.uploader || '',
-        album: metadata.album || '',
-        duration: this.formatDuration(metadata.duration || 0),
+      // Extract relevant fields
+      const processedMetadata = {
+        title: metadata.title,
+        artist: metadata.uploader || 'Unknown Artist',
+        duration: this.formatDuration(metadata.duration),
+        thumbnail: metadata.thumbnail,
         tags: metadata.tags || [],
-        uploadDate: metadata.upload_date || '',
-        description: metadata.description || '',
-        originalUrl: url,
-        youtubeId: metadata.id || ''
+        upload_date: metadata.upload_date,
+        uploader_id: metadata.uploader_id,
+        track: metadata.track,
+        album: metadata.album
       }
       
-      // If there's no artist but there's a title with a hyphen, try to extract artist from title
-      if (!extractedMetadata.artist && extractedMetadata.title.includes(' - ')) {
-        const parts = extractedMetadata.title.split(' - ')
-        extractedMetadata.artist = parts[0].trim()
-        extractedMetadata.title = parts.slice(1).join(' - ').trim()
-      }
-      
-      // Save the extracted metadata
-      fs.writeFileSync(outputPath, JSON.stringify(extractedMetadata, null, 2))
-      
-      // Clean up
-      fs.unlinkSync(tempFile)
+      // Save metadata to file
+      fs.writeFileSync(outputPath, JSON.stringify(processedMetadata, null, 2))
       
       return {
         success: true,
         message: 'Metadata downloaded successfully',
-        metadata: extractedMetadata
+        metadata: processedMetadata
       }
     } catch (error) {
       console.error('Error downloading metadata:', error)
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'An unknown error occurred'
+        message: error instanceof Error ? error.message : 'Failed to download metadata'
       }
     }
   }
@@ -354,6 +341,8 @@ export class YouTubeDownloader {
    */
   private static async downloadAudio(url: string, outputPath: string): Promise<{ success: boolean; message: string }> {
     try {
+      console.log(`🔊 Downloading audio from ${url}`)
+      
       // Use yt-dlp to download audio
       const command = `yt-dlp -x --audio-format mp3 --audio-quality 0 -o "${outputPath.replace(/\.mp3$/, '')}.%(ext)s" "${url}"`
       
@@ -385,6 +374,8 @@ export class YouTubeDownloader {
    */
   private static async downloadThumbnail(url: string, outputPath: string): Promise<{ success: boolean; message: string }> {
     try {
+      console.log(`🖼️ Downloading thumbnail from ${url}`)
+      
       // Use yt-dlp to download thumbnail
       const command = `yt-dlp --skip-download --write-thumbnail --convert-thumbnails jpg -o "${outputPath.replace(/\.jpg$/, '')}" "${url}"`
       

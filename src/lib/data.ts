@@ -1,4 +1,5 @@
 import { Track } from '@/types/track'
+import { r2Storage } from './r2Storage'
 
 export interface LicenseTier {
   name: string
@@ -27,81 +28,98 @@ const sampleTrack: Track = {
   licenseType: 'Non-Exclusive'
 }
 
-// Cache tracks with expiration
-let cachedTracks: Track[] | null = null
-let cacheTimestamp: number | null = null
-const CACHE_DURATION = 60 * 1000 // 1 minute in milliseconds
-
-/**
- * Fetch tracks from the API instead of importing them directly
- * @returns Array of tracks from API
- */
-const fetchTracksData = async (): Promise<Track[]> => {
-  try {
-    // Check cache first
-    const now = Date.now()
-    if (cachedTracks && cacheTimestamp && (now - cacheTimestamp < CACHE_DURATION)) {
-      console.log('Using cached tracks data')
-      return cachedTracks
-    }
-
-    // Fetch fresh data from our API endpoint
-    console.log('Fetching tracks from API endpoint')
-    const response = await fetch('/api/tracks')
-    
-    if (!response.ok) {
-      console.error('Error fetching tracks from API:', response.statusText)
-      return [sampleTrack]
-    }
-    
-    const tracksData = await response.json()
-    
-    // Format tracks to match our Track interface
-    const formattedTracks = tracksData.map((track: any) => ({
-      id: track.videoId || track.id || track.slug,
-      title: track.title,
-      artist: track.artist || 'ProDAI',
-      coverUrl: track.coverImage || track.cover || `${CDN_BASE_URL}/images/tracks/${track.slug}/cover.jpg`,
-      price: track.price || 29.99,
-      bpm: track.bpm || 140,
-      key: track.key || 'Am',
-      duration: track.duration || '0:00',
-      tags: track.tags || ['UK Drill', 'Beat'],
-      audioUrl: track.audioUrl || track.audio || `${CDN_BASE_URL}/audio/${track.slug}/${track.slug}.mp3`,
-      licenseType: track.licenseType || 'Non-Exclusive',
-      slug: track.slug,
-      videoId: track.videoId,
-      downloadDate: track.downloadDate
-    }))
-    
-    // Update cache
-    cachedTracks = formattedTracks
-    cacheTimestamp = now
-    
-    return formattedTracks
-  } catch (error) {
-    console.error('Error processing tracks data:', error)
-    return [sampleTrack]
-  }
+interface R2Object {
+  Key?: string
+  LastModified?: Date
+  ETag?: string
+  Size?: number
 }
 
-// Client-side compatible track fetching
+// Cache tracks with expiration
+let cachedTracks: Track[] | null = null
+let lastFetchTime = 0
+const CACHE_DURATION = 60000 // 1 minute cache
+
+// Client-side promise cache
 let clientTracksPromise: Promise<Track[]> | null = null
 
 /**
  * Get tracks data - handles both client and server environments
+ * @returns Array of tracks from R2 storage
  */
-export const getTracksData = async (): Promise<Track[]> => {
+export async function getTracksData(): Promise<Track[]> {
   // On client-side, we use a singleton promise to avoid multiple fetches
   if (typeof window !== 'undefined') {
     if (!clientTracksPromise) {
-      clientTracksPromise = fetchTracksData()
+      clientTracksPromise = fetchTracksFromR2()
     }
     return clientTracksPromise
   }
   
-  // On server-side, fetch fresh every time
-  return fetchTracksData()
+  // On server-side, check cache first
+  const now = Date.now()
+  if (cachedTracks && (now - lastFetchTime) < CACHE_DURATION) {
+    return cachedTracks
+  }
+
+  return fetchTracksFromR2()
+}
+
+/**
+ * Internal function to fetch tracks from R2 storage
+ */
+async function fetchTracksFromR2(): Promise<Track[]> {
+  try {
+    // Load tracks list from R2
+    const tracksList = await r2Storage.load<string[]>('tracks/list.json', [])
+    
+    // Construct track objects from the list
+    const tracks = await Promise.all(
+      tracksList.map(async trackId => {
+        // Get track metadata from R2
+        const metadata = await r2Storage.load(`metadata/${trackId}.json`, null)
+        const trackData = metadata ? JSON.parse(metadata) : null
+
+        if (!trackData) return null
+
+        return {
+          id: trackId,
+          title: trackData.title || 'Untitled',
+          artist: trackData.artist || 'Unknown Artist',
+          coverUrl: `${process.env.NEXT_PUBLIC_CDN_URL}/covers/${trackId}.jpg`,
+          audioUrl: `${process.env.NEXT_PUBLIC_CDN_URL}/tracks/${trackId}.mp3`,
+          price: trackData.price || 0,
+          bpm: trackData.bpm || 0,
+          key: trackData.key || 'Unknown',
+          duration: trackData.duration || '0:00',
+          tags: trackData.tags || [],
+          description: trackData.description || '',
+          downloadDate: trackData.uploadDate || new Date().toISOString(),
+          waveform: trackData.waveform,
+          licenseType: trackData.licenseType,
+          createdAt: trackData.createdAt,
+          plays: trackData.plays,
+          slug: trackData.slug,
+          videoId: trackData.videoId
+        } as Track
+      })
+    )
+
+    // Filter out null values and sort by download date
+    const validTracks = tracks
+      .filter((track): track is Track => track !== null)
+      .sort((a, b) => new Date(b.downloadDate || '').getTime() - new Date(a.downloadDate || '').getTime())
+
+    // Update cache
+    cachedTracks = validTracks
+    lastFetchTime = Date.now()
+    
+    return validTracks
+  } catch (error) {
+    console.error('Error fetching tracks from R2:', error)
+    // Return cached data if available, otherwise empty array
+    return cachedTracks || []
+  }
 }
 
 /**

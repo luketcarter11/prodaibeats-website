@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { getTracksData } from '@/lib/data';
 
 // For development: use public URLs if external storage is not yet set up
 const usePublicFallback = true;
@@ -111,36 +112,8 @@ const tracks = [
  */
 export async function GET(request: NextRequest) {
   try {
-    let tracksData = [];
-    
-    // In production, don't attempt local file operations
-    if (process.env.NODE_ENV === 'production') {
-      console.log('In production environment, using fallback data');
-      return NextResponse.json(tracks);
-    }
-    
-    // Only for development: try to read from local file
-    try {
-      // Path to the tracks JSON file
-      const tracksFilePath = path.join(process.cwd(), 'tracklist.json');
-      
-      // Check if the tracks file exists
-      if (fs.existsSync(tracksFilePath)) {
-        // Read the tracks data
-        const rawData = fs.readFileSync(tracksFilePath, 'utf8');
-        tracksData = JSON.parse(rawData);
-        
-        // Log track count for debugging
-        console.log(`Loaded ${tracksData.length} tracks from JSON file`);
-      } else {
-        console.log('Tracks file not found, using fallback data');
-        tracksData = tracks;
-      }
-    } catch (fileError) {
-      console.error('Error reading local tracks file:', fileError);
-      // Fallback to hardcoded tracks
-      tracksData = tracks;
-    }
+    // Use the centralized getTracksData function
+    const tracksData = await getTracksData();
     
     // Return tracks data
     return NextResponse.json(tracksData);
