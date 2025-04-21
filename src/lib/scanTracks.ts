@@ -2,6 +2,7 @@ import fs from 'fs'
 import { promises as fsPromises } from 'fs'
 import path from 'path'
 import { Track } from '@/types/track'
+import { r2Storage } from '@/lib/r2Storage'
 
 /**
  * Scans the local tracks directories to find all downloaded and imported tracks
@@ -118,63 +119,43 @@ export async function scanLocalTracks(): Promise<Track[]> {
 }
 
 /**
- * Updates the data.ts file with the tracks found by scanning
+ * Updates the tracks data in R2 storage
  */
 export async function updateTracksData(tracks: Track[]): Promise<boolean> {
   try {
-    const dataFilePath = path.join(process.cwd(), 'src', 'lib', 'data.ts')
-    
-    // Read the existing data.ts file
-    let dataFileContent: string
-    try {
-      dataFileContent = fs.readFileSync(dataFilePath, 'utf8')
-    } catch (error) {
-      console.error('Could not read the data.ts file:', error)
-      return false
-    }
-    
-    // Find the tracks array in the file
-    const tracksArrayStartRegex = /const tracks: Track\[\] = \[/
-    const tracksArrayEndRegex = /\]\n\nexport function getTrackBySlug/
-    
-    const startMatch = tracksArrayStartRegex.exec(dataFileContent)
-    const endMatch = tracksArrayEndRegex.exec(dataFileContent)
-    
-    if (!startMatch || !endMatch) {
-      console.error('Could not find the tracks array in data.ts')
-      return false
-    }
-    
-    // Format the tracks as JavaScript objects
-    const tracksCode = tracks.map(track => `
-  {
-    id: '${track.id}',
-    title: '${track.title.replace(/'/g, "\\'")}',
-    artist: '${track.artist.replace(/'/g, "\\'")}',
-    coverUrl: '${track.coverUrl}',
-    price: ${track.price},
-    bpm: ${track.bpm},
-    key: '${track.key}',
-    duration: '${track.duration}',
-    tags: [${track.tags.map(tag => `'${tag.replace(/'/g, "\\'")}'`).join(', ')}],
-    audioUrl: '${track.audioUrl}'
-  },`).join('')
-    
-    // Replace the existing tracks array with the new one
-    const startIndex = startMatch.index + startMatch[0].length
-    const endIndex = endMatch.index
-    
-    const updatedContent = 
-      dataFileContent.substring(0, startIndex) + 
-      tracksCode + 
-      dataFileContent.substring(endIndex)
-    
-    // Write the updated content back to the file
-    fs.writeFileSync(dataFilePath, updatedContent, 'utf8')
-    
+    // Save each track's metadata to R2
+    await Promise.all(tracks.map(async (track) => {
+      const metadata = {
+        title: track.title,
+        artist: track.artist,
+        price: track.price,
+        bpm: track.bpm,
+        key: track.key,
+        duration: track.duration,
+        tags: track.tags,
+        description: track.description || '',
+        uploadDate: track.downloadDate || new Date().toISOString(),
+        waveform: track.waveform,
+        licenseType: track.licenseType,
+        createdAt: track.createdAt,
+        plays: track.plays,
+        slug: track.slug,
+        videoId: track.videoId
+      }
+
+      // Save metadata
+      await r2Storage.save(`metadata/${track.id}.json`, JSON.stringify(metadata))
+    }))
+
+    // Update the tracks list with deduplication
+    const existing = await r2Storage.load<string[]>('tracks/list.json', [])
+    const newIds = tracks.map(track => track.id)
+    const merged = Array.from(new Set([...existing, ...newIds]))
+    await r2Storage.save('tracks/list.json', JSON.stringify(merged))
+
     return true
   } catch (error) {
-    console.error('Error updating tracks data:', error)
+    console.error('Error updating tracks data in R2:', error)
     return false
   }
 }

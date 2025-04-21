@@ -3,6 +3,7 @@ import { promisify } from 'util'
 import fs from 'fs'
 import path from 'path'
 import { getScheduler } from './models/Scheduler'
+import { YouTubeDownloader } from './YouTubeDownloader'
 
 const execAsync = promisify(exec)
 
@@ -19,23 +20,27 @@ interface YouTubeDownloadResult {
  * if the scheduler should run and download new tracks.
  */
 export async function checkAndRunScheduler(): Promise<void> {
-  const scheduler = getScheduler()
-  
-  // Check if scheduler should run
-  if (!scheduler.shouldRun()) {
-    console.log('Scheduler check: Not scheduled to run yet')
-    return
-  }
-  
-  console.log('Running scheduled YouTube Music check')
-  scheduler.addLog('Running scheduled YouTube Music check', 'info')
-  
   try {
+    console.log('🔄 Starting scheduler check...')
+    
+    // Get the scheduler instance and wait for it to be fully initialized
+    const scheduler = await getScheduler()
+    console.log('✅ Scheduler instance ready')
+  
+    // Check if scheduler should run
+    if (!scheduler.shouldRun()) {
+      console.log('⏱️ Scheduler check: Not scheduled to run yet')
+      return
+    }
+  
+    console.log('🚀 Running scheduled YouTube Music check')
+    scheduler.addLog('Running scheduled YouTube Music check', 'info')
+  
     // Get all active sources
     const sources = scheduler.getActiveSources()
     
     if (sources.length === 0) {
-      console.log('No active sources to check')
+      console.log('⚠️ No active sources to check')
       scheduler.addLog('No active sources to check', 'info')
       return
     }
@@ -43,7 +48,7 @@ export async function checkAndRunScheduler(): Promise<void> {
     // Process each source
     for (const source of sources) {
       try {
-        console.log(`Checking source: ${source.source}`)
+        console.log(`🔍 Checking source: ${source.source}`)
         scheduler.addLog(`Checking source: ${source.source}`, 'info', source.id)
         
         // Get last check time
@@ -53,149 +58,143 @@ export async function checkAndRunScheduler(): Promise<void> {
         const newTracks = await checkForNewTracks(source.source, source.type, lastChecked)
         
         if (newTracks.length === 0) {
-          console.log(`No new tracks found for ${source.source}`)
+          console.log(`✅ No new tracks found for ${source.source}`)
           scheduler.addLog(`No new tracks found`, 'info', source.id)
         } else {
-          console.log(`Found ${newTracks.length} new tracks for ${source.source}`)
+          console.log(`🎵 Found ${newTracks.length} new tracks for ${source.source}`)
           scheduler.addLog(`Found ${newTracks.length} new tracks`, 'success', source.id)
           
           // Download each track
-          for (const track of newTracks) {
+          for (const trackId of newTracks) {
             try {
-              await downloadTrack(track)
-              scheduler.addLog(`Downloaded: ${track}`, 'success', source.id)
+              const result = await YouTubeDownloader.downloadTrack(
+                `https://www.youtube.com/watch?v=${trackId}`,
+                source.type,
+                source.id
+              )
+              
+              if (result.success) {
+                console.log(`✅ Downloaded track: ${result.trackData?.title}`)
+                scheduler.addLog(`Downloaded: ${result.trackData?.title}`, 'success', source.id)
+              } else {
+                console.log(`⏭️ Skipped track: ${result.message}`)
+                scheduler.addLog(`Skipped: ${result.message}`, 'info', source.id)
+              }
             } catch (error) {
-              console.error(`Error downloading track ${track}:`, error)
-              scheduler.addLog(`Failed to download: ${track}`, 'error', source.id)
+              console.error(`❌ Error downloading track ${trackId}:`, error)
+              scheduler.addLog(`Failed to download: ${trackId}`, 'error', source.id)
             }
           }
         }
         
         // Update last checked time
-        scheduler.updateSourceLastChecked(source.id)
+        await scheduler.updateSourceLastChecked(source.id)
       } catch (error) {
-        console.error(`Error processing source ${source.source}:`, error)
+        console.error(`❌ Error processing source ${source.source}:`, error)
         scheduler.addLog(`Error checking source: ${error instanceof Error ? error.message : String(error)}`, 'error', source.id)
       }
     }
     
     // Update next run time
-    scheduler.updateNextRun()
-    console.log('Scheduler run completed')
+    await scheduler.updateNextRun()
+    console.log('✅ Scheduler run completed')
     scheduler.addLog('Scheduler run completed', 'info')
   } catch (error) {
-    console.error('Error running scheduler:', error)
-    scheduler.addLog(`Scheduler error: ${error instanceof Error ? error.message : String(error)}`, 'error')
+    console.error('❌ Error running scheduler:', error)
+    console.error(`Scheduler error: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
 async function checkForNewTracks(source: string, type: 'channel' | 'playlist', lastChecked: Date | null): Promise<string[]> {
   try {
-    // Command options for yt-dlp
+    console.log(`🔍 Starting check for new tracks from ${source} (${type})`)
+    console.log(`⏱️ Last checked: ${lastChecked ? lastChecked.toISOString() : 'Never'}`)
+    
+    // Convert music.youtube.com to www.youtube.com for better compatibility
+    const youtubeUrl = source.replace('music.youtube.com', 'www.youtube.com')
+    console.log(`🔄 Using URL: ${youtubeUrl}`)
+    
+    // Command options for yt-dlp - simplified to just list videos
     const dateFilter = lastChecked 
-      ? `--dateafter ${lastChecked.toISOString().split('T')[0]}` 
+      ? `--dateafter ${lastChecked.toISOString().split('T')[0].replace(/-/g, '')}` // Convert YYYY-MM-DD to YYYYMMDD
       : ''
     
-    // Different options based on source type
-    const options = type === 'channel'
-      ? `--flat-playlist --skip-download --print id`
-      : `--flat-playlist --skip-download --print id`
+    console.log(`📅 Date filter: ${dateFilter || 'None'}`)
     
-    // Execute yt-dlp to get track IDs only
-    const { stdout } = await execAsync(`yt-dlp ${options} ${dateFilter} "${source}"`)
+    // Simplified options - just get video IDs with flat playlist
+    const options = `--get-id --flat-playlist ${dateFilter}`
     
-    // Parse track IDs
-    return stdout.trim().split('\n').filter(id => id.trim().length > 0)
+    console.log(`🔧 yt-dlp options: ${options}`)
+    const command = `'/usr/local/Cellar/yt-dlp/2025.3.31/bin/yt-dlp' ${options} '${youtubeUrl}'`
+    console.log(`🔧 Full command: ${command}`)
+    
+    // Run yt-dlp with a timeout
+    console.log(`🚀 Executing yt-dlp command with 30 second timeout...`)
+    
+    // Create a promise that rejects after 30 seconds
+    const timeoutPromise = new Promise<{stdout: string, stderr: string}>((_, reject) => {
+      setTimeout(() => reject(new Error('Command timed out after 30 seconds')), 30000);
+    });
+    
+    // Create the actual command promise
+    const commandPromise = execAsync(command);
+    
+    // Race the command against the timeout
+    const { stdout, stderr } = await Promise.race([commandPromise, timeoutPromise]) as {stdout: string, stderr: string};
+    
+    if (stderr) {
+      console.log(`⚠️ yt-dlp stderr: ${stderr}`)
+    }
+    
+    console.log(`✅ yt-dlp command completed`)
+    console.log(`📊 Raw output: ${stdout.substring(0, 200)}${stdout.length > 200 ? '...' : ''}`)
+    
+    // Parse the output to get track IDs
+    const trackIds = stdout.split('\n')
+      .filter(line => line.trim().length > 0)
+      .map(line => line.trim())
+    
+    console.log(`📊 Found ${trackIds.length} track IDs`)
+    if (trackIds.length > 0) {
+      console.log(`📊 First few track IDs: ${trackIds.slice(0, 3).join(', ')}${trackIds.length > 3 ? '...' : ''}`)
+    }
+    
+    return trackIds
   } catch (error) {
-    console.error('Error checking for new tracks:', error)
-    throw new Error(`Failed to check for new tracks: ${error instanceof Error ? error.message : String(error)}`)
+    console.error(`❌ Error checking for new tracks: ${error instanceof Error ? error.message : String(error)}`)
+    if (error instanceof Error && error.stack) {
+      console.error(`❌ Stack trace: ${error.stack}`)
+    }
+    return []
   }
 }
 
-async function downloadTrack(trackId: string): Promise<YouTubeDownloadResult> {
-  try {
-    // Create directories if they don't exist
-    const publicDir = path.join(process.cwd(), 'public')
-    const audioDir = path.join(publicDir, 'audio')
-    const coversDir = path.join(publicDir, 'images', 'covers')
-    const dataDir = path.join(process.cwd(), 'data')
-    
-    ;[audioDir, coversDir, dataDir].forEach(dir => {
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true })
-      }
-    })
-    
-    // Output template for audio file
-    const outputTemplate = path.join(audioDir, '%(title)s.%(ext)s')
-    
-    // Download track with metadata
-    const { stdout } = await execAsync(`yt-dlp -x --audio-format mp3 --audio-quality 192k -o "${outputTemplate}" --write-thumbnail --print-json "https://music.youtube.com/watch?v=${trackId}"`)
-    
-    // Parse track info
-    const trackInfo = JSON.parse(stdout)
-    
-    // Sanitize filename for consistency
-    const sanitizedTitle = trackInfo.title.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()
-    
-    // Generate output paths
-    const audioPath = path.join(audioDir, `${sanitizedTitle}.mp3`)
-    const thumbnailPath = path.join(coversDir, `${sanitizedTitle}.jpg`)
-    const metadataPath = path.join(dataDir, `${trackId}.json`)
-    
-    // Move and rename thumbnail if it exists
-    if (trackInfo.thumbnail) {
-      const thumbnailExt = path.extname(trackInfo.thumbnail)
-      const originalThumbnailPath = path.join(audioDir, `${trackInfo.title}.${thumbnailExt}`)
-      
-      if (fs.existsSync(originalThumbnailPath)) {
-        // Convert to JPG if needed
-        if (thumbnailExt.toLowerCase() !== '.jpg') {
-          await execAsync(`ffmpeg -i "${originalThumbnailPath}" "${thumbnailPath}"`)
-          fs.unlinkSync(originalThumbnailPath)
-        } else {
-          fs.renameSync(originalThumbnailPath, thumbnailPath)
-        }
-      }
-    }
-    
-    // Extract metadata
-    const metadata = {
-      id: trackId,
-      title: trackInfo.title,
-      artist: trackInfo.artist || trackInfo.uploader || 'Unknown Artist',
-      description: trackInfo.description || '',
-      uploadDate: trackInfo.upload_date,
-      duration: trackInfo.duration,
-      audioPath: `/audio/${sanitizedTitle}.mp3`,
-      coverImage: `/images/covers/${sanitizedTitle}.jpg`,
-      source: trackInfo.webpage_url,
-      downloaded: new Date().toISOString()
-    }
-    
-    // Save metadata
-    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2))
-    
-    return {
-      id: trackId,
-      title: trackInfo.title,
-      artist: metadata.artist,
-      thumbnail: thumbnailPath,
-      audioPath
-    }
-  } catch (error) {
-    console.error(`Error downloading track ${trackId}:`, error)
-    throw new Error(`Failed to download track: ${error instanceof Error ? error.message : String(error)}`)
-  }
-}
-
-// Function to manually trigger the scheduler
+/**
+ * Function to manually trigger the scheduler to run immediately
+ */
 export async function runSchedulerNow(): Promise<void> {
-  const scheduler = getScheduler()
-  
-  console.log('Manually triggering YouTube Music check')
-  scheduler.addLog('Manually triggering YouTube Music check', 'info')
-  
-  // Run the scheduler
-  await checkAndRunScheduler()
+  try {
+    console.log('🚀 Manually triggering scheduler...')
+    
+    // Get the scheduler instance and wait for it to be fully initialized
+    const scheduler = await getScheduler()
+    console.log('✅ Scheduler instance ready')
+    
+    // Run the scheduler
+    await checkAndRunScheduler()
+    
+    console.log('✅ Manual scheduler run completed')
+  } catch (error) {
+    console.error('❌ Error running scheduler manually:', error)
+    console.error(`Scheduler error: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
+// Main entry point when file is run directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  console.log('Starting scheduler...')
+  checkAndRunScheduler().catch(error => {
+    console.error('Scheduler error:', error)
+    process.exit(1)
+  })
 } 

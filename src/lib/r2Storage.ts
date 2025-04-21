@@ -1,106 +1,175 @@
 import { PutObjectCommand, GetObjectCommand, NoSuchKey } from '@aws-sdk/client-s3';
 import { R2_BUCKET_NAME, isProd, hasR2Credentials, r2Client } from './r2Config';
+import fs from 'fs';
+import path from 'path';
+import dotenv from 'dotenv';
+
+// Load environment variables from .env file
+dotenv.config();
 
 /**
  * R2-based storage system for saving application state to JSON files in Cloudflare R2
+ * Falls back to local file storage when R2 is not available
  */
 export class R2Storage {
   private bucketName: string;
   private isReady: boolean;
+  private localStorageDir: string;
+  public initializationPromise: Promise<void>;
 
   constructor() {
-    // Set ready flag - only use R2 if we have credentials and are in production
-    this.isReady = isProd || hasR2Credentials();
-    
-    // Log the initialization for debugging
-    console.log(`🔧 Initializing R2Storage, isReady: ${this.isReady}, isProd: ${isProd}`);
-    
     this.bucketName = R2_BUCKET_NAME;
+    this.isReady = false;
+    this.localStorageDir = path.join(process.cwd(), 'data');
+    
+    // Initialize asynchronously
+    this.initializationPromise = this.initialize();
+  }
+
+  private async initialize(): Promise<void> {
+    try {
+      // Check if all required credentials are present
+      const missingVars = [];
+      
+      if (!process.env.R2_ACCESS_KEY_ID) missingVars.push('R2_ACCESS_KEY_ID');
+      if (!process.env.R2_SECRET_ACCESS_KEY) missingVars.push('R2_SECRET_ACCESS_KEY');
+      if (!process.env.R2_ENDPOINT) missingVars.push('R2_ENDPOINT');
+      if (!process.env.R2_BUCKET) missingVars.push('R2_BUCKET');
+      
+      if (missingVars.length > 0) {
+        console.log(`❌ R2 credentials missing: ${missingVars.join(', ')}`);
+        this.isReady = false;
+      } else {
+        // Set ready flag - only use R2 if we have credentials and are in production
+        this.isReady = isProd || await hasR2Credentials();
+      }
+      
+      // Log the initialization for debugging
+      console.log(`🔧 Initializing R2Storage, isReady: ${this.isReady}, isProd: ${isProd}`);
+      
+      // Create local storage directory if it doesn't exist
+      if (!this.isReady) {
+        if (!fs.existsSync(this.localStorageDir)) {
+          fs.mkdirSync(this.localStorageDir, { recursive: true });
+        }
+      }
+    } catch (error) {
+      console.error('❌ Failed to initialize R2Storage:', error);
+      this.isReady = false;
+    }
   }
 
   /**
-   * Save data to a JSON file in R2 storage
-   * @param key The key/path where to save the file in R2
+   * Wait for initialization to complete
+   */
+  async waitForReady(): Promise<void> {
+    await this.initializationPromise;
+  }
+
+  /**
+   * Save data to storage (R2 or local file)
+   * @param key The key/path where to save the file
    * @param data Data to save (will be serialized to JSON)
    * @returns Promise that resolves when the data is saved
    */
   async save(key: string, data: any): Promise<void> {
-    // Skip actual R2 operations if not ready (development without credentials)
-    if (!this.isReady) {
-      console.log(`⚠️ R2Storage not ready, skipping save operation for: ${key}`);
-      return;
-    }
+    // Wait for initialization and check if ready
+    await this.waitForReady();
     
     try {
-      console.log(`📤 Saving data to R2: ${key}`);
-      
-      // Prepare data for upload
-      const jsonString = JSON.stringify(data, null, 2);
-      const objectParams = {
-        Bucket: this.bucketName,
-        Key: key.endsWith('.json') ? key : `${key}.json`,
-        Body: jsonString,
-        ContentType: 'application/json',
-      };
+      if (this.isReady) {
+        // Save to R2
+        console.log(`📤 Saving data to R2: ${key}`);
+        
+        // Prepare data for upload
+        const jsonString = JSON.stringify(data, null, 2);
+        const objectParams = {
+          Bucket: this.bucketName,
+          Key: key.endsWith('.json') ? key : `${key}.json`,
+          Body: jsonString,
+          ContentType: 'application/json',
+        };
 
-      // Upload to R2
-      await r2Client.send(new PutObjectCommand(objectParams));
-      console.log(`✅ Successfully saved data to R2: ${key}`);
+        // Upload to R2
+        await r2Client.send(new PutObjectCommand(objectParams));
+        console.log(`✅ Successfully saved data to R2: ${key}`);
+      } else {
+        // Save to local file
+        console.log(`📤 Saving data to local storage: ${key}`);
+        const filePath = path.join(this.localStorageDir, key.endsWith('.json') ? key : `${key}.json`);
+        
+        // Create directory if it doesn't exist
+        const dir = path.dirname(filePath);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        
+        // Write data to file
+        fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+        console.log(`✅ Successfully saved data to local storage: ${key}`);
+      }
     } catch (error) {
-      console.error(`❌ Error saving to R2 (${key}):`, error);
-      throw new Error(`Failed to save data to R2: ${key}`);
+      console.error(`❌ Error saving data (${key}):`, error);
+      throw new Error(`Failed to save data: ${key}`);
     }
   }
 
   /**
-   * Load data from a JSON file in R2 storage
-   * @param key The key/path from where to load the file in R2
+   * Load data from storage (R2 or local file)
+   * @param key The key/path from where to load the file
    * @param defaultData Default data to return if file doesn't exist
    * @returns Promise that resolves with the parsed data
    */
   async load<T>(key: string, defaultData: T): Promise<T> {
-    // Skip actual R2 operations if not ready (development without credentials)
-    if (!this.isReady) {
-      console.log(`⚠️ R2Storage not ready, using default data for: ${key}`);
-      return defaultData;
-    }
+    // Wait for initialization and check if ready
+    await this.waitForReady();
     
     try {
-      console.log(`📥 Loading data from R2: ${key}`);
-      
-      const objectParams = {
-        Bucket: this.bucketName,
-        Key: key.endsWith('.json') ? key : `${key}.json`,
-      };
+      if (this.isReady) {
+        // Load from R2
+        console.log(`📥 Loading data from R2: ${key}`);
+        
+        const objectParams = {
+          Bucket: this.bucketName,
+          Key: key.endsWith('.json') ? key : `${key}.json`,
+        };
 
-      // Get object from R2
-      const response = await r2Client.send(new GetObjectCommand(objectParams));
-      
-      // Convert readable stream to string
-      const chunks: Uint8Array[] = [];
-      for await (const chunk of response.Body as any) {
-        chunks.push(chunk);
+        try {
+          const response = await r2Client.send(new GetObjectCommand(objectParams));
+          const jsonString = await response.Body?.transformToString();
+          if (!jsonString) throw new Error('Empty response');
+          
+          const data = JSON.parse(jsonString);
+          console.log(`✅ Successfully loaded data from R2: ${key}`);
+          return data;
+        } catch (error) {
+          if (error instanceof NoSuchKey) {
+            console.log(`⚠️ No data found in R2 for: ${key}, using default`);
+            return defaultData;
+          }
+          throw error;
+        }
+      } else {
+        // Load from local file
+        console.log(`📥 Loading data from local storage: ${key}`);
+        const filePath = path.join(this.localStorageDir, key.endsWith('.json') ? key : `${key}.json`);
+        
+        if (!fs.existsSync(filePath)) {
+          console.log(`⚠️ No data found in local storage for: ${key}, using default`);
+          return defaultData;
+        }
+        
+        const jsonString = fs.readFileSync(filePath, 'utf8');
+        const data = JSON.parse(jsonString);
+        console.log(`✅ Successfully loaded data from local storage: ${key}`);
+        return data;
       }
-      const buffer = Buffer.concat(chunks);
-      const jsonString = buffer.toString('utf-8');
-      
-      // Parse JSON
-      const parsedData = JSON.parse(jsonString) as T;
-      console.log(`✅ Successfully loaded data from R2: ${key}`);
-      return parsedData;
     } catch (error) {
-      // If the object doesn't exist, return the default data
-      if (error instanceof NoSuchKey || (error as any).name === 'NoSuchKey') {
-        console.log(`⚠️ Object not found in R2, using default data: ${key}`);
-        return defaultData;
-      }
-      
-      // For any other error, log and return default data
-      console.error(`❌ Error loading from R2 (${key}):`, error);
+      console.error(`❌ Error loading data (${key}):`, error);
       return defaultData;
     }
   }
 }
 
-// Singleton instance
+// Export singleton instance
 export const r2Storage = new R2Storage(); 

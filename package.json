@@ -7,7 +7,15 @@
     "build": "mkdir -p data && touch data/scheduler.json && echo '{\"active\":false,\"nextRun\":null,\"sources\":[],\"logs\":[]}' > data/scheduler.json && next build",
     "start": "next start",
     "lint": "next lint",
-    "formatjs": "npx prettier --write 'src/**/*.js'"
+    "formatjs": "npx prettier --write 'src/**/*.js'",
+    "scheduler": "node --watch --import tsx src/lib/scheduler-job.ts",
+    "scheduler:run": "tsx src/lib/scheduler-job.ts",
+    "scheduler:activate": "tsx scripts/activate-scheduler.ts",
+    "scheduler:check-r2": "tsx scripts/check-r2-credentials.ts",
+    "scheduler:status": "tsx scripts/check-scheduler-status.ts",
+    "scheduler:run-now": "tsx scripts/run-scheduler-now.ts",
+    "test:youtube": "node scripts/test-youtube-downloader.mjs",
+    "scheduler:update": "tsx scripts/update-scheduler.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.787.0",
@@ -38,6 +46,8 @@
     "file-loader": "^6.2.0",
     "postcss": "^8.4.33",
     "tailwindcss": "^3.4.1",
+    "tsx": "^4.19.3",
     "typescript": "^5.3.3"
-  }
+  },
+  "type": "module"
 }
