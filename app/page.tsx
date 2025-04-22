@@ -118,8 +118,10 @@ export default function Home() {
     if (hasCoverUrl(track)) {
       return track.coverUrl;
     } 
-    // Use a simpler approach to handle the type checking
-    return track.coverImage || '/images/default-cover.jpg';
+    if (hasCoverImage(track)) {
+      return track.coverImage;
+    }
+    return '/images/default-cover.jpg';
   }
   
   // Helper to get BPM safely
