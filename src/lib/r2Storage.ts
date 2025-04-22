@@ -3,10 +3,14 @@ import { R2_BUCKET_NAME, isProd, hasR2Credentials, r2Client } from './r2Config';
 import path from 'path';
 import dotenv from 'dotenv';
 
-// Only import fs in development
+// Only import fs in Node.js environment
 let fs: typeof import('fs') | undefined;
-if (process.env.NODE_ENV !== 'production') {
-  fs = await import('fs');
+if (typeof window === 'undefined' && process.env.NODE_ENV !== 'production') {
+  try {
+    fs = await import('fs');
+  } catch (error) {
+    console.warn('⚠️ Could not import fs module:', error);
+  }
 }
 
 // Load environment variables from .env file
