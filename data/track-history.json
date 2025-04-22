@@ -1,3 +1,888 @@
 {
-  "history": []
+  "history": [
+    {
+      "youtubeId": "NPL15uueDzo",
+      "title": "Deep River 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=NPL15uueDzo",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_0cdc7bee6ac44f96.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_0cdc7bee6ac44f96.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_0cdc7bee6ac44f96.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_0cdc7bee6ac44f96.mp3",
+      "websiteId": "track_0cdc7bee6ac44f96",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "945024bc-ef82-48a5-ace8-c067b91280c0",
+      "downloadDate": "2025-04-21T19:25:59.367Z"
+    },
+    {
+      "youtubeId": "sAEBunfsD5s",
+      "title": "Iron Soul 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=sAEBunfsD5s",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_6ea4c0f994474a18.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_6ea4c0f994474a18.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_6ea4c0f994474a18.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_6ea4c0f994474a18.mp3",
+      "websiteId": "track_6ea4c0f994474a18",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "e2629a17-0bc4-406e-b054-b5287c210581",
+      "downloadDate": "2025-04-21T19:27:55.768Z"
+    },
+    {
+      "youtubeId": "KvbHpG8tGK8",
+      "title": "Deep Ocean 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=KvbHpG8tGK8",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_2cc8dc728ab1454c.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_2cc8dc728ab1454c.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_2cc8dc728ab1454c.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_2cc8dc728ab1454c.mp3",
+      "websiteId": "track_2cc8dc728ab1454c",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "39ed6730-f28a-4920-ae4f-5d35ac4399b5",
+      "downloadDate": "2025-04-21T19:29:47.859Z"
+    },
+    {
+      "youtubeId": "nG6_Ssd-Bvg",
+      "title": "Iron Universe 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=nG6_Ssd-Bvg",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_d16e341d03954d89.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_d16e341d03954d89.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_d16e341d03954d89.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_d16e341d03954d89.mp3",
+      "websiteId": "track_d16e341d03954d89",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "b0d3f42a-fa3f-42f4-b276-47c44c8c8af7",
+      "downloadDate": "2025-04-21T19:31:52.186Z"
+    },
+    {
+      "youtubeId": "6mfb335IcRg",
+      "title": "Digital Magic 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=6mfb335IcRg",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_d2527edd92bf4c79.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_d2527edd92bf4c79.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_d2527edd92bf4c79.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_d2527edd92bf4c79.mp3",
+      "websiteId": "track_d2527edd92bf4c79",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "18a5d9ab-27e6-404b-adf1-575511c71dee",
+      "downloadDate": "2025-04-21T19:33:22.369Z"
+    },
+    {
+      "youtubeId": "2Zr0-lPuKxs",
+      "title": "Desert Ocean 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=2Zr0-lPuKxs",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_a3e197bf2f5d485d.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_a3e197bf2f5d485d.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_a3e197bf2f5d485d.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_a3e197bf2f5d485d.mp3",
+      "websiteId": "track_a3e197bf2f5d485d",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "d5a8458a-2400-4754-9c87-2f860e3cfa99",
+      "downloadDate": "2025-04-21T19:35:06.380Z"
+    },
+    {
+      "youtubeId": "MexcyeTpZkE",
+      "title": "Golden Dream 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=MexcyeTpZkE",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_dd7b2ee7eb9b4035.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_dd7b2ee7eb9b4035.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_dd7b2ee7eb9b4035.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_dd7b2ee7eb9b4035.mp3",
+      "websiteId": "track_dd7b2ee7eb9b4035",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "8f92920f-b517-48ac-87c3-90b4b8ebeaac",
+      "downloadDate": "2025-04-21T19:36:29.305Z"
+    },
+    {
+      "youtubeId": "mWgEqyFdwb4",
+      "title": "Dark Universe 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=mWgEqyFdwb4",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_f0363a947056455f.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_f0363a947056455f.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_f0363a947056455f.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_f0363a947056455f.mp3",
+      "websiteId": "track_f0363a947056455f",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "439825b5-6237-46a9-8f31-d2a5764b25fc",
+      "downloadDate": "2025-04-21T19:38:13.580Z"
+    },
+    {
+      "youtubeId": "FM16SmYuY4Q",
+      "title": "Liquid Ocean 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=FM16SmYuY4Q",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_c1b6c2ba53ec4277.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_c1b6c2ba53ec4277.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_c1b6c2ba53ec4277.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_c1b6c2ba53ec4277.mp3",
+      "websiteId": "track_c1b6c2ba53ec4277",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "60edcdce-5b28-4af9-82ba-c89a2f127454",
+      "downloadDate": "2025-04-21T19:39:43.997Z"
+    },
+    {
+      "youtubeId": "UJwx4eFpSJI",
+      "title": "Neon Road 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=UJwx4eFpSJI",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_1713a69d8baa4bd5.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_1713a69d8baa4bd5.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_1713a69d8baa4bd5.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_1713a69d8baa4bd5.mp3",
+      "websiteId": "track_1713a69d8baa4bd5",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "8c95efdf-8228-43b2-b835-ba23f6a5b1b3",
+      "downloadDate": "2025-04-21T19:41:23.814Z"
+    },
+    {
+      "youtubeId": "iTBLDI1qGxA",
+      "title": "Cosmic Mind 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=iTBLDI1qGxA",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_24cc9334e2f244e0.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_24cc9334e2f244e0.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_24cc9334e2f244e0.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_24cc9334e2f244e0.mp3",
+      "websiteId": "track_24cc9334e2f244e0",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "6ba33bfd-e63f-414e-9338-caae11c045cd",
+      "downloadDate": "2025-04-21T19:42:52.300Z"
+    },
+    {
+      "youtubeId": "XNsROR4Tfog",
+      "title": "Neon Space 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=XNsROR4Tfog",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_c45dd98b47c748b9.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_c45dd98b47c748b9.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_c45dd98b47c748b9.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_c45dd98b47c748b9.mp3",
+      "websiteId": "track_c45dd98b47c748b9",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "f73e993f-0e2e-4d83-a99e-6d2c3a872fdc",
+      "downloadDate": "2025-04-21T19:44:18.035Z"
+    },
+    {
+      "youtubeId": "ZedQe6qCoQ0",
+      "title": "Light Mind 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=ZedQe6qCoQ0",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_b901a044941e4ec8.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_b901a044941e4ec8.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_b901a044941e4ec8.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_b901a044941e4ec8.mp3",
+      "websiteId": "track_b901a044941e4ec8",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "4d954515-9d04-4934-bad9-52b7ba736659",
+      "downloadDate": "2025-04-21T19:45:50.767Z"
+    },
+    {
+      "youtubeId": "CgasVwLaVrM",
+      "title": "Bright Memory 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=CgasVwLaVrM",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_909141cd1ddf406a.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_909141cd1ddf406a.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_909141cd1ddf406a.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_909141cd1ddf406a.mp3",
+      "websiteId": "track_909141cd1ddf406a",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "df399822-1dff-42d0-b36b-dcfa466895a9",
+      "downloadDate": "2025-04-21T19:47:21.885Z"
+    },
+    {
+      "youtubeId": "eQlb83bGl30",
+      "title": "Iron Ocean 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=eQlb83bGl30",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_9e4d951632074fa1.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_9e4d951632074fa1.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_9e4d951632074fa1.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_9e4d951632074fa1.mp3",
+      "websiteId": "track_9e4d951632074fa1",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "349757e9-9efe-47c2-862e-4136f216af50",
+      "downloadDate": "2025-04-21T19:48:57.316Z"
+    },
+    {
+      "youtubeId": "mp_w6U4kshk",
+      "title": "Neon Galaxy 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=mp_w6U4kshk",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_85fab54fcebd42e9.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_85fab54fcebd42e9.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_85fab54fcebd42e9.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_85fab54fcebd42e9.mp3",
+      "websiteId": "track_85fab54fcebd42e9",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "3938cb92-aac6-483a-89a7-84e7eac2f553",
+      "downloadDate": "2025-04-21T19:50:22.247Z"
+    },
+    {
+      "youtubeId": "MvtEJ7xacSQ",
+      "title": "Solid Reality 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=MvtEJ7xacSQ",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_5768d255292f4257.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_5768d255292f4257.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_5768d255292f4257.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_5768d255292f4257.mp3",
+      "websiteId": "track_5768d255292f4257",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "dc0221c3-014b-4b51-ad06-d9b4e15ece0b",
+      "downloadDate": "2025-04-21T19:51:51.228Z"
+    },
+    {
+      "youtubeId": "gwdyrfb7rb0",
+      "title": "Crystal Tower 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=gwdyrfb7rb0",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_5431aeb2b1e748f2.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_5431aeb2b1e748f2.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_5431aeb2b1e748f2.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_5431aeb2b1e748f2.mp3",
+      "websiteId": "track_5431aeb2b1e748f2",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "325b8c2d-5990-465b-8d24-c3d9b49de4ca",
+      "downloadDate": "2025-04-21T19:53:29.178Z"
+    },
+    {
+      "youtubeId": "vxi949hsOJs",
+      "title": "Cosmic Galaxy 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=vxi949hsOJs",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_395d2b0194074753.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_395d2b0194074753.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_395d2b0194074753.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_395d2b0194074753.mp3",
+      "websiteId": "track_395d2b0194074753",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "dfc451bb-38e9-4b9d-b96d-0999a2431d8e",
+      "downloadDate": "2025-04-21T19:54:58.368Z"
+    },
+    {
+      "youtubeId": "2s11m2qi-jM",
+      "title": "Shadow Universe 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=2s11m2qi-jM",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_7ad8920833a5480e.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_7ad8920833a5480e.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_7ad8920833a5480e.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_7ad8920833a5480e.mp3",
+      "websiteId": "track_7ad8920833a5480e",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "47c078e9-65f0-4c61-8430-d6731ec17636",
+      "downloadDate": "2025-04-21T19:56:18.120Z"
+    },
+    {
+      "youtubeId": "irQb90OWc34",
+      "title": "Arctic Road 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=irQb90OWc34",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_414c90d158714fb6.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_414c90d158714fb6.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_414c90d158714fb6.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_414c90d158714fb6.mp3",
+      "websiteId": "track_414c90d158714fb6",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "6e62c83b-d825-4b13-b3b7-a35ca395d84c",
+      "downloadDate": "2025-04-21T19:57:58.112Z"
+    },
+    {
+      "youtubeId": "V3pC5gQRfh0",
+      "title": "Digital Reality 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=V3pC5gQRfh0",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_3c20afa69c7140fe.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_3c20afa69c7140fe.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_3c20afa69c7140fe.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_3c20afa69c7140fe.mp3",
+      "websiteId": "track_3c20afa69c7140fe",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "0180640d-b51f-464d-9823-e5fbaeca25cf",
+      "downloadDate": "2025-04-21T19:59:37.168Z"
+    },
+    {
+      "youtubeId": "YPh_EwkKgVk",
+      "title": "Light River 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=YPh_EwkKgVk",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_6098f62df056431d.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_6098f62df056431d.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_6098f62df056431d.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_6098f62df056431d.mp3",
+      "websiteId": "track_6098f62df056431d",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "ba134455-ed87-4a47-8736-aa26fad14406",
+      "downloadDate": "2025-04-21T20:01:34.956Z"
+    },
+    {
+      "youtubeId": "h8Lm6TSEnUg",
+      "title": "Glass Soul 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=h8Lm6TSEnUg",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_179d27384dbf4c59.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_179d27384dbf4c59.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_179d27384dbf4c59.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_179d27384dbf4c59.mp3",
+      "websiteId": "track_179d27384dbf4c59",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "90f3c0c9-bfb3-4efc-a60b-eab9d9bbbcfe",
+      "downloadDate": "2025-04-21T20:03:05.072Z"
+    },
+    {
+      "youtubeId": "humxl-YDKTc",
+      "title": "Deep Magic 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=humxl-YDKTc",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_f71982f13c3945be.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_f71982f13c3945be.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_f71982f13c3945be.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_f71982f13c3945be.mp3",
+      "websiteId": "track_f71982f13c3945be",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "6a17ffba-fb2c-416b-bf96-e88d90d34616",
+      "downloadDate": "2025-04-21T20:04:58.238Z"
+    },
+    {
+      "youtubeId": "9NusuyD7vCU",
+      "title": "Cosmic Mountain 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=9NusuyD7vCU",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_99072c769b3e406a.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_99072c769b3e406a.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_99072c769b3e406a.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_99072c769b3e406a.mp3",
+      "websiteId": "track_99072c769b3e406a",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "26e1969e-0e18-4cd0-ad2e-2feb087de20c",
+      "downloadDate": "2025-04-21T20:06:47.266Z"
+    },
+    {
+      "youtubeId": "PwCrmR_pf5c",
+      "title": "Glass Galaxy 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=PwCrmR_pf5c",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_a27b8752cad543cd.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_a27b8752cad543cd.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_a27b8752cad543cd.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_a27b8752cad543cd.mp3",
+      "websiteId": "track_a27b8752cad543cd",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "881f6c80-d9f9-4533-993e-d3514520316c",
+      "downloadDate": "2025-04-21T20:08:16.158Z"
+    },
+    {
+      "youtubeId": "G_A2LHBOINs",
+      "title": "Neon Tension | 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=G_A2LHBOINs",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_b4beb0bd7819455d.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_b4beb0bd7819455d.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_b4beb0bd7819455d.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_b4beb0bd7819455d.mp3",
+      "websiteId": "track_b4beb0bd7819455d",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "7d909d3b-dd19-4fe9-8c35-86892193e9c0",
+      "downloadDate": "2025-04-21T20:09:45.819Z"
+    },
+    {
+      "youtubeId": "VI9_H7P6QQE",
+      "title": "Light Road 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=VI9_H7P6QQE",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_e650672a41834b5b.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_e650672a41834b5b.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_e650672a41834b5b.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_e650672a41834b5b.mp3",
+      "websiteId": "track_e650672a41834b5b",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "6ba7f1c4-08e1-4edd-8cad-be4d34df03f8",
+      "downloadDate": "2025-04-21T20:11:14.739Z"
+    },
+    {
+      "youtubeId": "EW7DPIWUn8o",
+      "title": "Golden Castle 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=EW7DPIWUn8o",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_d72c38b364344f15.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_d72c38b364344f15.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_d72c38b364344f15.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_d72c38b364344f15.mp3",
+      "websiteId": "track_d72c38b364344f15",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "e0c5af3b-447e-416b-b8c9-a675a5a5c318",
+      "downloadDate": "2025-04-21T20:12:37.159Z"
+    },
+    {
+      "youtubeId": "53Nss9iYTQY",
+      "title": "Desert River 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=53Nss9iYTQY",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_31ff824c80b94deb.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_31ff824c80b94deb.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_31ff824c80b94deb.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_31ff824c80b94deb.mp3",
+      "websiteId": "track_31ff824c80b94deb",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "d56bc144-399d-44e4-809d-ddcfa63ad674",
+      "downloadDate": "2025-04-21T20:14:02.312Z"
+    },
+    {
+      "youtubeId": "OUswoUNt2fc",
+      "title": "Golden Road 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=OUswoUNt2fc",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_387b2b0bc1b749d2.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_387b2b0bc1b749d2.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_387b2b0bc1b749d2.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_387b2b0bc1b749d2.mp3",
+      "websiteId": "track_387b2b0bc1b749d2",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "9141ae20-0c08-452f-8e55-52b120a863b6",
+      "downloadDate": "2025-04-21T20:15:27.557Z"
+    },
+    {
+      "youtubeId": "MyR3DRwgdRE",
+      "title": "Crystal Flow 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=MyR3DRwgdRE",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_29d1144c208648a3.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_29d1144c208648a3.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_29d1144c208648a3.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_29d1144c208648a3.mp3",
+      "websiteId": "track_29d1144c208648a3",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "feb8f793-398a-4196-8e5e-83824f4e8630",
+      "downloadDate": "2025-04-21T20:16:51.793Z"
+    },
+    {
+      "youtubeId": "B7Wa-MZOi4w",
+      "title": "Digital Path 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=B7Wa-MZOi4w",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_6f37cafb351c41ba.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_6f37cafb351c41ba.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_6f37cafb351c41ba.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_6f37cafb351c41ba.mp3",
+      "websiteId": "track_6f37cafb351c41ba",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "76d79ef9-a291-457c-b34e-1c2cef278948",
+      "downloadDate": "2025-04-21T20:18:15.969Z"
+    },
+    {
+      "youtubeId": "Czqx0YFavrk",
+      "title": "Swift Ocean 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=Czqx0YFavrk",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_ea85e2dd8ac0400c.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_ea85e2dd8ac0400c.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_ea85e2dd8ac0400c.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_ea85e2dd8ac0400c.mp3",
+      "websiteId": "track_ea85e2dd8ac0400c",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "cbdc1cbe-6cfa-46e5-934b-24f7e83a2b3d",
+      "downloadDate": "2025-04-21T20:19:32.863Z"
+    },
+    {
+      "youtubeId": "ADDIth8PLn0",
+      "title": "Arctic Ocean 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=ADDIth8PLn0",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_c2a7829ed10b4cc5.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_c2a7829ed10b4cc5.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_c2a7829ed10b4cc5.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_c2a7829ed10b4cc5.mp3",
+      "websiteId": "track_c2a7829ed10b4cc5",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "b31cf0d3-9a2c-4df0-bcb3-d0ed7d9670db",
+      "downloadDate": "2025-04-21T20:20:50.773Z"
+    },
+    {
+      "youtubeId": "2Ta0TBdcCng",
+      "title": "Golden Power 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=2Ta0TBdcCng",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_8b3ca30b232f456a.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_8b3ca30b232f456a.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_8b3ca30b232f456a.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_8b3ca30b232f456a.mp3",
+      "websiteId": "track_8b3ca30b232f456a",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "44a17a7c-0ca4-4f14-821c-c53b79f2bb8a",
+      "downloadDate": "2025-04-21T20:22:19.815Z"
+    },
+    {
+      "youtubeId": "7JJYgjlriPs",
+      "title": "Shadow Dream 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=7JJYgjlriPs",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_a817b7b8c11d4859.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_a817b7b8c11d4859.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_a817b7b8c11d4859.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_a817b7b8c11d4859.mp3",
+      "websiteId": "track_a817b7b8c11d4859",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "aed3ed1e-894e-4f7a-8edf-cddc5148c1fc",
+      "downloadDate": "2025-04-21T20:23:41.292Z"
+    },
+    {
+      "youtubeId": "xwnxtnrY39M",
+      "title": "Light Reality 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=xwnxtnrY39M",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_e1794a434bb64371.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_e1794a434bb64371.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_e1794a434bb64371.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_e1794a434bb64371.mp3",
+      "websiteId": "track_e1794a434bb64371",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "3de22da0-9140-4690-a72f-e2cadc161967",
+      "downloadDate": "2025-04-21T20:25:09.663Z"
+    },
+    {
+      "youtubeId": "J1TfqkpDZ9k",
+      "title": "Digital Dream 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=J1TfqkpDZ9k",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_9e3efb5a009243c0.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_9e3efb5a009243c0.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_9e3efb5a009243c0.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_9e3efb5a009243c0.mp3",
+      "websiteId": "track_9e3efb5a009243c0",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "ba00ea64-5a89-4239-8f77-6f062685bad9",
+      "downloadDate": "2025-04-21T20:26:36.240Z"
+    },
+    {
+      "youtubeId": "Y0cZotwValA",
+      "title": "Dark Power 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=Y0cZotwValA",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_96d7b60fb595403a.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_96d7b60fb595403a.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_96d7b60fb595403a.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_96d7b60fb595403a.mp3",
+      "websiteId": "track_96d7b60fb595403a",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "629f23a9-6e70-48eb-a389-158218372805",
+      "downloadDate": "2025-04-21T20:28:12.895Z"
+    },
+    {
+      "youtubeId": "y4mAGE_KRD8",
+      "title": "Bright Tower 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=y4mAGE_KRD8",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_7bd41f218bb04d3f.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_7bd41f218bb04d3f.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_7bd41f218bb04d3f.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_7bd41f218bb04d3f.mp3",
+      "websiteId": "track_7bd41f218bb04d3f",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "61c6b2ab-7d0a-42cc-a63a-db5a7f341312",
+      "downloadDate": "2025-04-21T20:30:18.783Z"
+    },
+    {
+      "youtubeId": "aepi-6vwIbQ",
+      "title": "Golden Path 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=aepi-6vwIbQ",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_1be4f2daea6e4101.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_1be4f2daea6e4101.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_1be4f2daea6e4101.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_1be4f2daea6e4101.mp3",
+      "websiteId": "track_1be4f2daea6e4101",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "93accaff-90b2-495b-98f8-3e06d698049a",
+      "downloadDate": "2025-04-21T20:31:43.449Z"
+    },
+    {
+      "youtubeId": "ax4HGd0-eTU",
+      "title": "Cold Tower 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=ax4HGd0-eTU",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_96d5978a7e124ad8.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_96d5978a7e124ad8.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_96d5978a7e124ad8.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_96d5978a7e124ad8.mp3",
+      "websiteId": "track_96d5978a7e124ad8",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "2bc3d98e-eb1f-47a1-b000-0e2b174d224a",
+      "downloadDate": "2025-04-21T20:33:01.971Z"
+    },
+    {
+      "youtubeId": "GnXFbqYbgtE",
+      "title": "Desert Soul 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=GnXFbqYbgtE",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_98a1dd195f5d4485.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_98a1dd195f5d4485.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_98a1dd195f5d4485.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_98a1dd195f5d4485.mp3",
+      "websiteId": "track_98a1dd195f5d4485",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "e2a9e93c-47d4-4544-b1f1-a1ec095dc9b4",
+      "downloadDate": "2025-04-21T20:34:24.169Z"
+    },
+    {
+      "youtubeId": "Sdcg2e8mFDs",
+      "title": "Neon Flow 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=Sdcg2e8mFDs",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_a543948062034381.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_a543948062034381.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_a543948062034381.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_a543948062034381.mp3",
+      "websiteId": "track_a543948062034381",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "aedf3d50-20fd-4c5a-90bf-f313ecb16d7f",
+      "downloadDate": "2025-04-21T20:35:43.343Z"
+    },
+    {
+      "youtubeId": "LiQ_nsXqAk4",
+      "title": "Crystal Wind 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=LiQ_nsXqAk4",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_c41941b610244b80.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_c41941b610244b80.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_c41941b610244b80.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_c41941b610244b80.mp3",
+      "websiteId": "track_c41941b610244b80",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "c531e0c9-7fa6-43c2-9b82-aef3c92b39a7",
+      "downloadDate": "2025-04-21T20:36:54.092Z"
+    },
+    {
+      "youtubeId": "M6lOtuP1X20",
+      "title": "Crystal Ocean 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=M6lOtuP1X20",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_383df955afaa4f9a.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_383df955afaa4f9a.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_383df955afaa4f9a.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_383df955afaa4f9a.mp3",
+      "websiteId": "track_383df955afaa4f9a",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "bc219d9d-ef31-430e-aee6-c07cb88db7f3",
+      "downloadDate": "2025-04-21T20:38:19.213Z"
+    },
+    {
+      "youtubeId": "MNdNFKCk7DE",
+      "title": "Shadow Vision 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=MNdNFKCk7DE",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_625d2aa9b0714264.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_625d2aa9b0714264.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_625d2aa9b0714264.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_625d2aa9b0714264.mp3",
+      "websiteId": "track_625d2aa9b0714264",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "e29a2b99-068a-4ab1-96b8-8e2361f95763",
+      "downloadDate": "2025-04-21T20:39:43.350Z"
+    },
+    {
+      "youtubeId": "n6yPfrkG3Q4",
+      "title": "Warm Mountain 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=n6yPfrkG3Q4",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_d906266ea3114d75.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_d906266ea3114d75.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_d906266ea3114d75.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_d906266ea3114d75.mp3",
+      "websiteId": "track_d906266ea3114d75",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "5383001f-9b63-4e86-bb1f-3cdf55062c2d",
+      "downloadDate": "2025-04-21T20:41:14.106Z"
+    },
+    {
+      "youtubeId": "58M7aiETybo",
+      "title": "Glass Road 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=58M7aiETybo",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_a423258ec8e8472d.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_a423258ec8e8472d.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_a423258ec8e8472d.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_a423258ec8e8472d.mp3",
+      "websiteId": "track_a423258ec8e8472d",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "d4c7e4d9-88af-4926-8dba-17663438d5e1",
+      "downloadDate": "2025-04-21T20:42:37.534Z"
+    },
+    {
+      "youtubeId": "jfJTnzqaPJg",
+      "title": "Glass Echo 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=jfJTnzqaPJg",
+      "localPath": {
+        "audio": "/Users/Luke/Downloads/prodai/public/audio/track_b6944eb8b94948fc.mp3",
+        "cover": "/Users/Luke/Downloads/prodai/public/images/covers/track_b6944eb8b94948fc.jpg",
+        "metadata": "/Users/Luke/Downloads/prodai/data/track_b6944eb8b94948fc.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_b6944eb8b94948fc.mp3",
+      "websiteId": "track_b6944eb8b94948fc",
+      "sourceType": "playlist",
+      "sourceId": "a95e41d2-12ad-4646-ad04-3242539c0438",
+      "id": "83bbbb4b-4bca-4325-b839-109870cc1d40",
+      "downloadDate": "2025-04-21T20:44:01.254Z"
+    }
+  ]
 }

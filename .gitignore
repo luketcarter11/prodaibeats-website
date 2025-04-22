@@ -36,3 +36,22 @@ next-env.d.ts
 
 # platform-specific native binaries
 *.node
+
+# Local track files and data
+data/track_*.json
+data/scheduler/
+public/audio/track_*.mp3
+public/images/covers/track_*.jpg
+temp/
+
+# Logs
+scheduler.log
+*.log
+
+# Environment files
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS files
+Thumbs.db
