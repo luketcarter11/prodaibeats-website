@@ -27,21 +27,37 @@ const AudioPlayer = ({ currentTrack, onClose }: AudioPlayerProps) => {
       setIsLoading(true)
       setHasError(false)
       
-      // Try to play after a small delay to allow audio to load
-      const playPromise = audioRef.current.play()
+      // Log audio URL for debugging
+      console.log(`🔊 Attempting to play audio from: ${currentTrack.audioUrl}`);
       
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            setIsPlaying(true)
-            setIsLoading(false)
-          })
-          .catch(error => {
-            console.error('Error playing audio:', error)
-            setIsLoading(false)
-            setHasError(true)
-          })
+      // Check if the audioUrl is valid
+      if (!currentTrack.audioUrl || !currentTrack.audioUrl.includes('.mp3')) {
+        console.error(`❌ Invalid audioUrl for track: ${currentTrack.id}, url: ${currentTrack.audioUrl}`);
+        setIsLoading(false);
+        setHasError(true);
+        return;
       }
+      
+      // Try to load the audio file - add a small timeout to allow UI to update
+      setTimeout(() => {
+        // Try to play after a small delay to allow audio to load
+        const playPromise = audioRef.current?.play();
+        
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              console.log(`✅ Successfully playing: ${currentTrack.title}`);
+              setIsPlaying(true)
+              setIsLoading(false)
+            })
+            .catch(error => {
+              console.error(`❌ Error playing audio for ${currentTrack.title}:`, error);
+              console.error(`Audio URL was: ${currentTrack.audioUrl}`);
+              setIsLoading(false)
+              setHasError(true)
+            })
+        }
+      }, 100);
     }
   }, [currentTrack])
 

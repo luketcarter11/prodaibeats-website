@@ -22,6 +22,28 @@ export async function GET(request: NextRequest) {
       console.warn('⚠️ No tracks retrieved from R2. Returning empty array. Investigate upstream.');
     }
 
+    // Add detailed logging about what we're returning
+    if (tracks.length > 0) {
+      // Log first track as an example
+      const sampleTrack = tracks[0];
+      console.log('📊 Sample track being returned to client:', {
+        id: sampleTrack.id,
+        title: sampleTrack.title,
+        artist: sampleTrack.artist,
+        audioUrl: sampleTrack.audioUrl,
+        duration: sampleTrack.duration,
+        hasValidAudio: !!sampleTrack.audioUrl && sampleTrack.audioUrl.includes('.mp3'),
+        hasValidCover: !!sampleTrack.coverUrl && sampleTrack.coverUrl.includes('.jpg'),
+      });
+      
+      // Count problematic tracks
+      const untitledTracks = tracks.filter(t => t.title === 'Untitled Track').length;
+      const unknownArtistTracks = tracks.filter(t => t.artist === 'Unknown Artist').length;
+      const zeroDurationTracks = tracks.filter(t => t.duration === '0:00').length;
+      
+      console.log(`📊 Quality check: ${untitledTracks} untitled, ${unknownArtistTracks} unknown artist, ${zeroDurationTracks} zero duration`);
+    }
+
     return NextResponse.json(tracks);
   } catch (error) {
     console.error('❌ Error loading tracks in API route:', error);

@@ -175,6 +175,34 @@ export class R2Storage {
             return jsonString as unknown as T;
           }
           
+          // Add special handling for metadata files to diagnose issues
+          if (key.startsWith('metadata/') && key.endsWith('.json')) {
+            console.log(`🔍 Special metadata file handling for: ${key}`);
+            console.log(`🔍 Raw metadata content: ${jsonString.substring(0, 200)}${jsonString.length > 200 ? '...' : ''}`);
+            
+            // Check if the metadata appears to be a stringified JSON string (double encoded)
+            if (jsonString.startsWith('"') && jsonString.endsWith('"')) {
+              try {
+                // This might be a double-encoded JSON string, try to parse it twice
+                console.log('⚠️ Metadata appears to be double-encoded, attempting to fix');
+                const unescaped = JSON.parse(jsonString);
+                
+                if (typeof unescaped === 'string') {
+                  try {
+                    // Try to parse the unescaped string
+                    const parsedData = JSON.parse(unescaped);
+                    console.log('✅ Successfully corrected double-encoded metadata');
+                    return parsedData as T;
+                  } catch (nestedError) {
+                    console.error('❌ Error parsing unescaped metadata string:', nestedError);
+                  }
+                }
+              } catch (parseError) {
+                console.error('❌ Error unescaping metadata JSON:', parseError);
+              }
+            }
+          }
+          
           let data: T;
           try {
             data = JSON.parse(jsonString);
