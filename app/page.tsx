@@ -7,42 +7,37 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
-import { getFeaturedTracks } from '../src/lib/data'
+import { useCart } from '../src/context/CartContext'
 import TrackCard from '../src/components/TrackCard'
-import PlatformsScroller from '../src/components/PlatformsScroller'
 import LicensingSection from '../src/components/LicensingSection'
+import PlatformsScroller from '../src/components/PlatformsScroller'
+import AudioPlayer from '../src/components/AudioPlayer'
 import LicenseSelectionModal from '../src/components/LicenseSelectionModal'
 import CartPopup from '../src/components/CartPopup'
-import AudioPlayer from '../src/components/AudioPlayer'
-import { Track } from '../types/track'
-import { useCart } from '../src/context/CartContext'
+import { Track } from '@/types/track'
 
-// Define a type for the src/types/track.ts version
-interface SrcTrack {
-  id: string;
-  title: string;
-  artist: string;
-  coverUrl: string;
-  price: number;
-  bpm: number;
-  key: string;
-  duration: string;
-  tags: string[];
-  audioUrl: string;
-  licenseType?: string;
+// For backward compatibility with existing components
+type SrcTrack = {
+  id: string
+  title: string
+  artist: string
+  coverImage?: string
+  audioUrl: string
+  downloadDate?: string
+  createdAt?: string
+  uploadDate?: string
 }
 
-// Union type to handle both track formats
-type AnyTrack = Track | SrcTrack;
+// Union type for different track formats
+type AnyTrack = Track | SrcTrack
 
-// Type guard to check if a track has coverUrl property
-function hasCoverUrl(track: AnyTrack): track is SrcTrack {
-  return 'coverUrl' in track;
+// Type guards for track formats
+function hasCoverUrl(track: AnyTrack): track is Track {
+  return 'coverUrl' in track && typeof track.coverUrl === 'string'
 }
 
-// Type guard to check if a track has coverImage property
-function hasCoverImage(track: AnyTrack): track is Track {
-  return 'coverImage' in track;
+function hasCoverImage(track: AnyTrack): track is SrcTrack {
+  return 'coverImage' in track && typeof track.coverImage === 'string'
 }
 
 export default function Home() {
@@ -54,13 +49,26 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true)
   const { cart } = useCart()
   
+  // Fetch tracks data from the API instead of using getFeaturedTracks directly
   useEffect(() => {
-    // Fetch tracks data from the API
     async function loadTracks() {
       setIsLoading(true)
       try {
-        const tracks = await getFeaturedTracks()
-        setFeaturedTracks(tracks)
+        console.log('🔄 Home: Fetching tracks from API')
+        const response = await fetch('/api/tracks')
+        
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`)
+        }
+        
+        const data = await response.json()
+        
+        if (!Array.isArray(data)) {
+          throw new Error('Invalid response format - expected array of tracks')
+        }
+        
+        console.log(`✅ Home: Received ${data.length} tracks from API`)
+        setFeaturedTracks(data)
       } catch (error) {
         console.error('Error loading tracks:', error)
       } finally {
@@ -72,7 +80,7 @@ export default function Home() {
   }, [])
   
   const featuredTrack = featuredTracks.length > 0 ? featuredTracks[0] : null // Use the first track as featured
-  const isInCart = featuredTrack ? cart.some(item => item.id === featuredTrack.id) : false
+  const isInCart = featuredTrack ? cart.some((item: any) => item.id === featuredTrack.id) : false
 
   const handleAddToCart = () => {
     if (!featuredTrack) return

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { getFeaturedTracks } from '@/lib/data'
 import TrackCard from '@/components/TrackCard'
 import GenreDropdown from '@/components/GenreDropdown'
 import MoodDropdown from '@/components/MoodDropdown'
@@ -20,11 +19,24 @@ export default function BeatsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Handle initial load and URL genre parameter
+  // Handle initial load and URL genre parameter - using API endpoint instead of getFeaturedTracks
   useEffect(() => {
     const loadTracks = async () => {
       try {
-        const fetchedTracks = await getFeaturedTracks()
+        console.log('🔄 Fetching tracks from API')
+        const response = await fetch('/api/tracks')
+        
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`)
+        }
+        
+        const fetchedTracks = await response.json()
+        
+        if (!Array.isArray(fetchedTracks)) {
+          throw new Error('Invalid response format - expected array of tracks')
+        }
+        
+        console.log(`✅ Received ${fetchedTracks.length} tracks from API`)
         setTracks(fetchedTracks)
         
         // Set genres from URL parameter
@@ -37,6 +49,7 @@ export default function BeatsPage() {
         
         setError(null)
       } catch (error) {
+        console.error('❌ Failed to fetch tracks:', error)
         setError('Failed to load tracks.')
         setTracks([])
       } finally {

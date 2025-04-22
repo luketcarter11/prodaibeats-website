@@ -105,17 +105,31 @@ const tracks = [
   }
 ];
 
+// Mark the route as dynamic to ensure it doesn't get cached
+export const dynamic = 'force-dynamic';
+
 /**
- * API route for fetching all tracks
+ * API route for fetching all tracks from R2 storage
  */
 export async function GET(request: NextRequest) {
-  console.log('🌐 API ROUTE HIT: Loading tracks...');
+  console.log('🌐 /api/tracks API route hit');
   try {
+    console.log('📥 Fetching tracks from R2 via getTracksData()');
     const tracks = await getTracksData();
-    console.log(`✅ Tracks returned from getTracksData(): ${tracks.length} tracks`);
+    console.log(`✅ Successfully fetched ${tracks.length} tracks from R2`);
+    
+    // Log the first track for debugging (if available)
+    if (tracks.length > 0) {
+      console.log('📄 First track example:', {
+        id: tracks[0].id,
+        title: tracks[0].title,
+        artist: tracks[0].artist
+      });
+    }
+    
     return NextResponse.json(tracks);
   } catch (error) {
-    console.error('❌ Error loading tracks:', error);
+    console.error('❌ Error loading tracks in API route:', error);
     return NextResponse.json({ error: 'Failed to load tracks' }, { status: 500 });
   }
 } 
