@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
-import { uploadFileToR2, getR2PublicUrl } from './r2Uploader';
+import { uploadFileToR2 } from './r2Uploader';
+import { getR2PublicUrl } from './r2Config';
 import { Track } from '../types/track';
 
 // Constants
@@ -67,7 +68,7 @@ export async function importTrackFromYoutube(videoId: string, videoUrl: string):
     // 5. Upload audio file to R2
     const audioFilePath = path.join(tempTrackDir, audioFile);
     const audioR2Key = `audio/${slug}.mp3`;
-    const audioPublicUrl = await uploadFileToR2(audioFilePath, audioR2Key, 'audio/mpeg');
+    const audioPublicUrl = await uploadFileToR2(audioFilePath, audioR2Key);
     
     // 6. Upload cover image to R2 if available
     let coverPublicUrl = '';

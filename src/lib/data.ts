@@ -1,4 +1,6 @@
-import { Track } from '@/types/track'
+import fs from 'fs';
+import path from 'path';
+import { Track } from '../types/track';
 import { r2Storage } from './r2Storage'
 
 export interface LicenseTier {
@@ -91,7 +93,30 @@ async function fetchTracksFromR2(): Promise<Track[]> {
       tracksList.map(async trackId => {
         // Get track metadata from R2
         console.log(`📥 Loading metadata for track: ${trackId}`);
-        const metadata = await r2Storage.load(`metadata/${trackId}.json`, null)
+        
+        // Define expected metadata structure (matches Track but all optional)
+        interface TrackMetadata {
+          title?: string;
+          artist?: string;
+          price?: number;
+          bpm?: number;
+          key?: string;
+          duration?: string;
+          tags?: string[];
+          genre?: string;
+          mood?: string;
+          description?: string;
+          licenseType?: 'Non-Exclusive' | 'Non-Exclusive Plus' | 'Exclusive' | 'Exclusive Plus' | 'Exclusive Pro';
+          isPublic?: boolean;
+          createdAt?: string;
+          updatedAt?: string;
+          downloadDate?: string;
+          slug?: string;
+          videoId?: string;
+          coverImage?: string;
+        }
+        
+        const metadata = await r2Storage.load(`metadata/${trackId}.json`, null) as TrackMetadata | null;
         
         if (!metadata) {
           console.log(`⚠️ No metadata found for track: ${trackId}`);
@@ -105,16 +130,14 @@ async function fetchTracksFromR2(): Promise<Track[]> {
           artist: metadata.artist || 'Unknown Artist',
           coverUrl: `${CDN_BASE_URL}/covers/${trackId}.jpg`,
           audioUrl: `${CDN_BASE_URL}/audio/${trackId}.mp3`,
-          price: metadata.price,
-          bpm: metadata.bpm,
-          key: metadata.key,
-          duration: metadata.duration,
-          tags: metadata.tags,
-          genre: metadata.genre,
-          mood: metadata.mood,
+          coverImage: metadata.coverImage,
+          price: metadata.price || 29.99,
+          bpm: metadata.bpm || 120,
+          key: metadata.key || 'C',
+          duration: metadata.duration || '0:00',
+          tags: metadata.tags || [],
           description: metadata.description,
           licenseType: metadata.licenseType,
-          isPublic: metadata.isPublic ?? true,
           createdAt: metadata.createdAt,
           updatedAt: metadata.updatedAt
         }
