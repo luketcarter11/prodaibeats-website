@@ -37,31 +37,25 @@ interface R2Object {
   Size?: number
 }
 
-// Cache tracks with expiration
+// Server-side cache with expiration
 let cachedTracks: Track[] | null = null
 let lastFetchTime = 0
 const CACHE_DURATION = 60000 // 1 minute cache
 
-// Client-side promise cache
-let clientTracksPromise: Promise<Track[]> | null = null
-
 /**
- * Get tracks data - handles both client and server environments
+ * Get tracks data - SERVER ONLY function
  * @returns Array of tracks from R2 storage
  */
 export async function getTracksData(): Promise<Track[]> {
-  console.log('🔍 getTracksData called');
-  
-  // On client-side, we use a singleton promise to avoid multiple fetches
+  // Server-side only check
   if (typeof window !== 'undefined') {
-    console.log('🌐 Client-side getTracksData');
-    if (!clientTracksPromise) {
-      clientTracksPromise = fetchTracksFromR2()
-    }
-    return clientTracksPromise
+    console.error('❌ getTracksData() was called on the client! This function should only be used on the server.');
+    return [];
   }
   
-  // On server-side, check cache first
+  console.log('🔍 getTracksData called (server-side)');
+  
+  // Check cache first
   const now = Date.now()
   if (cachedTracks && (now - lastFetchTime) < CACHE_DURATION) {
     console.log(`🔄 Using cached tracks (${cachedTracks.length} tracks)`);
@@ -158,6 +152,9 @@ async function fetchTracksFromR2(): Promise<Track[]> {
     return validTracks;
   } catch (error) {
     console.error('❌ Error fetching tracks from R2:', error);
+    // If R2 credentials are missing or there's an error, return an empty array
+    // with a warning in server logs, rather than crashing
+    console.warn('⚠️ Returning empty array due to R2 error');
     return [];
   }
 }
@@ -170,6 +167,12 @@ export const tracks: Track[] = [sampleTrack]
 
 // Expose an async function to get tracks
 export async function getTrackBySlug(slug: string): Promise<Track | null> {
+  // Server-side only check
+  if (typeof window !== 'undefined') {
+    console.error('❌ getTrackBySlug() was called on the client! This function should only be used on the server.');
+    return null;
+  }
+  
   const allTracks = await getTracksData()
   return allTracks.find((track) => 
     track.slug === slug || track.id === slug || track.videoId === slug
@@ -177,10 +180,22 @@ export async function getTrackBySlug(slug: string): Promise<Track | null> {
 }
 
 export async function getFeaturedTracks(): Promise<Track[]> {
+  // Server-side only check
+  if (typeof window !== 'undefined') {
+    console.error('❌ getFeaturedTracks() was called on the client! This function should only be used on the server.');
+    return [];
+  }
+  
   return getTracksData()
 }
 
 export async function getNewReleases(): Promise<Track[]> {
+  // Server-side only check
+  if (typeof window !== 'undefined') {
+    console.error('❌ getNewReleases() was called on the client! This function should only be used on the server.');
+    return [];
+  }
+  
   const allTracks = await getTracksData()
   
   // Sort by creation date if available

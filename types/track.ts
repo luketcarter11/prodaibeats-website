@@ -17,4 +17,8 @@ export interface Track {
   isPublic?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  plays?: number;
+  slug?: string;
+  videoId?: string;
+  downloadDate?: string;
 } 

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { getFeaturedTracks } from '@/lib/data'
 import type { Track } from '@/types/track'
 import BPMSlider from '@/components/BPMSlider'
 import GenreDropdown from '@/components/GenreDropdown'
@@ -62,16 +61,29 @@ function BeatsContent({ onTrackPlay }: BeatsContentProps) {
   const [selectedMoods, setSelectedMoods] = useState<string[]>([])
   const [selectedSort, setSelectedSort] = useState<string>('newest')
 
-  // ✅ Load tracks
+  // ✅ Load tracks from API endpoint instead of calling getFeaturedTracks directly
   useEffect(() => {
     async function loadTracks() {
       setIsLoading(true)
       try {
-        const fetchedTracks = await getFeaturedTracks()
+        console.log('🔄 BeatsContent: Fetching tracks from API')
+        const response = await fetch('/api/tracks')
+        
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`)
+        }
+        
+        const fetchedTracks = await response.json()
+        
+        if (!Array.isArray(fetchedTracks)) {
+          throw new Error('Invalid response format - expected array of tracks')
+        }
+        
+        console.log(`✅ BeatsContent: Received ${fetchedTracks.length} tracks from API`)
         setTracks(fetchedTracks)
         setError(null)
       } catch (error) {
-        console.error('Failed to fetch tracks:', error)
+        console.error('❌ Failed to fetch tracks:', error)
         setError('Failed to load tracks. Please try again later.')
         setTracks([])
       } finally {
