@@ -98,52 +98,34 @@ async function fetchTracksFromR2(): Promise<Track[]> {
           return null;
         }
         
-        let trackData;
-        try {
-          trackData = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
-          console.log(`✅ Parsed metadata for track: ${trackId}`, trackData);
-        } catch (error) {
-          console.error(`❌ Error parsing metadata for track: ${trackId}`, error);
-          return null;
-        }
-
-        if (!trackData) {
-          console.log(`⚠️ Empty metadata for track: ${trackId}`);
-          return null;
-        }
-
-        // Construct the track object
+        // Construct track object with CDN URLs
         const track: Track = {
           id: trackId,
-          title: trackData.title || 'Untitled',
-          artist: trackData.artist || 'Unknown Artist',
-          coverUrl: `${process.env.NEXT_PUBLIC_CDN_URL}/covers/${trackId}.jpg`,
-          audioUrl: `${process.env.NEXT_PUBLIC_CDN_URL}/tracks/${trackId}.mp3`,
-          price: trackData.price || 0,
-          bpm: trackData.bpm || 0,
-          key: trackData.key || 'Unknown',
-          duration: trackData.duration || '0:00',
-          tags: trackData.tags || [],
-          description: trackData.description || '',
-          downloadDate: trackData.uploadDate || new Date().toISOString(),
-          waveform: trackData.waveform,
-          licenseType: trackData.licenseType,
-          createdAt: trackData.createdAt,
-          // Add these fields to match the Track interface
-          coverImage: `${process.env.NEXT_PUBLIC_CDN_URL}/covers/${trackId}.jpg`,
-          uploadDate: trackData.uploadDate || new Date().toISOString(),
-          musicalKey: trackData.key || 'Unknown',
-          genre: trackData.genre || '',
-          mood: trackData.mood || ''
-        };
+          title: metadata.title || 'Untitled Track',
+          artist: metadata.artist || 'Unknown Artist',
+          coverUrl: `${CDN_BASE_URL}/covers/${trackId}.jpg`,
+          audioUrl: `${CDN_BASE_URL}/audio/${trackId}.mp3`,
+          price: metadata.price,
+          bpm: metadata.bpm,
+          key: metadata.key,
+          duration: metadata.duration,
+          tags: metadata.tags,
+          genre: metadata.genre,
+          mood: metadata.mood,
+          description: metadata.description,
+          licenseType: metadata.licenseType,
+          isPublic: metadata.isPublic ?? true,
+          createdAt: metadata.createdAt,
+          updatedAt: metadata.updatedAt
+        }
         
-        console.log(`✅ Constructed track object: ${track.title} by ${track.artist}`);
+        console.log(`✅ Constructed track object:`, track);
         return track;
       })
-    );
+    )
     
-    // Filter out null tracks
-    const validTracks = tracks.filter(track => track !== null) as Track[];
+    // Filter out any null tracks and update cache
+    const validTracks = tracks.filter((track): track is Track => track !== null);
     console.log(`✅ Returning ${validTracks.length} valid tracks`);
     
     // Update cache
@@ -152,7 +134,7 @@ async function fetchTracksFromR2(): Promise<Track[]> {
     
     return validTracks;
   } catch (error) {
-    console.error('❌ Error in fetchTracksFromR2:', error);
+    console.error('❌ Error fetching tracks from R2:', error);
     return [];
   }
 }

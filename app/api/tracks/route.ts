@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
 import { getTracksData } from '@/lib/data';
 
 // For development: use public URLs if external storage is not yet set up
@@ -111,32 +109,13 @@ const tracks = [
  * API route for fetching all tracks
  */
 export async function GET(request: NextRequest) {
-  console.log('🔍 /api/tracks GET request received');
-  
+  console.log('🌐 API ROUTE HIT: Loading tracks...');
   try {
-    // Use the centralized getTracksData function
-    console.log('📥 Fetching tracks data from getTracksData()');
-    const tracksData = await getTracksData();
-    console.log(`📊 Retrieved ${tracksData.length} tracks from getTracksData()`);
-    
-    // If no tracks were found, use the mock data
-    if (tracksData.length === 0) {
-      console.log('⚠️ No tracks found in R2, using mock data');
-      return NextResponse.json(tracks);
-    }
-    
-    // Return tracks data
-    console.log('✅ Returning tracks data to client');
-    return NextResponse.json(tracksData);
+    const tracks = await getTracksData();
+    console.log(`✅ Tracks returned from getTracksData(): ${tracks.length} tracks`);
+    return NextResponse.json(tracks);
   } catch (error) {
-    console.error('❌ Error fetching tracks:', error);
-    
-    return NextResponse.json(
-      { 
-        error: 'Failed to fetch tracks',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    console.error('❌ Error loading tracks:', error);
+    return NextResponse.json({ error: 'Failed to load tracks' }, { status: 500 });
   }
 } 

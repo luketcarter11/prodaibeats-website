@@ -2,13 +2,10 @@ export interface Track {
   id: string;
   title: string;
   artist: string;
-  coverImage: string;
-  uploadDate: string;
+  coverUrl: string;
   audioUrl: string;
-  coverUrl?: string;
   price?: number;
   bpm?: number;
-  musicalKey?: string;
   key?: string;
   duration?: string;
   tags?: string[];
@@ -16,7 +13,7 @@ export interface Track {
   mood?: string;
   description?: string;
   licenseType?: string;
-  downloadDate?: string;
-  waveform?: any;
+  isPublic?: boolean;
   createdAt?: string;
+  updatedAt?: string;
 } 
