@@ -75,35 +75,31 @@ async function fetchTracksFromR2(): Promise<Track[]> {
         if (Array.isArray(parsed)) {
           tracksList = parsed.filter(id => typeof id === 'string' && id.length > 0);
         } else {
-          // Special handling for the specific format we observed
-          // "[\"[\",\"\\\"\",\",\",\"\\\\\",\"t\",\"r\",\"a\",\"c\",\"k\",...
-          // Extract any strings that look like track IDs
-          const trackIdRegex = /(test_\w+|local_\d+_\d+)/g;
-          const matches = rawTracksList.match(trackIdRegex);
-          if (matches && matches.length > 0) {
-            tracksList = matches;
+          console.error('❌ Invalid list.json format: Expected array but got', typeof parsed);
+          if (process.env.NODE_ENV === 'production') {
+            throw new Error('Invalid list.json format in production. Please run the fix-tracks-list script.');
           }
         }
       } catch (parseError) {
-        console.warn('⚠️ Failed to parse tracks list string:', parseError);
-        
-        // As a fallback for corrupted data, try to extract track IDs directly
-        const trackIdRegex = /(test_\w+|local_\d+_\d+)/g;
-        const matches = rawTracksList.match(trackIdRegex);
-        if (matches && matches.length > 0) {
-          tracksList = matches;
-          console.log('⚠️ Extracted track IDs from corrupted data:', tracksList);
+        console.error('❌ Failed to parse tracks list string:', parseError);
+        if (process.env.NODE_ENV === 'production') {
+          throw new Error('Corrupted list.json in production. Please run the fix-tracks-list script.');
         }
+      }
+    } else {
+      console.error('❌ Invalid list.json format: Expected array or string but got', typeof rawTracksList);
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('Invalid list.json format in production. Please run the fix-tracks-list script.');
       }
     }
     
     console.log(`📋 Found ${tracksList.length} track IDs in list.json:`, tracksList);
     
     if (tracksList.length === 0) {
-      console.log('⚠️ No track IDs found in list.json, returning empty array');
+      console.error('❌ No track IDs found in list.json');
       
       if (process.env.NODE_ENV === 'production') {
-        console.error('❌ No tracks found in R2 in production environment. This should be investigated.');
+        throw new Error('No tracks found in R2 in production environment. This should be investigated.');
       }
       
       return [];
