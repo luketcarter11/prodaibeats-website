@@ -88,6 +88,9 @@ export class R2Storage {
         
         // Prepare data for upload
         const jsonString = JSON.stringify(data, null, 2);
+        console.log(`📝 Data to save:`, data);
+        console.log(`📝 JSON string:`, jsonString);
+        
         const objectParams = {
           Bucket: this.bucketName,
           Key: key.endsWith('.json') ? key : `${key}.json`,
@@ -113,7 +116,11 @@ export class R2Storage {
         }
         
         // Write data to file
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+        const jsonString = JSON.stringify(data, null, 2);
+        console.log(`📝 Data to save:`, data);
+        console.log(`📝 JSON string:`, jsonString);
+        
+        fs.writeFileSync(filePath, jsonString);
         console.log(`✅ Successfully saved data to local storage: ${key}`);
       }
     } catch (error) {
@@ -147,7 +154,18 @@ export class R2Storage {
           const jsonString = await response.Body?.transformToString();
           if (!jsonString) throw new Error('Empty response');
           
-          const data = JSON.parse(jsonString);
+          console.log(`📝 Raw response:`, jsonString);
+          
+          let data: T;
+          try {
+            data = JSON.parse(jsonString);
+            console.log(`✅ Successfully parsed JSON:`, data);
+          } catch (parseError) {
+            console.error(`❌ Error parsing JSON:`, parseError);
+            console.log(`⚠️ Using default data:`, defaultData);
+            return defaultData;
+          }
+          
           console.log(`✅ Successfully loaded data from R2: ${key}`);
           return data;
         } catch (error) {
@@ -171,7 +189,18 @@ export class R2Storage {
         }
         
         const jsonString = fs.readFileSync(filePath, 'utf8');
-        const data = JSON.parse(jsonString);
+        console.log(`📝 Raw file contents:`, jsonString);
+        
+        let data: T;
+        try {
+          data = JSON.parse(jsonString);
+          console.log(`✅ Successfully parsed JSON:`, data);
+        } catch (parseError) {
+          console.error(`❌ Error parsing JSON:`, parseError);
+          console.log(`⚠️ Using default data:`, defaultData);
+          return defaultData;
+        }
+        
         console.log(`✅ Successfully loaded data from local storage: ${key}`);
         return data;
       }
