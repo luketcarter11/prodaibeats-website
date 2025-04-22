@@ -111,14 +111,25 @@ const tracks = [
  * API route for fetching all tracks
  */
 export async function GET(request: NextRequest) {
+  console.log('🔍 /api/tracks GET request received');
+  
   try {
     // Use the centralized getTracksData function
+    console.log('📥 Fetching tracks data from getTracksData()');
     const tracksData = await getTracksData();
+    console.log(`📊 Retrieved ${tracksData.length} tracks from getTracksData()`);
+    
+    // If no tracks were found, use the mock data
+    if (tracksData.length === 0) {
+      console.log('⚠️ No tracks found in R2, using mock data');
+      return NextResponse.json(tracks);
+    }
     
     // Return tracks data
+    console.log('✅ Returning tracks data to client');
     return NextResponse.json(tracksData);
   } catch (error) {
-    console.error('Error fetching tracks:', error);
+    console.error('❌ Error fetching tracks:', error);
     
     return NextResponse.json(
       { 

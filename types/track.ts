@@ -16,4 +16,7 @@ export interface Track {
   mood?: string;
   description?: string;
   licenseType?: string;
+  downloadDate?: string;
+  waveform?: any;
+  createdAt?: string;
 } 

@@ -48,8 +48,11 @@ let clientTracksPromise: Promise<Track[]> | null = null
  * @returns Array of tracks from R2 storage
  */
 export async function getTracksData(): Promise<Track[]> {
+  console.log('🔍 getTracksData called');
+  
   // On client-side, we use a singleton promise to avoid multiple fetches
   if (typeof window !== 'undefined') {
+    console.log('🌐 Client-side getTracksData');
     if (!clientTracksPromise) {
       clientTracksPromise = fetchTracksFromR2()
     }
@@ -59,9 +62,11 @@ export async function getTracksData(): Promise<Track[]> {
   // On server-side, check cache first
   const now = Date.now()
   if (cachedTracks && (now - lastFetchTime) < CACHE_DURATION) {
+    console.log(`🔄 Using cached tracks (${cachedTracks.length} tracks)`);
     return cachedTracks
   }
 
+  console.log('🔄 Fetching fresh tracks from R2');
   return fetchTracksFromR2()
 }
 
@@ -70,19 +75,45 @@ export async function getTracksData(): Promise<Track[]> {
  */
 async function fetchTracksFromR2(): Promise<Track[]> {
   try {
+    console.log('📥 Loading tracks list from R2');
     // Load tracks list from R2
     const tracksList = await r2Storage.load<string[]>('tracks/list.json', [])
+    console.log(`📋 Found ${tracksList.length} track IDs in list.json:`, tracksList);
+    
+    if (tracksList.length === 0) {
+      console.log('⚠️ No track IDs found in list.json, returning empty array');
+      return [];
+    }
     
     // Construct track objects from the list
+    console.log('🔄 Constructing track objects from metadata');
     const tracks = await Promise.all(
       tracksList.map(async trackId => {
         // Get track metadata from R2
+        console.log(`📥 Loading metadata for track: ${trackId}`);
         const metadata = await r2Storage.load(`metadata/${trackId}.json`, null)
-        const trackData = metadata ? JSON.parse(metadata) : null
+        
+        if (!metadata) {
+          console.log(`⚠️ No metadata found for track: ${trackId}`);
+          return null;
+        }
+        
+        let trackData;
+        try {
+          trackData = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+          console.log(`✅ Parsed metadata for track: ${trackId}`, trackData);
+        } catch (error) {
+          console.error(`❌ Error parsing metadata for track: ${trackId}`, error);
+          return null;
+        }
 
-        if (!trackData) return null
+        if (!trackData) {
+          console.log(`⚠️ Empty metadata for track: ${trackId}`);
+          return null;
+        }
 
-        return {
+        // Construct the track object
+        const track: Track = {
           id: trackId,
           title: trackData.title || 'Untitled',
           artist: trackData.artist || 'Unknown Artist',
@@ -98,27 +129,31 @@ async function fetchTracksFromR2(): Promise<Track[]> {
           waveform: trackData.waveform,
           licenseType: trackData.licenseType,
           createdAt: trackData.createdAt,
-          plays: trackData.plays,
-          slug: trackData.slug,
-          videoId: trackData.videoId
-        } as Track
+          // Add these fields to match the Track interface
+          coverImage: `${process.env.NEXT_PUBLIC_CDN_URL}/covers/${trackId}.jpg`,
+          uploadDate: trackData.uploadDate || new Date().toISOString(),
+          musicalKey: trackData.key || 'Unknown',
+          genre: trackData.genre || '',
+          mood: trackData.mood || ''
+        };
+        
+        console.log(`✅ Constructed track object: ${track.title} by ${track.artist}`);
+        return track;
       })
-    )
-
-    // Filter out null values and sort by download date
-    const validTracks = tracks
-      .filter((track): track is Track => track !== null)
-      .sort((a, b) => new Date(b.downloadDate || '').getTime() - new Date(a.downloadDate || '').getTime())
-
-    // Update cache
-    cachedTracks = validTracks
-    lastFetchTime = Date.now()
+    );
     
-    return validTracks
+    // Filter out null tracks
+    const validTracks = tracks.filter(track => track !== null) as Track[];
+    console.log(`✅ Returning ${validTracks.length} valid tracks`);
+    
+    // Update cache
+    cachedTracks = validTracks;
+    lastFetchTime = Date.now();
+    
+    return validTracks;
   } catch (error) {
-    console.error('Error fetching tracks from R2:', error)
-    // Return cached data if available, otherwise empty array
-    return cachedTracks || []
+    console.error('❌ Error in fetchTracksFromR2:', error);
+    return [];
   }
 }
 
