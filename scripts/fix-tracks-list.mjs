@@ -39,8 +39,8 @@ async function fixTracksList() {
     console.log(`📋 Found ${trackIds.length} track IDs from metadata files:`, trackIds);
     
     // Create valid JSON array
-    const jsonString = JSON.stringify(trackIds, null, 2);
-    console.log('📝 Generated JSON:', jsonString);
+    const jsonString = Buffer.from(JSON.stringify(trackIds));
+    console.log('📝 Generated JSON bytes:', jsonString);
     
     // Upload to R2
     const putCommand = new PutObjectCommand({

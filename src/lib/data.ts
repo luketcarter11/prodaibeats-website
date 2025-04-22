@@ -104,6 +104,8 @@ async function fetchTracksFromR2(): Promise<Track[]> {
       
       return [];
     }
+
+    console.log('✅ Final parsed tracks list:', tracksList);
     
     // Construct track objects from the list
     console.log('🔄 Constructing track objects from metadata');
