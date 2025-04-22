@@ -1,8 +1,13 @@
 import { PutObjectCommand, GetObjectCommand, NoSuchKey } from '@aws-sdk/client-s3';
 import { R2_BUCKET_NAME, isProd, hasR2Credentials, r2Client } from './r2Config';
-import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
+
+// Only import fs in development
+let fs: typeof import('fs') | undefined;
+if (process.env.NODE_ENV !== 'production') {
+  fs = await import('fs');
+}
 
 // Load environment variables from .env file
 dotenv.config();
@@ -47,14 +52,14 @@ export class R2Storage {
       // Log the initialization for debugging
       console.log(`🔧 Initializing R2Storage, isReady: ${this.isReady}, isProd: ${isProd}`);
       
-      // Create local storage directory if it doesn't exist
-      if (!this.isReady) {
+      // Create local storage directory if it doesn't exist (only in development)
+      if (process.env.NODE_ENV !== 'production' && fs) {
         if (!fs.existsSync(this.localStorageDir)) {
           fs.mkdirSync(this.localStorageDir, { recursive: true });
         }
       }
     } catch (error) {
-      console.error('❌ Failed to initialize R2Storage:', error);
+      console.error('❌ Error initializing R2Storage:', error);
       this.isReady = false;
     }
   }
@@ -100,6 +105,9 @@ export class R2Storage {
         
         // Create directory if it doesn't exist
         const dir = path.dirname(filePath);
+        if (!fs) {
+          throw new Error('fs is not available in production environment');
+        }
         if (!fs.existsSync(dir)) {
           fs.mkdirSync(dir, { recursive: true });
         }
@@ -154,6 +162,9 @@ export class R2Storage {
         console.log(`📥 Loading data from local storage: ${key}`);
         const filePath = path.join(this.localStorageDir, key.endsWith('.json') ? key : `${key}.json`);
         
+        if (!fs) {
+          throw new Error('fs is not available in production environment');
+        }
         if (!fs.existsSync(filePath)) {
           console.log(`⚠️ No data found in local storage for: ${key}, using default`);
           return defaultData;
