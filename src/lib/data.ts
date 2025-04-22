@@ -73,7 +73,45 @@ async function fetchTracksFromR2(): Promise<Track[]> {
   try {
     console.log('📥 Loading tracks list from R2');
     // Load tracks list from R2
-    const tracksList = await r2Storage.load<string[]>('tracks/list.json', [])
+    const rawTracksList = await r2Storage.load<any>('tracks/list.json', [])
+    console.log(`📋 Raw tracks list data:`, rawTracksList);
+    
+    // Fix for improper JSON format in R2 storage - handle the case where the data
+    // is a string instead of a properly structured array
+    let tracksList: string[] = [];
+    
+    if (Array.isArray(rawTracksList)) {
+      // If it's already an array, just use it
+      tracksList = rawTracksList.filter(id => typeof id === 'string' && id.length > 0);
+    } else if (typeof rawTracksList === 'string') {
+      try {
+        // Try to parse the string as JSON - it might be a stringified array
+        const parsed = JSON.parse(rawTracksList);
+        if (Array.isArray(parsed)) {
+          tracksList = parsed.filter(id => typeof id === 'string' && id.length > 0);
+        } else {
+          // Special handling for the specific format we observed
+          // "[\"[\",\"\\\"\",\",\",\"\\\\\",\"t\",\"r\",\"a\",\"c\",\"k\",...
+          // Extract any strings that look like track IDs
+          const trackIdRegex = /(test_\w+|local_\d+_\d+)/g;
+          const matches = rawTracksList.match(trackIdRegex);
+          if (matches && matches.length > 0) {
+            tracksList = matches;
+          }
+        }
+      } catch (parseError) {
+        console.warn('⚠️ Failed to parse tracks list string:', parseError);
+        
+        // As a fallback for corrupted data, try to extract track IDs directly
+        const trackIdRegex = /(test_\w+|local_\d+_\d+)/g;
+        const matches = rawTracksList.match(trackIdRegex);
+        if (matches && matches.length > 0) {
+          tracksList = matches;
+          console.log('⚠️ Extracted track IDs from corrupted data:', tracksList);
+        }
+      }
+    }
+    
     console.log(`📋 Found ${tracksList.length} track IDs in list.json:`, tracksList);
     
     if (tracksList.length === 0) {

@@ -160,12 +160,21 @@ export class R2Storage {
           
           console.log(`📝 Raw response:`, jsonString);
           
+          // For list.json, we want to return the raw string if it's a special case
+          // This allows the caller to handle parsing specially
+          if (key === 'tracks/list.json') {
+            // Return the raw string to allow special handling
+            console.log(`ℹ️ Returning raw string for tracks/list.json for special handling`);
+            return jsonString as unknown as T;
+          }
+          
           let data: T;
           try {
             data = JSON.parse(jsonString);
             console.log(`✅ Successfully parsed JSON:`, data);
           } catch (parseError) {
-            console.error(`❌ Error parsing JSON:`, parseError);
+            console.error(`❌ Error parsing JSON for ${key}:`, parseError);
+            console.log(`⚠️ Raw JSON with issues:`, jsonString);
             console.log(`⚠️ Using default data:`, defaultData);
             return defaultData;
           }
@@ -195,12 +204,20 @@ export class R2Storage {
         const jsonString = fs.readFileSync(filePath, 'utf8');
         console.log(`📝 Raw file contents:`, jsonString);
         
+        // Special handling for tracks/list.json
+        if (key === 'tracks/list.json') {
+          // Return the raw string to allow special handling
+          console.log(`ℹ️ Returning raw string for tracks/list.json for special handling`);
+          return jsonString as unknown as T;
+        }
+        
         let data: T;
         try {
           data = JSON.parse(jsonString);
           console.log(`✅ Successfully parsed JSON:`, data);
         } catch (parseError) {
-          console.error(`❌ Error parsing JSON:`, parseError);
+          console.error(`❌ Error parsing JSON for ${key}:`, parseError);
+          console.log(`⚠️ Raw JSON with issues:`, jsonString);
           console.log(`⚠️ Using default data:`, defaultData);
           return defaultData;
         }

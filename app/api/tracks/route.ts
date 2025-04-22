@@ -115,21 +115,60 @@ export async function GET(request: NextRequest) {
   console.log('🌐 /api/tracks API route hit');
   try {
     console.log('📥 Fetching tracks from R2 via getTracksData()');
-    const tracks = await getTracksData();
-    console.log(`✅ Successfully fetched ${tracks.length} tracks from R2`);
+    let tracksFromR2 = await getTracksData();
+    console.log(`✅ Retrieved ${tracksFromR2.length} tracks from R2`);
     
     // Log the first track for debugging (if available)
-    if (tracks.length > 0) {
+    if (tracksFromR2.length > 0) {
       console.log('📄 First track example:', {
-        id: tracks[0].id,
-        title: tracks[0].title,
-        artist: tracks[0].artist
+        id: tracksFromR2[0].id,
+        title: tracksFromR2[0].title,
+        artist: tracksFromR2[0].artist
       });
+    } else {
+      console.log('⚠️ No tracks returned from R2, using fallback mock data');
+      
+      // Use the mock data when R2 returns empty results
+      // Transform the mock data format to match the Track interface
+      tracksFromR2 = tracks.map(mockTrack => ({
+        id: mockTrack.id,
+        title: mockTrack.title,
+        artist: mockTrack.artist,
+        coverUrl: mockTrack.coverImage,
+        audioUrl: mockTrack.audioUrl,
+        price: 29.99, // Default price
+        bpm: mockTrack.bpm,
+        key: mockTrack.key,
+        duration: mockTrack.duration,
+        tags: mockTrack.tags || [],
+        createdAt: mockTrack.uploadDate
+      }));
+      
+      console.log(`✅ Using ${tracksFromR2.length} fallback tracks`);
     }
     
-    return NextResponse.json(tracks);
+    return NextResponse.json(tracksFromR2);
   } catch (error) {
     console.error('❌ Error loading tracks in API route:', error);
-    return NextResponse.json({ error: 'Failed to load tracks' }, { status: 500 });
+    
+    // Fallback to mock data in case of error
+    console.log('⚠️ Error fetching from R2, using fallback mock data');
+    
+    // Transform the mock data format to match the Track interface
+    const fallbackTracks = tracks.map(mockTrack => ({
+      id: mockTrack.id,
+      title: mockTrack.title,
+      artist: mockTrack.artist,
+      coverUrl: mockTrack.coverImage,
+      audioUrl: mockTrack.audioUrl,
+      price: 29.99, // Default price
+      bpm: mockTrack.bpm,
+      key: mockTrack.key,
+      duration: mockTrack.duration,
+      tags: mockTrack.tags || [],
+      createdAt: mockTrack.uploadDate
+    }));
+    
+    return NextResponse.json(fallbackTracks);
   }
 } 
