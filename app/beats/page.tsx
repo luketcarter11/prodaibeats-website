@@ -80,8 +80,18 @@ function BeatsContent({ onTrackPlay }: BeatsContentProps) {
         }
         
         console.log(`✅ BeatsContent: Received ${fetchedTracks.length} tracks from API`)
-        setTracks(fetchedTracks)
+        
+        // Apply fallbacks for missing or malformed fields
+        const safeTracks = fetchedTracks.map(track => ({
+          ...track,
+          bpm: typeof track.bpm === 'number' ? track.bpm : 120,
+          duration: track.duration || '2:30',
+          tags: Array.isArray(track.tags) ? track.tags : []
+        }))
+        
+        setTracks(safeTracks)
         setError(null)
+        console.log("✅ Loaded tracks:", safeTracks)
       } catch (error) {
         console.error('❌ Failed to fetch tracks:', error)
         setError('Failed to load tracks. Please try again later.')
@@ -121,20 +131,20 @@ function BeatsContent({ onTrackPlay }: BeatsContentProps) {
   }
 
   const filteredTracks = tracks.filter(track => {
-    // Filter by BPM
-    const bpmMatch = track.bpm >= selectedMinBpm && track.bpm <= selectedMaxBpm
+    // Filter by BPM - add type check before comparison
+    const bpmMatch = typeof track.bpm === 'number' && track.bpm >= selectedMinBpm && track.bpm <= selectedMaxBpm
     
     // Filter by genres (case-insensitive)
     const genreMatch = selectedGenres.length === 0 || 
-      selectedGenres.some(genre => 
+      (Array.isArray(track.tags) && selectedGenres.some(genre => 
         track.tags.some((tag: string) => tag.toLowerCase() === genre.toLowerCase())
-      )
+      ))
     
     // Filter by moods (case-insensitive)
     const moodMatch = selectedMoods.length === 0 || 
-      selectedMoods.some(mood => 
+      (Array.isArray(track.tags) && selectedMoods.some(mood => 
         track.tags.some((tag: string) => tag.toLowerCase() === mood.toLowerCase())
-      )
+      ))
     
     return bpmMatch && genreMatch && moodMatch
   })
@@ -150,9 +160,9 @@ function BeatsContent({ onTrackPlay }: BeatsContentProps) {
         // Safely handle potentially missing plays property
         return (b.plays || 0) - (a.plays || 0)
       case 'az':
-        return a.title.localeCompare(b.title)
+        return (a.title || '').localeCompare(b.title || '')
       case 'za':
-        return b.title.localeCompare(a.title)
+        return (b.title || '').localeCompare(a.title || '')
       case 'hidden':
         // Safely handle potentially missing plays property
         return (a.plays || 0) - (b.plays || 0)

@@ -136,33 +136,84 @@ async function fetchTracksFromR2(): Promise<Track[]> {
           coverImage?: string;
         }
         
-        const metadata = await r2Storage.load(`metadata/${trackId}.json`, null) as TrackMetadata | null;
+        let metadata = await r2Storage.load(`metadata/${trackId}.json`, null) as TrackMetadata | null;
         
         if (!metadata) {
           console.log(`⚠️ No metadata found for track: ${trackId}`);
           return null;
         }
         
+        // Add detailed metadata debugging
+        console.log(`🔍 Raw metadata for track ${trackId}:`, JSON.stringify(metadata, null, 2));
+        
+        // Check for common metadata issues
+        if (!metadata.title) console.warn(`⚠️ Missing title for track: ${trackId}`);
+        if (!metadata.artist) console.warn(`⚠️ Missing artist for track: ${trackId}`);
+        if (!metadata.duration) console.warn(`⚠️ Missing duration for track: ${trackId}`);
+        
+        // Check if metadata is a string that needs parsing
+        if (typeof metadata === 'string') {
+          console.warn(`⚠️ Metadata is a string, attempting to parse: ${trackId}`);
+          try {
+            const parsedMetadata = JSON.parse(metadata) as TrackMetadata;
+            console.log(`✅ Successfully parsed string metadata for track ${trackId}:`, parsedMetadata);
+            metadata = parsedMetadata;
+          } catch (parseError) {
+            console.error(`❌ Failed to parse string metadata for track ${trackId}:`, parseError);
+          }
+        }
+        
         // Construct track object with CDN URLs
+        const audioUrl = `${CDN_BASE_URL}/audio/${trackId}.mp3`;
+        const coverUrl = `${CDN_BASE_URL}/covers/${trackId}.jpg`;
+        
+        console.log(`🔊 Constructed audio URL: ${audioUrl}`);
+        console.log(`🖼️ Constructed cover URL: ${coverUrl}`);
+        
+        // Ensure the metadata has sensible defaults for all critical fields
+        const ensuredMetadata = {
+          ...metadata,
+          title: metadata.title?.trim() || 'Untitled Track',
+          artist: metadata.artist?.trim() || 'Unknown Artist',
+          price: typeof metadata.price === 'number' && !isNaN(metadata.price) ? metadata.price : 29.99,
+          bpm: typeof metadata.bpm === 'number' && !isNaN(metadata.bpm) ? metadata.bpm : 120,
+          key: metadata.key?.trim() || 'C',
+          duration: metadata.duration?.trim() || '0:00',
+          tags: Array.isArray(metadata.tags) ? metadata.tags : [],
+          description: metadata.description?.trim() || '',
+          createdAt: metadata.createdAt || new Date().toISOString(),
+        };
+        
+        // Validate the constructed audio URL
+        if (!audioUrl.includes('.mp3')) {
+          console.warn(`⚠️ Invalid audio URL for track ${trackId}: ${audioUrl}`);
+        }
+        
         const track: Track = {
           id: trackId,
-          title: metadata.title || 'Untitled Track',
-          artist: metadata.artist || 'Unknown Artist',
-          coverUrl: `${CDN_BASE_URL}/covers/${trackId}.jpg`,
-          audioUrl: `${CDN_BASE_URL}/audio/${trackId}.mp3`,
+          title: ensuredMetadata.title,
+          artist: ensuredMetadata.artist,
+          coverUrl: coverUrl,
+          audioUrl: audioUrl,
           coverImage: metadata.coverImage,
-          price: metadata.price || 29.99,
-          bpm: metadata.bpm || 120,
-          key: metadata.key || 'C',
-          duration: metadata.duration || '0:00',
-          tags: metadata.tags || [],
-          description: metadata.description,
+          price: ensuredMetadata.price,
+          bpm: ensuredMetadata.bpm,
+          key: ensuredMetadata.key,
+          duration: ensuredMetadata.duration,
+          tags: ensuredMetadata.tags,
+          description: ensuredMetadata.description,
           licenseType: metadata.licenseType,
-          createdAt: metadata.createdAt,
+          createdAt: ensuredMetadata.createdAt,
           updatedAt: metadata.updatedAt
         }
         
-        console.log(`✅ Constructed track object:`, track);
+        console.log(`✅ Final constructed track object:`, JSON.stringify({
+          id: track.id,
+          title: track.title,
+          artist: track.artist,
+          audioUrl: track.audioUrl,
+          duration: track.duration,
+        }, null, 2));
         return track;
       })
     )

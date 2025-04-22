@@ -8,7 +8,7 @@ const nextConfig = {
         hostname: '**',
       },
     ],
-    domains: ['localhost'],
+    domains: ['localhost', 'cdn.prodaibeats.com'],
     unoptimized: true,
   },
   swcMinify: true,
