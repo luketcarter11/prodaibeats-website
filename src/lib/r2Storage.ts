@@ -108,6 +108,13 @@ export class R2Storage {
       } else {
         // Save to local file
         console.log(`📤 Saving data to local storage: ${key}`);
+        
+        // Prevent local file fallback in production
+        if (process.env.NODE_ENV === 'production') {
+          console.error('❌ Tried to use local fallback in production! This should never happen.');
+          throw new Error('Cannot save to local storage in production environment');
+        }
+        
         const filePath = path.join(this.localStorageDir, key.endsWith('.json') ? key : `${key}.json`);
         
         // Create directory if it doesn't exist
@@ -191,6 +198,13 @@ export class R2Storage {
       } else {
         // Load from local file
         console.log(`📥 Loading data from local storage: ${key}`);
+        
+        // Prevent local file fallback in production
+        if (process.env.NODE_ENV === 'production') {
+          console.error('❌ Tried to use local fallback in production! This should never happen.');
+          return defaultData;
+        }
+        
         const filePath = path.join(this.localStorageDir, key.endsWith('.json') ? key : `${key}.json`);
         
         if (!fs) {
