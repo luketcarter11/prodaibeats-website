@@ -22,9 +22,9 @@ export default function BeatsPage() {
 
   // Handle initial load and URL genre parameter
   useEffect(() => {
-    const loadTracks = () => {
+    const loadTracks = async () => {
       try {
-        const fetchedTracks = getFeaturedTracks()
+        const fetchedTracks = await getFeaturedTracks()
         setTracks(fetchedTracks)
         
         // Set genres from URL parameter

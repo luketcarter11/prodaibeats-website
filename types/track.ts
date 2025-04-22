@@ -4,6 +4,7 @@ export interface Track {
   artist: string;
   coverUrl: string;
   audioUrl: string;
+  coverImage?: string;
   price?: number;
   bpm?: number;
   key?: string;
