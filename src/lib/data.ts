@@ -15,21 +15,6 @@ export interface LicenseTier {
 // CDN base URL
 const CDN_BASE_URL = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://cdn.prodaibeats.com'
 
-// Sample track as fallback
-const sampleTrack: Track = {
-  id: 'test_12345',
-  title: 'Sample Track',
-  artist: 'Test Artist',
-  coverUrl: `${CDN_BASE_URL}/images/covers/sample_track.jpg`,
-  price: 12.99,
-  bpm: 100,
-  key: 'Am',
-  duration: '0:30',
-  tags: ['Test', 'Sample'],
-  audioUrl: `${CDN_BASE_URL}/audio/sample_track.mp3`,
-  licenseType: 'Non-Exclusive'
-}
-
 interface R2Object {
   Key?: string
   LastModified?: Date
@@ -116,6 +101,11 @@ async function fetchTracksFromR2(): Promise<Track[]> {
     
     if (tracksList.length === 0) {
       console.log('⚠️ No track IDs found in list.json, returning empty array');
+      
+      if (process.env.NODE_ENV === 'production') {
+        console.error('❌ No tracks found in R2 in production environment. This should be investigated.');
+      }
+      
       return [];
     }
     
@@ -190,18 +180,24 @@ async function fetchTracksFromR2(): Promise<Track[]> {
     return validTracks;
   } catch (error) {
     console.error('❌ Error fetching tracks from R2:', error);
-    // If R2 credentials are missing or there's an error, return an empty array
-    // with a warning in server logs, rather than crashing
-    console.warn('⚠️ Returning empty array due to R2 error');
+    
+    if (process.env.NODE_ENV === 'production') {
+      console.error('⛔ Production error fetching tracks from R2. This is a critical issue that must be resolved.');
+      console.error('⛔ Details:', error);
+    } else {
+      console.warn('⚠️ Development mode: Returning empty array due to R2 error. Consider using mock data for testing.');
+    }
+    
     return [];
   }
 }
 
 /**
- * Export tracks with a lazy promise to be resolved at runtime
- * This acts as a placeholder until the actual data is loaded
+ * Export tracks as an empty array.
+ * Any code accessing this directly should use getTracksData() instead
+ * which will fetch the actual data from R2.
  */
-export const tracks: Track[] = [sampleTrack]
+export const tracks: Track[] = []
 
 // Expose an async function to get tracks
 export async function getTrackBySlug(slug: string): Promise<Track | null> {
