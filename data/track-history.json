@@ -271,6 +271,57 @@
       "sourceId": "eb41daa1-ece4-4acd-82a2-e3f409877595",
       "id": "338979e4-4ec5-4a62-9362-d434799e97df",
       "downloadDate": "2025-04-23T03:06:08.880Z"
+    },
+    {
+      "youtubeId": "G_A2LHBOINs",
+      "title": "Neon Tension | 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=G_A2LHBOINs",
+      "localPath": {
+        "audio": "/Users/Luke/Documents/prodai/public/audio/track_1ba5dcb9d3a84a7c.mp3",
+        "cover": "/Users/Luke/Documents/prodai/public/images/covers/track_1ba5dcb9d3a84a7c.jpg",
+        "metadata": "/Users/Luke/Documents/prodai/data/track_1ba5dcb9d3a84a7c.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_1ba5dcb9d3a84a7c.mp3",
+      "websiteId": "track_1ba5dcb9d3a84a7c",
+      "sourceType": "playlist",
+      "sourceId": "eb41daa1-ece4-4acd-82a2-e3f409877595",
+      "id": "5b8b819a-b463-48c8-9f0f-5eb9072fc090",
+      "downloadDate": "2025-04-23T03:07:22.164Z"
+    },
+    {
+      "youtubeId": "gwdyrfb7rb0",
+      "title": "Crystal Tower 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=gwdyrfb7rb0",
+      "localPath": {
+        "audio": "/Users/Luke/Documents/prodai/public/audio/track_c997313032e642b5.mp3",
+        "cover": "/Users/Luke/Documents/prodai/public/images/covers/track_c997313032e642b5.jpg",
+        "metadata": "/Users/Luke/Documents/prodai/data/track_c997313032e642b5.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_c997313032e642b5.mp3",
+      "websiteId": "track_c997313032e642b5",
+      "sourceType": "playlist",
+      "sourceId": "eb41daa1-ece4-4acd-82a2-e3f409877595",
+      "id": "c5713363-fc82-486c-95cc-6bc798887441",
+      "downloadDate": "2025-04-23T03:09:12.388Z"
+    },
+    {
+      "youtubeId": "XNsROR4Tfog",
+      "title": "Neon Space 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=XNsROR4Tfog",
+      "localPath": {
+        "audio": "/Users/Luke/Documents/prodai/public/audio/track_875bb53f5a714bbf.mp3",
+        "cover": "/Users/Luke/Documents/prodai/public/images/covers/track_875bb53f5a714bbf.jpg",
+        "metadata": "/Users/Luke/Documents/prodai/data/track_875bb53f5a714bbf.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_875bb53f5a714bbf.mp3",
+      "websiteId": "track_875bb53f5a714bbf",
+      "sourceType": "playlist",
+      "sourceId": "eb41daa1-ece4-4acd-82a2-e3f409877595",
+      "id": "955db128-7a47-4403-882c-1f07891c5bc7",
+      "downloadDate": "2025-04-23T03:10:15.343Z"
     }
   ]
 }
