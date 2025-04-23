@@ -86,14 +86,32 @@ export class R2Storage {
     await this.waitForReady();
     
     try {
+      // Prepare data for upload
+      let jsonString: string;
+      if (typeof data === 'string') {
+        // If data is already a string, use it directly
+        jsonString = data;
+        console.log(`📝 Using provided string data:`, jsonString);
+      } else {
+        // Otherwise stringify the data
+        jsonString = JSON.stringify(data, null, 2);
+        console.log(`📝 Data to save:`, data);
+        console.log(`📝 JSON string:`, jsonString);
+      }
+      
+      // Validate the JSON can be parsed back correctly
+      try {
+        const parseTest = JSON.parse(jsonString);
+        console.log(`✅ JSON validation: Successfully parsed back to ${typeof parseTest}`);
+      } catch (error) {
+        const parseError = error as Error;
+        console.error(`❌ JSON validation failed: ${parseError.message}`);
+        throw new Error('Invalid JSON data - failed to parse');
+      }
+      
       if (this.isReady) {
         // Save to R2
         console.log(`📤 Saving data to R2: ${key}`);
-        
-        // Prepare data for upload
-        const jsonString = JSON.stringify(data, null, 2);
-        console.log(`📝 Data to save:`, data);
-        console.log(`📝 JSON string:`, jsonString);
         
         const objectParams = {
           Bucket: this.bucketName,
@@ -101,42 +119,28 @@ export class R2Storage {
           Body: jsonString,
           ContentType: 'application/json',
         };
-
-        // Upload to R2
+        
         await r2Client.send(new PutObjectCommand(objectParams));
         console.log(`✅ Successfully saved data to R2: ${key}`);
       } else {
-        // Save to local file
-        console.log(`📤 Saving data to local storage: ${key}`);
-        
-        // Prevent local file fallback in production
-        if (process.env.NODE_ENV === 'production') {
-          console.error('❌ Tried to use local fallback in production! This should never happen.');
-          throw new Error('Cannot save to local storage in production environment');
+        // Save to local file in development
+        if (process.env.NODE_ENV !== 'production' && fs) {
+          const filePath = path.join(this.localStorageDir, key);
+          const dirPath = path.dirname(filePath);
+          
+          if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath, { recursive: true });
+          }
+          
+          fs.writeFileSync(filePath, jsonString);
+          console.log(`✅ Successfully saved data to local file: ${filePath}`);
+        } else {
+          console.warn('⚠️ R2Storage is not ready and local storage is not available');
         }
-        
-        const filePath = path.join(this.localStorageDir, key.endsWith('.json') ? key : `${key}.json`);
-        
-        // Create directory if it doesn't exist
-        const dir = path.dirname(filePath);
-        if (!fs) {
-          throw new Error('fs is not available in production environment');
-        }
-        if (!fs.existsSync(dir)) {
-          fs.mkdirSync(dir, { recursive: true });
-        }
-        
-        // Write data to file
-        const jsonString = JSON.stringify(data, null, 2);
-        console.log(`📝 Data to save:`, data);
-        console.log(`📝 JSON string:`, jsonString);
-        
-        fs.writeFileSync(filePath, jsonString);
-        console.log(`✅ Successfully saved data to local storage: ${key}`);
       }
     } catch (error) {
-      console.error(`❌ Error saving data (${key}):`, error);
-      throw new Error(`Failed to save data: ${key}`);
+      console.error(`❌ Error saving data to ${key}:`, error);
+      throw error;
     }
   }
 

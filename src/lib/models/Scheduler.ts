@@ -47,7 +47,7 @@ export class Scheduler {
     this.initializationPromise = this.initialize()
   }
 
-  private async initialize(): Promise<void> {
+  public async initialize(): Promise<void> {
     try {
       console.log('🔧 Initializing Scheduler...')
       
@@ -241,25 +241,33 @@ export class Scheduler {
     
     return Boolean(this.state.active && nextRun && now >= nextRun)
   }
+
+  /**
+   * Clear the list of downloaded track IDs
+   * This is used during emergency resets to force redownload of all tracks
+   */
+  public async clearDownloadedTrackIds(): Promise<void> {
+    this.state.downloadedTrackIds = []
+    await this.saveState()
+    this.addLog('Cleared downloaded track cache', 'info')
+  }
 }
 
-// Singleton instance
-let instance: Scheduler | null = null
-let initializationPromise: Promise<Scheduler> | null = null
+let schedulerInstance: Scheduler | null = null
 
-export const getScheduler = async (): Promise<Scheduler> => {
-  if (!initializationPromise) {
-    initializationPromise = (async () => {
-      if (!instance) {
-        console.log('🔄 Creating new Scheduler instance')
-        instance = new Scheduler()
-        await instance.initializationPromise
-        console.log('✅ Scheduler instance initialized')
-      }
-      return instance
-    })()
+export async function getScheduler(options: { fresh?: boolean } = {}): Promise<Scheduler> {
+  if (options.fresh) {
+    const freshScheduler = new Scheduler()
+    await freshScheduler.initialize()
+    return freshScheduler
   }
-  return initializationPromise
+
+  if (!schedulerInstance) {
+    schedulerInstance = new Scheduler()
+    await schedulerInstance.initialize()
+  }
+
+  return schedulerInstance
 }
 
 // Initialize scheduler but don't export the promise

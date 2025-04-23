@@ -4,6 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import { getScheduler } from './models/Scheduler'
 import { YouTubeDownloader } from './YouTubeDownloader'
+import { countFilesByType } from './storage-utils'
 
 const execAsync = promisify(exec)
 
@@ -19,7 +20,7 @@ interface YouTubeDownloadResult {
  * This function should be called by a cron job every minute to check
  * if the scheduler should run and download new tracks.
  */
-export async function checkAndRunScheduler(): Promise<void> {
+export async function checkAndRunScheduler(force: boolean = false): Promise<void> {
   try {
     console.log('🔄 Starting scheduler check...')
     
@@ -27,8 +28,8 @@ export async function checkAndRunScheduler(): Promise<void> {
     const scheduler = await getScheduler()
     console.log('✅ Scheduler instance ready')
   
-    // Check if scheduler should run
-    if (!scheduler.shouldRun()) {
+    // Check if scheduler should run (unless forced)
+    if (!force && !scheduler.shouldRun()) {
       console.log('⏱️ Scheduler check: Not scheduled to run yet')
       return
     }
@@ -91,7 +92,7 @@ export async function checkAndRunScheduler(): Promise<void> {
         await scheduler.updateSourceLastChecked(source.id)
       } catch (error) {
         console.error(`❌ Error processing source ${source.source}:`, error)
-        scheduler.addLog(`Error checking source: ${error instanceof Error ? error.message : String(error)}`, 'error', source.id)
+        scheduler.addLog(`Error processing source ${source.source}: ${error instanceof Error ? error.message : String(error)}`, 'error')
       }
     }
     
@@ -100,8 +101,8 @@ export async function checkAndRunScheduler(): Promise<void> {
     console.log('✅ Scheduler run completed')
     scheduler.addLog('Scheduler run completed', 'info')
   } catch (error) {
-    console.error('❌ Error running scheduler:', error)
-    console.error(`Scheduler error: ${error instanceof Error ? error.message : String(error)}`)
+    console.error('❌ Error in scheduler check:', error)
+    throw error
   }
 }
 
@@ -172,7 +173,7 @@ async function checkForNewTracks(source: string, type: 'channel' | 'playlist', l
 /**
  * Function to manually trigger the scheduler to run immediately
  */
-export async function runSchedulerNow(): Promise<void> {
+export async function runSchedulerNow(force: boolean = false): Promise<void> {
   try {
     console.log('🚀 Manually triggering scheduler...')
     
@@ -180,8 +181,24 @@ export async function runSchedulerNow(): Promise<void> {
     const scheduler = await getScheduler()
     console.log('✅ Scheduler instance ready')
     
-    // Run the scheduler
-    await checkAndRunScheduler()
+    // Clear downloaded track IDs if this is a forced run
+    if (force) {
+      console.log('🧹 Clearing downloaded track cache...')
+      await scheduler.clearDownloadedTrackIds()
+    }
+    
+    // Run the scheduler with force option
+    await checkAndRunScheduler(force)
+    
+    // Get storage stats
+    const stats = await countFilesByType()
+    
+    // Print summary
+    console.log('\n📊 Summary:')
+    console.log(`📥 Downloaded ${stats.audio} new tracks`)
+    console.log(`🎵 R2 contains ${stats.audio} audio files`)
+    console.log(`📝 R2 contains ${stats.metadata} metadata files`)
+    console.log(`🖼️  R2 contains ${stats.covers} cover images`)
     
     console.log('✅ Manual scheduler run completed')
   } catch (error) {
