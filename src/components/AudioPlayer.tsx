@@ -164,7 +164,7 @@ const AudioPlayer = ({ currentTrack, onClose }: AudioPlayerProps) => {
           <div className="relative w-12 h-12 flex-shrink-0">
             <Image
               src={currentTrack.coverUrl}
-              alt={currentTrack.title}
+              alt={currentTrack.title ?? 'Untitled Track'}
               fill
               className="object-cover rounded-md"
             />

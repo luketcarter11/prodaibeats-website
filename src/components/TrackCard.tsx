@@ -167,7 +167,7 @@ export default function TrackCard({
                 ? 'bg-green-600 hover:bg-green-700 text-white' 
                 : 'bg-purple-600 hover:bg-purple-700 text-white'
             }`}
-            aria-label={isInCart ? `${title} is in your cart` : `Add ${title} to cart for $${price.toFixed(2)}`}
+            aria-label={isInCart ? `${title} is in your cart` : `Add ${title} to cart for $${(price ?? 0).toFixed(2)}`}
           >
             {isInCart ? (
               <>
@@ -175,7 +175,7 @@ export default function TrackCard({
                 In Cart
               </>
             ) : (
-              `$${price.toFixed(2)}`
+              `$${(price ?? 0).toFixed(2)}`
             )}
           </button>
         </div>

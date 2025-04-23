@@ -30,7 +30,7 @@ export default function TrackCard({
         <div className="relative w-12 h-12 mr-4 group-hover:opacity-80 transition-opacity">
           <Image
             src={coverUrl}
-            alt={title}
+            alt={title ?? 'Untitled Track'}
             fill
             className="object-cover rounded"
           />
@@ -81,10 +81,10 @@ export default function TrackCard({
           </svg>
         </button>
         <button className="px-4 py-2 bg-[#a259ff] hover:bg-[#8c43e9] text-white rounded font-medium transition-colors flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386a2.25 2.25 0 012.17 1.684l.298 1.192M6.104 5.876l1.347 5.39m0 0l.298 1.192A2.25 2.25 0 009.92 14.25h7.358a2.25 2.25 0 002.17-1.684l1.386-5.544A1.125 1.125 0 0019.733 5.25H6.104zm0 0L4.5 9.75m16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm-10.5 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
           </svg>
-          ${price.toFixed(2)}
+          ${(price ?? 0).toFixed(2)}
         </button>
       </div>
     </div>

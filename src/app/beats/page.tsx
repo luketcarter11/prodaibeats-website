@@ -13,9 +13,12 @@ export default function BeatsPage() {
   const genreQuery = searchParams.get('genres')
   
   const [tracks, setTracks] = useState<Track[]>([])
+  const [selectedMinBpm, setSelectedMinBpm] = useState(0)
+  const [selectedMaxBpm, setSelectedMaxBpm] = useState(300)
   const [selectedGenres, setSelectedGenres] = useState<string[]>([])
   const [selectedMoods, setSelectedMoods] = useState<string[]>([])
-  const [bpmRange, setBpmRange] = useState<[number, number]>([60, 180])
+  const [selectedSort, setSelectedSort] = useState('newest')
+  const [currentPlayingTrack, setCurrentPlayingTrack] = useState<Track | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -60,33 +63,55 @@ export default function BeatsPage() {
     loadTracks()
   }, [genreQuery]) // Re-run when genre query changes
 
-  const filteredTracks = tracks.filter(track => {
-    // If no genres selected, show all tracks
-    if (selectedGenres.length === 0) {
-      return true
-    }
+  const handlePlayTrack = (track: Track) => {
+    setCurrentPlayingTrack(track)
+  }
 
+  // Filter tracks by selected criteria
+  const filteredTracks = tracks.filter(track => {
     // Check if track has any of the selected genres
     const hasSelectedGenre = selectedGenres.some(genre => 
-      track.tags.some(tag => tag.toLowerCase() === genre.toLowerCase())
+      (track.tags ?? []).some(tag => tag.toLowerCase() === genre.toLowerCase())
     )
     if (!hasSelectedGenre) {
       return false
     }
 
-    // Filter by moods if any selected
-    if (selectedMoods.length > 0 && !selectedMoods.some(mood => 
-      track.tags.some(tag => tag.toLowerCase() === mood.toLowerCase())
-    )) {
+    // Check if track has any of the selected moods
+    const hasSelectedMood = selectedMoods.some(mood => 
+      (track.tags ?? []).some(tag => tag.toLowerCase() === mood.toLowerCase())
+    )
+    if (!hasSelectedMood) {
       return false
     }
 
-    // Filter by BPM range
-    if (track.bpm < bpmRange[0] || track.bpm > bpmRange[1]) {
+    // Check if track BPM is within range
+    const bpm = track.bpm ?? 0
+    if (bpm < selectedMinBpm || bpm > selectedMaxBpm) {
       return false
     }
 
     return true
+  })
+
+  // Sort tracks by selected criteria
+  const sortedTracks = [...filteredTracks].sort((a, b) => {
+    switch (selectedSort) {
+      case 'newest':
+        return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()
+      case 'oldest':
+        return new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime()
+      case 'price-high':
+        return (b.price ?? 0) - (a.price ?? 0)
+      case 'price-low':
+        return (a.price ?? 0) - (b.price ?? 0)
+      case 'bpm-high':
+        return (b.bpm ?? 0) - (a.bpm ?? 0)
+      case 'bpm-low':
+        return (a.bpm ?? 0) - (b.bpm ?? 0)
+      default:
+        return 0
+    }
   })
 
   if (isLoading) {
@@ -105,10 +130,6 @@ export default function BeatsPage() {
     )
   }
 
-  const handleBpmChange = (min: number, max: number) => {
-    setBpmRange([min, max])
-  }
-
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
@@ -123,25 +144,29 @@ export default function BeatsPage() {
             onMoodSelect={setSelectedMoods}
           />
           <BPMSlider
-            onBpmChange={handleBpmChange}
+            onBpmChange={(min, max) => {
+              setSelectedMinBpm(min)
+              setSelectedMaxBpm(max)
+            }}
           />
         </div>
 
         {/* Tracks Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredTracks.map((track) => (
+          {sortedTracks.map((track) => (
             <TrackCard
               key={track.id}
               id={track.id}
-              title={track.title}
-              artist={track.artist}
+              title={track.title ?? 'Untitled Track'}
+              artist={track.artist ?? 'Unknown Artist'}
               coverUrl={track.coverUrl}
-              price={track.price}
-              bpm={track.bpm}
-              musicalKey={track.key}
-              duration={track.duration}
-              tags={track.tags}
+              price={track.price ?? 0}
+              bpm={track.bpm ?? 0}
+              musicalKey={track.key ?? 'C'}
+              duration={track.duration ?? '0:00'}
+              tags={track.tags ?? []}
               audioUrl={track.audioUrl}
+              onPlay={() => handlePlayTrack(track)}
             />
           ))}
         </div>

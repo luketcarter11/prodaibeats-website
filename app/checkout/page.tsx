@@ -85,20 +85,20 @@ export default function CheckoutPage() {
                   <div className="relative w-16 h-16 md:w-20 md:h-20 flex-shrink-0">
                     <Image
                       src={item.coverUrl}
-                      alt={item.title}
+                      alt={item.title ?? 'Untitled Track'}
                       fill
                       className="object-cover rounded"
                     />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-white font-medium text-lg">{item.title}</h3>
+                    <div className="flex justify-between">
+                      <h3 className="text-white font-medium">{item.title ?? 'Untitled Track'}</h3>
+                      <p className="text-white font-medium">${item.price?.toFixed(2) ?? '0.00'}</p>
+                    </div>
                     <p className="text-gray-400 text-sm">{item.artist}</p>
                     <div className="flex justify-between items-center mt-1">
                       <span className="text-sm text-gray-400">
                         {item.licenseType} License
-                      </span>
-                      <span className="text-purple-400 font-bold">
-                        ${item.price.toFixed(2)}
                       </span>
                     </div>
                   </div>

@@ -141,7 +141,7 @@ async function FeaturedTracks() {
             <TrackCard
               key={track.id}
               {...trackWithoutKey}
-              musicalKey={key}
+              musicalKey={track.key ?? 'C'}
             />
           );
         })}

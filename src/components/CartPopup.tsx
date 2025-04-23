@@ -62,7 +62,7 @@ export default function CartPopup({ isOpen, onClose, addedTrack }: CartPopupProp
               <div className="relative w-20 h-20 flex-shrink-0">
                 <Image
                   src={addedTrack.coverUrl}
-                  alt={addedTrack.title}
+                  alt={addedTrack.title ?? 'Untitled Track'}
                   fill
                   className="object-cover rounded"
                 />
@@ -74,9 +74,7 @@ export default function CartPopup({ isOpen, onClose, addedTrack }: CartPopupProp
                   <span className="text-sm text-gray-400">
                     {addedTrack.licenseType || 'License'} License
                   </span>
-                  <span className="text-purple-400 font-bold">
-                    ${addedTrack.price.toFixed(2)}
-                  </span>
+                  <p className="text-white font-medium">${(addedTrack.price ?? 0).toFixed(2)}</p>
                 </div>
               </div>
             </div>
