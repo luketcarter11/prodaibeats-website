@@ -87,14 +87,17 @@ export default function TracksGrid() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {tracks.map((track) => (
-        <div key={track.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div key={track.id} className="bg-white rounded-lg shadow-md overflow-hidden group">
           <div className="relative aspect-square">
             <Image
               src={track.coverUrl}
-              alt={track.title}
+              alt={track.title ?? 'Untitled Track'}
               fill
               className="object-cover"
             />
+            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <h3 className="text-white text-lg font-medium text-center px-4">{track.title ?? 'Untitled Track'}</h3>
+            </div>
             <button
               onClick={() => handlePlayPause(track)}
               className="absolute bottom-4 right-4 bg-black/50 rounded-full p-2 text-white hover:bg-black/70 transition-colors"

@@ -227,13 +227,13 @@ function BeatsContent({ onTrackPlay }: BeatsContentProps) {
             <TrackCard 
               key={track.id} 
               id={track.id}
-              title={track.title}
-              artist={track.artist}
+              title={track.title ?? 'Untitled'}
+              artist={track.artist ?? 'Unknown Artist'}
               coverUrl={track.coverUrl}
-              price={track.price}
-              bpm={track.bpm}
-              musicalKey={track.key}
-              duration={track.duration}
+              price={track.price ?? 0}
+              bpm={track.bpm ?? 0}
+              musicalKey={track.key ?? 'C'}
+              duration={track.duration ?? '0:00'}
               tags={track.tags ?? []}
               audioUrl={track.audioUrl}
               onPlay={handlePlayTrack} 

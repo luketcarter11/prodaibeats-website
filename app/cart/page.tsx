@@ -65,14 +65,14 @@ export default function CartPage() {
                   <div className="relative w-20 h-20 flex-shrink-0">
                     <Image
                       src={item.coverUrl}
-                      alt={item.title}
+                      alt={item.title ?? 'Untitled Track'}
                       fill
                       className="object-cover rounded"
                     />
                   </div>
                   <div className="flex-1">
                     <div className="flex justify-between">
-                      <h3 className="text-white font-medium">{item.title}</h3>
+                      <h3 className="text-white font-medium">{item.title ?? 'Untitled Track'}</h3>
                       <button
                         onClick={() => removeFromCart(item.id)}
                         className="text-gray-400 hover:text-red-500 transition-colors"
@@ -86,9 +86,15 @@ export default function CartPage() {
                       <span className="text-sm text-purple-400">
                         {item.licenseType} License
                       </span>
-                      <span className="text-white font-bold">
-                        ${item.price.toFixed(2)}
-                      </span>
+                      <div className="text-right">
+                        <p className="text-white font-medium">${item.price?.toFixed(2) ?? '0.00'}</p>
+                        <button
+                          onClick={() => removeFromCart(item.id)}
+                          className="text-red-400 hover:text-red-300 text-sm"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

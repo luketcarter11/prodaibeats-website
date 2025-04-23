@@ -21,6 +21,7 @@ type SrcTrack = {
   id: string
   title: string
   artist: string
+  coverUrl: string
   coverImage?: string
   audioUrl: string
   downloadDate?: string
@@ -121,55 +122,55 @@ export default function Home() {
     setCurrentPlayingTrack(null)
   }
 
+  // Helper to get BPM safely
+  const getBpm = (track: AnyTrack): number => {
+    if (hasCoverUrl(track)) {
+      return track.bpm ?? 0;
+    }
+    return 0;
+  }
+
+  // Helper to get price safely
+  const getPrice = (track: AnyTrack): number => {
+    if (hasCoverUrl(track)) {
+      return track.price ?? 0;
+    }
+    return 0;
+  }
+
+  // Helper to get key safely
+  const getKey = (track: AnyTrack): string => {
+    if (hasCoverUrl(track)) {
+      return track.key ?? 'C';
+    }
+    return 'C';
+  }
+
+  // Helper to get duration safely
+  const getDuration = (track: AnyTrack): string => {
+    if (hasCoverUrl(track)) {
+      return track.duration ?? '0:00';
+    }
+    return '0:00';
+  }
+
+  // Helper to get tags safely
+  const getTags = (track: AnyTrack): string[] => {
+    if (hasCoverUrl(track)) {
+      return track.tags ?? [];
+    }
+    return [];
+  }
+
   // Helper function to get the cover image safely from either track format
-  const getCoverImage = (track: AnyTrack) => {
+  const getCoverImage = (track: AnyTrack): string => {
     if (hasCoverUrl(track)) {
       return track.coverUrl;
     } 
     if (hasCoverImage(track)) {
-      return track.coverImage;
+      return track.coverImage ?? '/images/default-cover.jpg';
     }
     return '/images/default-cover.jpg';
-  }
-  
-  // Helper to get BPM safely
-  const getBpm = (track: AnyTrack) => {
-    if (hasCoverUrl(track)) {
-      return track.bpm;
-    }
-    return 140; // Default BPM if not available
-  }
-  
-  // Helper to get price safely
-  const getPrice = (track: AnyTrack) => {
-    if (hasCoverUrl(track)) {
-      return track.price;
-    }
-    return 29.99; // Default price
-  }
-  
-  // Helper to get key safely
-  const getKey = (track: AnyTrack) => {
-    if (hasCoverUrl(track)) {
-      return track.key;
-    }
-    return 'Am'; // Default key
-  }
-  
-  // Helper to get duration safely
-  const getDuration = (track: AnyTrack) => {
-    if (hasCoverUrl(track)) {
-      return track.duration;
-    }
-    return '0:00'; // Default duration
-  }
-  
-  // Helper to get tags safely
-  const getTags = (track: AnyTrack) => {
-    if (hasCoverUrl(track)) {
-      return track.tags;
-    }
-    return []; // Default empty tags array
   }
 
   if (isLoading) {
@@ -193,7 +194,7 @@ export default function Home() {
           <div className="relative w-48 h-48 mx-auto mb-6">
             <Image
               src={getCoverImage(featuredTrack) || '/images/default-cover.jpg'}
-              alt={featuredTrack.title}
+              alt={featuredTrack.title ?? 'Untitled Track'}
               fill
               className="object-cover rounded-lg"
             />
@@ -262,11 +263,11 @@ export default function Home() {
           <div className="space-y-2">
             {featuredTracks.map((track) => (
               <div key={track.id}>
-                <TrackCard 
+                <TrackCard
                   id={track.id}
-                  title={track.title}
-                  artist={track.artist}
-                  coverUrl={getCoverImage(track) || '/images/default-cover.jpg'}
+                  title={track.title ?? 'Untitled Track'}
+                  artist={track.artist ?? 'Unknown Artist'}
+                  coverUrl={track.coverUrl}
                   price={getPrice(track)}
                   bpm={getBpm(track)}
                   musicalKey={getKey(track)}

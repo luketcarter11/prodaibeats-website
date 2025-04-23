@@ -39,7 +39,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       
       // Update cart count and total
       setCartCount(cart.length)
-      setCartTotal(cart.reduce((total, item) => total + item.price, 0))
+      setCartTotal(cart.reduce((total, item) => total + (item.price ?? 0), 0))
     }
   }, [cart])
 
