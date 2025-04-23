@@ -83,14 +83,14 @@ export async function POST(request: Request) {
         // Create a track object in the format expected by the application
         const track: Track = {
           id: trackData.trackId,
-          title: trackData.title,
-          artist: trackData.artist,
+          title: trackData.title ?? 'Untitled',
+          artist: trackData.artist ?? 'Unknown Artist',
           coverUrl: trackData.coverUrl,
           price: 12.99, // Default to the Non-Exclusive license price
-          bpm: trackData.metadata.bpm || 0,
-          key: trackData.metadata.key || 'Unknown',
-          duration: trackData.metadata.duration || '0:00',
-          tags: trackData.metadata.tags || [],
+          bpm: trackData.metadata.bpm ?? 0,
+          key: trackData.metadata.key ?? 'Unknown',
+          duration: trackData.metadata.duration ?? '0:00',
+          tags: trackData.metadata.tags ?? [],
           audioUrl: trackData.audioUrl,
           licenseType: 'Non-Exclusive'
         };
@@ -135,14 +135,14 @@ export async function POST(request: Request) {
     const newTracksCode = tracks.map(track => `
   {
     id: '${track.id}',
-    title: '${track.title.replace(/'/g, "\\'")}',
-    artist: '${track.artist.replace(/'/g, "\\'")}',
+    title: '${(track.title ?? 'Untitled').replace(/'/g, "\\'")}',
+    artist: '${(track.artist ?? 'Unknown Artist').replace(/'/g, "\\'")}',
     coverUrl: '${track.coverUrl}',
-    price: ${track.price},
-    bpm: ${track.bpm},
-    key: '${track.key}',
-    duration: '${track.duration}',
-    tags: [${track.tags.map(tag => `'${tag.replace(/'/g, "\\'")}'`).join(', ')}],
+    price: ${track.price ?? 12.99},
+    bpm: ${track.bpm ?? 0},
+    key: '${track.key ?? 'Unknown'}',
+    duration: '${track.duration ?? '0:00'}',
+    tags: [${(track.tags ?? []).map(tag => `'${tag.replace(/'/g, "\\'")}'`).join(', ')}],
     audioUrl: '${track.audioUrl}'
   },`).join('');
     
