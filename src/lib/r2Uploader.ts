@@ -98,4 +98,40 @@ export async function uploadFileToR2(filePath: string, r2Key: string): Promise<s
     console.error('Error uploading to R2:', error);
     throw error;
   }
+}
+
+/**
+ * Upload JSON data to R2 storage
+ * @param data JSON data to upload
+ * @param r2Key Key (path) where to store the file in R2
+ * @returns Public URL for the uploaded file
+ */
+export async function uploadJsonToR2(data: any, r2Key: string): Promise<string> {
+  try {
+    // Check if we have the required credentials
+    if (!hasR2Credentials()) {
+      throw new Error('R2 credentials not found in environment variables');
+    }
+
+    // Convert data to JSON string
+    const jsonString = JSON.stringify(data, null, 2);
+    
+    // Upload to R2
+    await r2Client.send(
+      new PutObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: r2Key,
+        Body: jsonString,
+        ContentType: 'application/json',
+      })
+    );
+    
+    console.log(`✅ JSON data uploaded to R2: ${r2Key}`);
+    
+    // Construct the public URL
+    return getR2PublicUrl(r2Key);
+  } catch (error) {
+    console.error('Error uploading JSON to R2:', error);
+    throw error;
+  }
 } 

@@ -8,8 +8,9 @@ import { updateTracksData } from './scanTracks'
 import { Track } from '@/types/track'
 import { trackHistory } from './models/TrackHistory'
 import { getScheduler } from './models/Scheduler'
-import { uploadFileToR2, fileExistsInR2 } from './r2Uploader'
-import { isProd, getR2PublicUrl, CDN_BASE_URL } from './r2Config'
+import { uploadFileToR2, fileExistsInR2, uploadJsonToR2 } from './r2Uploader'
+import { isProd, getR2PublicUrl, CDN_BASE_URL, R2_BUCKET_NAME, r2Client } from './r2Config'
+import { GetObjectCommand } from '@aws-sdk/client-s3'
 
 const execPromise = util.promisify(exec)
 
@@ -155,37 +156,47 @@ export class YouTubeDownloader {
         await uploadFileToR2(coverFilePath, coverR2Path)
         console.log(`✅ Uploaded cover to R2: ${coverR2Path}`)
         
-        // Generate public URLs
-        const audioUrl = getR2PublicUrl(audioR2Path)
-        const coverUrl = getR2PublicUrl(coverR2Path)
-        
-        // Create track data
-        const trackData = {
+        // Create full metadata object with all required fields
+        const fullMetadata = {
           id: trackId,
           title: metadata.title,
           artist: 'Prod AI',
-          coverUrl: coverUrl,
-          price: 12.99,
           bpm: 140,
           key: 'C',
           duration: metadata.duration,
-          tags: metadata.tags,
-          audioUrl: audioUrl,
-          licenseType: 'Non-Exclusive'
+          price: 12.99,
+          audioUrl: `${CDN_BASE_URL}/tracks/${trackId}.mp3`,
+          coverUrl: `${CDN_BASE_URL}/covers/${trackId}.jpg`,
+          licenseType: 'Non-Exclusive',
+          youtubeId: metadata.youtubeId,
+          sourceUrl: metadata.sourceUrl,
+          tags: metadata.tags || [],
+          createdAt: new Date().toISOString()
+        };
+
+        // Save metadata to R2
+        try {
+          const metadataUrl = await uploadJsonToR2(fullMetadata, `metadata/${trackId}.json`);
+          console.log(`✅ Metadata saved to R2: ${metadataUrl}`);
+          
+          // Verify the metadata was saved correctly
+          const savedMetadata = await r2Client.send(
+            new GetObjectCommand({
+              Bucket: R2_BUCKET_NAME,
+              Key: `metadata/${trackId}.json`
+            })
+          );
+          
+          const savedData = JSON.parse(await savedMetadata.Body?.transformToString() || '{}');
+          if (!savedData.id || !savedData.title || !savedData.audioUrl || !savedData.coverUrl) {
+            throw new Error('Metadata verification failed: Required fields missing');
+          }
+          
+          console.log('✅ Metadata verified successfully');
+        } catch (error) {
+          console.error('❌ Error saving metadata:', error);
+          throw error;
         }
-        
-        // Save full metadata
-        const fullMetadata = {
-          ...metadata,
-          trackId,
-          youtubeId,
-          audioUrl,
-          coverUrl,
-          sourceUrl: url,
-          downloadDate: new Date().toISOString()
-        }
-        
-        fs.writeFileSync(metadataFilePath, JSON.stringify(fullMetadata, null, 2))
         
         // Add to track history
         await trackHistory.addTrack({
@@ -198,14 +209,14 @@ export class YouTubeDownloader {
             cover: coverFilePath,
             metadata: metadataFilePath
           },
-          websiteUrl: audioUrl,
+          websiteUrl: metadata.audioUrl,
           websiteId: trackId,
           sourceType,
           sourceId
         })
         
         // Add to tracks data
-        await updateTracksData([trackData as Track])
+        await updateTracksData([metadata as Track])
         
         // Add to downloadedTrackIds
         if (!state.downloadedTrackIds) {
@@ -233,7 +244,7 @@ export class YouTubeDownloader {
           message: 'Track downloaded and uploaded successfully',
           trackId,
           youtubeId,
-          trackData
+          trackData: metadata
         }
       } catch (uploadError) {
         console.error('Error uploading to R2:', uploadError)
