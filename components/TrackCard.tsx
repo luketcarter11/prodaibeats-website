@@ -6,7 +6,7 @@ import { FaPlay } from 'react-icons/fa'
 import { Track } from '@/types/track'
 
 interface TrackCardProps extends Omit<Track, 'tags'> {
-  tags: string[]
+  tags?: string[]
   onPlay: (track: Track) => void
   musicalKey?: string
 }
