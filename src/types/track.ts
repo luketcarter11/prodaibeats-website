@@ -1,13 +1,13 @@
 export interface Track {
   id: string
-  title: string
-  artist: string
+  title?: string
+  artist?: string
   coverUrl: string
-  price: number
-  bpm: number
-  key: string
-  duration: string
-  tags: string[]
+  price?: number
+  bpm?: number
+  key?: string
+  duration?: string
+  tags?: string[]
   waveform?: string
   audioUrl: string
   coverImage?: string

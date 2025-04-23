@@ -174,16 +174,9 @@ async function fetchTracksFromR2(): Promise<Track[]> {
         // Create track object with original metadata and URLs
         const track: Track = {
           id: trackId,
-          title: metadata.title || '',
-          artist: metadata.artist || '',
-          price: metadata.price || 0,
-          bpm: metadata.bpm || 0,
-          key: metadata.key || '',
-          duration: metadata.duration || '',
-          tags: metadata.tags || [],
+          ...metadata,
           audioUrl,
           coverUrl,
-          ...metadata,
         };
         
         return track;
