@@ -163,11 +163,11 @@ export class YouTubeDownloader {
         const trackData = {
           id: trackId,
           title: metadata.title,
-          artist: metadata.artist,
+          artist: 'Prod AI',
           coverUrl: coverUrl,
           price: 12.99,
-          bpm: 0,
-          key: 'Unknown',
+          bpm: 140,
+          key: 'C',
           duration: metadata.duration,
           tags: metadata.tags,
           audioUrl: audioUrl,
@@ -306,17 +306,29 @@ export class YouTubeDownloader {
         }
       }
       
-      // Extract relevant fields
+      // Extract and validate title
+      const title = metadata.title?.trim()
+      if (!title) {
+        return {
+          success: false,
+          message: 'Track title is required'
+        }
+      }
+      
+      // Extract relevant fields with proper defaults
       const processedMetadata = {
-        title: metadata.title,
-        artist: metadata.uploader || 'Unknown Artist',
-        duration: this.formatDuration(metadata.duration),
+        title,
+        artist: 'Prod AI', // Always use Prod AI as artist
+        duration: metadata.duration, // Keep as number in seconds
+        bpm: 140, // Default BPM for now
+        price: 12.99, // Fixed price
         thumbnail: metadata.thumbnail,
         tags: metadata.tags || [],
         upload_date: metadata.upload_date,
         uploader_id: metadata.uploader_id,
         track: metadata.track,
-        album: metadata.album
+        album: metadata.album,
+        licenseType: 'Non-Exclusive'
       }
       
       // Save metadata to file
