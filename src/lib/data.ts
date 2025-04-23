@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { Track } from '../types/track';
 import { r2Storage } from './r2Storage'
+import { getR2PublicUrl } from './r2Config';
 
 export interface LicenseTier {
   name: string
@@ -13,7 +14,7 @@ export interface LicenseTier {
 }
 
 // CDN base URL
-const CDN_BASE_URL = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://cdn.prodaibeats.com'
+const CDN_BASE_URL = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f47laaa2labb935e98d.r2.dev'
 
 interface R2Object {
   Key?: string
@@ -163,9 +164,9 @@ async function fetchTracksFromR2(): Promise<Track[]> {
           }
         }
         
-        // Construct track object with CDN URLs
-        const audioUrl = `${CDN_BASE_URL}/audio/${trackId}.mp3`;
-        const coverUrl = `${CDN_BASE_URL}/covers/${trackId}.jpg`;
+        // Construct track object with R2 URLs
+        const audioUrl = getR2PublicUrl(`tracks/${trackId}.mp3`);
+        const coverUrl = getR2PublicUrl(`covers/${trackId}.jpg`);
         
         console.log(`🔊 Constructed audio URL: ${audioUrl}`);
         console.log(`🖼️ Constructed cover URL: ${coverUrl}`);
@@ -212,6 +213,7 @@ async function fetchTracksFromR2(): Promise<Track[]> {
           title: track.title,
           artist: track.artist,
           audioUrl: track.audioUrl,
+          coverUrl: track.coverUrl,
           duration: track.duration,
         }, null, 2));
         return track;
