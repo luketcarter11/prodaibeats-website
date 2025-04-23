@@ -1,34 +1,21 @@
 import { ListObjectsV2Command, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { R2_BUCKET_NAME, r2Client } from '../src/lib/r2Config'
 
+interface TrackMetadata {
+  id: string
+  title: string
+  bpm: number
+  duration: number
+  audioUrl: string
+  coverUrl: string
+  price: number
+  artist: string
+  [key: string]: any // Allow additional fields
+}
+
 async function fixListJson() {
   try {
     console.log('🔍 Starting fix for tracks/list.json...')
-
-    // First, check if list.json exists and is corrupted
-    try {
-      const getCommand = new GetObjectCommand({
-        Bucket: R2_BUCKET_NAME,
-        Key: 'tracks/list.json',
-      })
-      
-      const response = await r2Client.send(getCommand)
-      const currentContent = await response.Body?.transformToString()
-      
-      if (currentContent) {
-        try {
-          const parsed = JSON.parse(currentContent)
-          if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string' && item.startsWith('track_'))) {
-            console.log('✅ tracks/list.json is valid, no fix needed')
-            return
-          }
-        } catch (e) {
-          console.log('⚠️ Current tracks/list.json is corrupted, will regenerate')
-        }
-      }
-    } catch (e) {
-      console.log('⚠️ tracks/list.json not found or inaccessible, will create new')
-    }
 
     // List all objects under metadata/ prefix
     const listCommand = new ListObjectsV2Command({
@@ -44,30 +31,82 @@ async function fixListJson() {
       return
     }
 
-    // Filter .json files and extract track IDs
-    const trackIds = response.Contents
-      .filter(item => item.Key?.endsWith('.json'))
-      .map(item => {
-        const filename = item.Key?.split('/').pop() || ''
-        return filename.replace('.json', '')
-      })
-      .filter(id => id.startsWith('track_') && id.length > 7) // Ensure valid track IDs
+    // Filter .json files and process metadata
+    const validTracks: TrackMetadata[] = []
+    const skippedFiles: string[] = []
 
-    console.log(`📊 Found ${trackIds.length} valid track IDs in metadata/`)
+    for (const item of response.Contents) {
+      if (!item.Key?.endsWith('.json')) continue
 
-    if (trackIds.length === 0) {
-      console.log('⚠️ No valid track IDs found')
+      try {
+        const getCommand = new GetObjectCommand({
+          Bucket: R2_BUCKET_NAME,
+          Key: item.Key,
+        })
+
+        const metadataResponse = await r2Client.send(getCommand)
+        const metadataString = await metadataResponse.Body?.transformToString()
+
+        if (!metadataString) {
+          console.warn(`⚠️ Empty metadata file: ${item.Key}`)
+          skippedFiles.push(item.Key)
+          continue
+        }
+
+        const metadata = JSON.parse(metadataString)
+        const trackId = item.Key.split('/').pop()?.replace('.json', '')
+
+        // Validate required fields
+        if (!trackId || !metadata.title || !metadata.bpm || !metadata.duration || 
+            !metadata.audioUrl || !metadata.coverUrl || !metadata.price || !metadata.artist) {
+          console.warn(`⚠️ Missing required fields in: ${item.Key}`)
+          skippedFiles.push(item.Key)
+          continue
+        }
+
+        // Create track object with required fields
+        const track: TrackMetadata = {
+          id: trackId,
+          title: metadata.title,
+          bpm: metadata.bpm,
+          duration: metadata.duration,
+          audioUrl: metadata.audioUrl,
+          coverUrl: metadata.coverUrl,
+          price: metadata.price,
+          artist: metadata.artist,
+          ...metadata // Include any additional fields
+        }
+
+        validTracks.push(track)
+        console.log(`✅ Processed metadata for: ${trackId}`)
+
+      } catch (error) {
+        console.error(`❌ Error processing ${item.Key}:`, error)
+        skippedFiles.push(item.Key)
+      }
+    }
+
+    console.log(`\n📊 Summary:`)
+    console.log(`✅ Valid tracks processed: ${validTracks.length}`)
+    console.log(`⚠️ Skipped files: ${skippedFiles.length}`)
+    
+    if (skippedFiles.length > 0) {
+      console.log('\nSkipped files:')
+      skippedFiles.forEach(file => console.log(`  - ${file}`))
+    }
+
+    if (validTracks.length === 0) {
+      console.log('⚠️ No valid tracks found')
       await uploadEmptyList()
       return
     }
 
-    // Create a clean array of IDs
-    const cleanList = Array.from(new Set(trackIds)).sort()
-    console.log('✅ Generated clean list of track IDs')
+    // Sort tracks by ID
+    validTracks.sort((a, b) => a.id.localeCompare(b.id))
 
-    // Convert to JSON string (only once!)
-    const jsonString = JSON.stringify(cleanList, null, 2)
-    console.log('📝 Generated JSON string (preview):', jsonString.substring(0, 100) + '...')
+    // Convert to JSON string
+    const jsonString = JSON.stringify(validTracks, null, 2)
+    console.log('\n📝 Generated JSON string (preview):', jsonString.substring(0, 100) + '...')
 
     // Upload to R2
     const putCommand = new PutObjectCommand({
@@ -78,7 +117,7 @@ async function fixListJson() {
     })
 
     await r2Client.send(putCommand)
-    console.log('✅ Successfully uploaded fixed tracks/list.json to R2')
+    console.log('\n✅ Successfully uploaded fixed tracks/list.json to R2')
 
     // Verify the upload
     const verifyCommand = new ListObjectsV2Command({
