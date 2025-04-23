@@ -161,16 +161,22 @@ async function resetAndRedownload(dryRun: boolean): Promise<ResetStats> {
     console.log('✅ Scheduler state reset')
     
     // Run the scheduler with force=true to redownload all tracks
+    console.log('\n🔄 Starting forced fresh download...')
     await runSchedulerNow(true)
 
     // 🔁 Run forced download
-    console.log('\n🔄 Starting forced fresh download...')
     await checkAndRunScheduler(true)
 
     // 📦 Show R2 state
     const storageStats = await countFilesByType()
     console.log('\n📦 Current R2 Storage:')
     console.log(`🎵 Audio files: ${storageStats.audio} 📝 Metadata files: ${storageStats.metadata} 🖼️ Cover images: ${storageStats.covers}`)
+
+    // Run fixListJson to ensure list.json is up to date
+    console.log('\n🔄 Regenerating tracks/list.json...')
+    const { execSync } = require('child_process')
+    execSync('npx tsx scripts/fixListJson.ts', { stdio: 'inherit' })
+    console.log('✅ Regenerated tracks/list.json')
   } else {
     console.log('\n🧪 Dry run complete - no files were deleted')
   }
