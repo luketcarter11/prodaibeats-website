@@ -137,13 +137,13 @@ function BeatsContent({ onTrackPlay }: BeatsContentProps) {
     // Filter by genres (case-insensitive)
     const genreMatch = selectedGenres.length === 0 || 
       (Array.isArray(track.tags) && selectedGenres.some(genre => 
-        track.tags.some((tag: string) => tag.toLowerCase() === genre.toLowerCase())
+        (track.tags ?? []).some((tag: string) => tag.toLowerCase() === genre.toLowerCase())
       ))
     
     // Filter by moods (case-insensitive)
     const moodMatch = selectedMoods.length === 0 || 
       (Array.isArray(track.tags) && selectedMoods.some(mood => 
-        track.tags.some((tag: string) => tag.toLowerCase() === mood.toLowerCase())
+        (track.tags ?? []).some((tag: string) => tag.toLowerCase() === mood.toLowerCase())
       ))
     
     return bpmMatch && genreMatch && moodMatch
@@ -234,7 +234,7 @@ function BeatsContent({ onTrackPlay }: BeatsContentProps) {
               bpm={track.bpm}
               musicalKey={track.key}
               duration={track.duration}
-              tags={track.tags}
+              tags={track.tags ?? []}
               audioUrl={track.audioUrl}
               onPlay={handlePlayTrack} 
             />
