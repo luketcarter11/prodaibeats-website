@@ -150,8 +150,20 @@ export async function updateTracksData(tracks: Track[]): Promise<boolean> {
     // Update the tracks list with deduplication
     const existing = await r2Storage.load<string[]>('tracks/list.json', [])
     const newIds = tracks.map(track => track.id)
-    const merged = Array.from(new Set([...existing, ...newIds]))
-    await r2Storage.save('tracks/list.json', JSON.stringify(merged))
+    
+    // Create a Set to ensure unique IDs
+    const uniqueIds = new Set([...existing, ...newIds])
+    
+    // Convert back to array and sort for consistency
+    const merged = Array.from(uniqueIds).sort()
+    
+    // Only update if there are changes
+    if (merged.length !== existing.length || !merged.every((id, i) => id === existing[i])) {
+      console.log(`📝 Updating tracks/list.json with ${merged.length} unique track IDs`)
+      await r2Storage.save('tracks/list.json', JSON.stringify(merged))
+    } else {
+      console.log('ℹ️ No changes needed to tracks/list.json - all track IDs already exist')
+    }
 
     return true
   } catch (error) {

@@ -250,6 +250,15 @@ class TrackHistoryManager {
     // Combine header and rows
     return [header, ...rows].join('\n')
   }
+
+  /**
+   * Clear all track history
+   */
+  async clearAll(): Promise<void> {
+    await this.initialize()
+    this.history = []
+    await this.save()
+  }
 }
 
 // Singleton instance
