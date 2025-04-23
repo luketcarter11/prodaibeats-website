@@ -171,51 +171,21 @@ async function fetchTracksFromR2(): Promise<Track[]> {
         console.log(`🔊 Constructed audio URL: ${audioUrl}`);
         console.log(`🖼️ Constructed cover URL: ${coverUrl}`);
         
-        // Ensure the metadata has sensible defaults for all critical fields
-        const ensuredMetadata = {
-          ...metadata,
-          title: metadata.title?.trim() || 'Untitled Track',
-          artist: metadata.artist?.trim() || 'Unknown Artist',
-          price: typeof metadata.price === 'number' && !isNaN(metadata.price) ? metadata.price : 29.99,
-          bpm: typeof metadata.bpm === 'number' && !isNaN(metadata.bpm) ? metadata.bpm : 120,
-          key: metadata.key?.trim() || 'C',
-          duration: metadata.duration?.trim() || '0:00',
-          tags: Array.isArray(metadata.tags) ? metadata.tags : [],
-          description: metadata.description?.trim() || '',
-          createdAt: metadata.createdAt || new Date().toISOString(),
-        };
-        
-        // Validate the constructed audio URL
-        if (!audioUrl.includes('.mp3')) {
-          console.warn(`⚠️ Invalid audio URL for track ${trackId}: ${audioUrl}`);
-        }
-        
+        // Create track object with original metadata and URLs
         const track: Track = {
           id: trackId,
-          title: ensuredMetadata.title,
-          artist: ensuredMetadata.artist,
-          coverUrl: coverUrl,
-          audioUrl: audioUrl,
-          coverImage: metadata.coverImage,
-          price: ensuredMetadata.price,
-          bpm: ensuredMetadata.bpm,
-          key: ensuredMetadata.key,
-          duration: ensuredMetadata.duration,
-          tags: ensuredMetadata.tags,
-          description: ensuredMetadata.description,
-          licenseType: metadata.licenseType,
-          createdAt: ensuredMetadata.createdAt,
-          updatedAt: metadata.updatedAt
-        }
+          title: metadata.title || '',
+          artist: metadata.artist || '',
+          price: metadata.price || 0,
+          bpm: metadata.bpm || 0,
+          key: metadata.key || '',
+          duration: metadata.duration || '',
+          tags: metadata.tags || [],
+          audioUrl,
+          coverUrl,
+          ...metadata,
+        };
         
-        console.log(`✅ Final constructed track object:`, JSON.stringify({
-          id: track.id,
-          title: track.title,
-          artist: track.artist,
-          audioUrl: track.audioUrl,
-          coverUrl: track.coverUrl,
-          duration: track.duration,
-        }, null, 2));
         return track;
       })
     )
