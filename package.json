@@ -16,7 +16,8 @@
     "scheduler:run-now": "tsx scripts/run-scheduler-now.ts",
     "test:youtube": "node scripts/test-youtube-downloader.mjs",
     "scheduler:update": "tsx scripts/update-scheduler.mjs",
-    "fix:tracks-list": "node scripts/run-fix-tracks-list.mjs"
+    "fix:tracks-list": "node scripts/run-fix-tracks-list.mjs",
+    "fix:track-metadata": "node scripts/run-fix-track-metadata.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.787.0",
