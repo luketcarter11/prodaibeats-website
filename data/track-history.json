@@ -322,6 +322,40 @@
       "sourceId": "eb41daa1-ece4-4acd-82a2-e3f409877595",
       "id": "955db128-7a47-4403-882c-1f07891c5bc7",
       "downloadDate": "2025-04-23T03:10:15.343Z"
+    },
+    {
+      "youtubeId": "vxi949hsOJs",
+      "title": "Cosmic Galaxy 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=vxi949hsOJs",
+      "localPath": {
+        "audio": "/Users/Luke/Documents/prodai/public/audio/track_25c94096c18141b7.mp3",
+        "cover": "/Users/Luke/Documents/prodai/public/images/covers/track_25c94096c18141b7.jpg",
+        "metadata": "/Users/Luke/Documents/prodai/data/track_25c94096c18141b7.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_25c94096c18141b7.mp3",
+      "websiteId": "track_25c94096c18141b7",
+      "sourceType": "playlist",
+      "sourceId": "eb41daa1-ece4-4acd-82a2-e3f409877595",
+      "id": "4eeeeecb-b824-4dbb-b9d7-b916e3946640",
+      "downloadDate": "2025-04-23T03:11:23.470Z"
+    },
+    {
+      "youtubeId": "CgasVwLaVrM",
+      "title": "Bright Memory 140 BPM UK Drill Type Beat",
+      "artist": "Prod AI - Topic",
+      "sourceUrl": "https://www.youtube.com/watch?v=CgasVwLaVrM",
+      "localPath": {
+        "audio": "/Users/Luke/Documents/prodai/public/audio/track_78d6d86a2a194d7b.mp3",
+        "cover": "/Users/Luke/Documents/prodai/public/images/covers/track_78d6d86a2a194d7b.jpg",
+        "metadata": "/Users/Luke/Documents/prodai/data/track_78d6d86a2a194d7b.json"
+      },
+      "websiteUrl": "https://pub-c059baad842f47laaa2labb935e98d.r2.dev/tracks/track_78d6d86a2a194d7b.mp3",
+      "websiteId": "track_78d6d86a2a194d7b",
+      "sourceType": "playlist",
+      "sourceId": "eb41daa1-ece4-4acd-82a2-e3f409877595",
+      "id": "7d5c67f4-350a-4654-ac81-435fc677d4e5",
+      "downloadDate": "2025-04-23T03:12:26.074Z"
     }
   ]
 }
