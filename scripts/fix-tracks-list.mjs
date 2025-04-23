@@ -1,11 +1,15 @@
 import { S3Client, ListObjectsV2Command, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import fs from 'fs';
 import path from 'path';
+import dotenv from 'dotenv';
 
-// Create R2 client
+// Load environment variables
+dotenv.config();
+
+// Create R2 client with direct credentials
 const r2Client = new S3Client({
   region: 'auto',
-  endpoint: process.env.R2_ENDPOINT || 'https://1992471ec8cc52388f80797e15a0529.r2.cloudflarestorage.com',
+  endpoint: process.env.R2_ENDPOINT,
   credentials: {
     accessKeyId: process.env.R2_ACCESS_KEY_ID,
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
@@ -29,7 +33,7 @@ async function fixTracksList() {
     // First, check the current state of the tracks/list.json file
     try {
       const checkCommand = new GetObjectCommand({
-        Bucket: process.env.R2_BUCKET || 'prodai-beats-storage',
+        Bucket: process.env.R2_BUCKET,
         Key: 'tracks/list.json',
       });
       
@@ -49,7 +53,7 @@ async function fixTracksList() {
     
     // List all objects in the metadata directory
     const listCommand = new ListObjectsV2Command({
-      Bucket: process.env.R2_BUCKET || 'prodai-beats-storage',
+      Bucket: process.env.R2_BUCKET,
       Prefix: 'metadata/',
     });
     
@@ -96,7 +100,7 @@ async function fixTracksList() {
     
     // Upload to R2
     const putCommand = new PutObjectCommand({
-      Bucket: process.env.R2_BUCKET || 'prodai-beats-storage',
+      Bucket: process.env.R2_BUCKET,
       Key: 'tracks/list.json',
       Body: jsonString,
       ContentType: 'application/json',
@@ -107,7 +111,7 @@ async function fixTracksList() {
     
     // Verify the upload
     const getCommand = new GetObjectCommand({
-      Bucket: process.env.R2_BUCKET || 'prodai-beats-storage',
+      Bucket: process.env.R2_BUCKET,
       Key: 'tracks/list.json',
     });
     
