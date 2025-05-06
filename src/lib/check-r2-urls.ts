@@ -4,6 +4,7 @@
  */
 import { CDN_BASE_URL, R2_BUCKET_NAME, R2_ENDPOINT } from './r2Config';
 import fetch from 'node-fetch';
+import { fileURLToPath } from 'url';
 
 // Check the presence of required environment variables
 function checkEnvironmentVariables() {
@@ -123,7 +124,7 @@ function printConfigSummary() {
 }
 
 // Main function to run all checks
-async function main() {
+export async function checkR2Urls() {
   console.log('🚀 R2 URL Checker Tool');
   console.log('====================');
   
@@ -146,20 +147,23 @@ async function main() {
   }
 }
 
-// Run the script
-main()
-  .then(success => {
-    console.log('\n💡 Next steps:');
-    if (success) {
-      console.log('- Run "npm run r2:repair" to fix any issues with tracks/list.json and metadata URLs');
-    } else {
-      console.log('- Double-check your environment variables');
-      console.log('- Verify your Cloudflare R2 settings');
-      console.log('- Run "npm run r2:repair" to fix any issues with tracks/list.json and metadata URLs');
-    }
-    process.exit(0);
-  })
-  .catch(error => {
-    console.error('❌ Fatal error:', error);
-    process.exit(1);
-  }); 
+// Check if this file is being run directly
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
+  checkR2Urls()
+    .then(success => {
+      console.log('\n💡 Next steps:');
+      if (success) {
+        console.log('- Run "npm run r2:repair" to fix any issues with tracks/list.json and metadata URLs');
+      } else {
+        console.log('- Double-check your environment variables');
+        console.log('- Verify your Cloudflare R2 settings');
+        console.log('- Run "npm run r2:repair" to fix any issues with tracks/list.json and metadata URLs');
+      }
+      process.exit(0);
+    })
+    .catch(error => {
+      console.error('❌ Fatal error:', error);
+      process.exit(1);
+    });
+} 
