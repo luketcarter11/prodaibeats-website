@@ -18,7 +18,11 @@
     "test:youtube": "node scripts/test-youtube-downloader.mjs",
     "scheduler:update": "tsx scripts/update-scheduler.mjs",
     "fix:tracks-list": "node scripts/run-fix-tracks-list.mjs",
-    "fix:track-metadata": "node scripts/run-fix-track-metadata.mjs"
+    "fix:track-metadata": "node scripts/run-fix-track-metadata.mjs",
+    "r2:repair": "tsx repair-r2-storage.ts",
+    "r2:repair-list": "tsx repair-list-json.ts",
+    "r2:repair-metadata": "tsx repair-metadata-urls.ts",
+    "r2:check": "tsx src/lib/check-r2-urls.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
