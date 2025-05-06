@@ -1,0 +1,12 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🔍 Verifying tracks/list.json integrity before commit..."
+npx tsx verify-tracks-integrity.ts || (
+  echo "❌ tracks/list.json verification failed!"
+  echo "Run 'npm run r2:fix-tracks' to fix issues."
+  exit 1
+)
+
+# Continue with other pre-commit checks
+npx lint-staged 
