@@ -1,0 +1,57 @@
+name: Verify Tracks List Integrity
+
+on:
+  push:
+    branches: ['main']
+    paths:
+      - 'tracks/**'
+      - 'src/lib/r2*.ts'
+  pull_request:
+    branches: ['main']
+    paths:
+      - 'tracks/**'
+      - 'src/lib/r2*.ts'
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: Verify tracks/list.json integrity
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Set up R2 credentials
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          NEXT_PUBLIC_STORAGE_BASE_URL: ${{ secrets.NEXT_PUBLIC_STORAGE_BASE_URL }}
+        run: |
+          echo "Setting up R2 credentials for verification"
+          # These will be available to the verification script via process.env
+          
+      - name: Verify tracks/list.json
+        run: npm run r2:verify-tracks
+        
+      - name: Post verification status
+        if: always()
+        run: |
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "✅ tracks/list.json verification passed"
+          else
+            echo "❌ tracks/list.json verification failed"
+            echo "Please run 'npm run r2:fix-tracks' locally to fix issues"
+          fi 
