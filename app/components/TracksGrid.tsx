@@ -5,6 +5,9 @@ import Image from 'next/image';
 import type { Track } from '@/types/track';
 import { PlayIcon, PauseIcon } from '@radix-ui/react-icons';
 
+// Use environment variable for CDN base URL
+const CDN = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
+
 export default function TracksGrid() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +68,13 @@ export default function TracksGrid() {
       if (audioElement) {
         audioElement.pause();
       }
-      const newAudio = new Audio(track.audioUrl);
+      
+      // Ensure the audioUrl is constructed properly
+      const audioUrl = track.audioUrl && track.audioUrl.includes('://') 
+        ? track.audioUrl  // Use existing URL if it already includes protocol
+        : `${CDN}/tracks/${track.id}.mp3`;  // Construct URL with CDN
+
+      const newAudio = new Audio(audioUrl);
       newAudio.play();
       setAudioElement(newAudio);
       setCurrentlyPlaying(track.id);
