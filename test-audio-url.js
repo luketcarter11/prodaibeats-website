@@ -6,8 +6,8 @@ import dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 
-// The base URL from your environment variables
-const CDN_BASE_URL = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f47laaa2labb935e98d.r2.dev';
+// The base URL from your environment variables - updated with correct URL as fallback
+const CDN_BASE_URL = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
 
 // Sample trackIds based on what was seen in your code
 const sampleTrackIds = [
