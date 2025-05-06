@@ -89,6 +89,36 @@ function extractTrackIds(filePaths: string[]): string[] {
 }
 
 /**
+ * Strictly validate the list to ensure it only contains valid track IDs
+ * This provides additional safety to prevent corruption
+ */
+function strictValidateTrackList(list: any): boolean {
+  // First check if it's an array
+  if (!Array.isArray(list)) {
+    console.error('❌ CRITICAL ERROR: list is not an array!', typeof list);
+    return false;
+  }
+  
+  // Check if all entries are strings starting with 'track_'
+  const allValid = list.every(id => typeof id === 'string' && id.startsWith('track_'));
+  
+  if (!allValid) {
+    console.error('❌ CRITICAL ERROR: list contains invalid entries!');
+    const invalidEntries = list.filter(id => !(typeof id === 'string' && id.startsWith('track_')));
+    console.error(`Found ${invalidEntries.length} invalid entries. Examples:`, invalidEntries.slice(0, 5));
+    return false;
+  }
+  
+  // Check for duplicate IDs
+  const uniqueIds = new Set(list);
+  if (uniqueIds.size !== list.length) {
+    console.warn(`⚠️ Warning: list contains ${list.length - uniqueIds.size} duplicate IDs, will be deduplicated`);
+  }
+  
+  return true;
+}
+
+/**
  * Validate the list to ensure it only contains valid track IDs
  */
 function validateTrackList(list: any): boolean {
@@ -182,6 +212,12 @@ export async function repairTracksList(): Promise<boolean> {
     // Extract valid track IDs (only those starting with 'track_')
     const trackIds = extractTrackIds(trackFiles);
     
+    // Check if we found any valid tracks
+    if (trackIds.length === 0) {
+      console.error('❌ No valid track IDs found! Cannot create an empty list.');
+      return false;
+    }
+    
     // Validate our new list
     if (!validateTrackList(trackIds)) {
       throw new Error('Failed to generate a valid track list');
@@ -193,21 +229,35 @@ export async function repairTracksList(): Promise<boolean> {
     // Sort track IDs for consistency
     trackIds.sort();
     
-    // Validate the list one final time before uploading
-    if (!Array.isArray(trackIds) || !trackIds.every(id => typeof id === 'string' && id.startsWith('track_'))) {
-      throw new Error("Invalid list.json format - validation failed");
+    // Deduplicate IDs just to be sure
+    const uniqueTrackIds = [...new Set(trackIds)];
+    if (uniqueTrackIds.length !== trackIds.length) {
+      console.log(`ℹ️ Removed ${trackIds.length - uniqueTrackIds.length} duplicate IDs`);
     }
     
+    // ✅ CRITICAL: Add strict validation before uploading
+    if (!Array.isArray(uniqueTrackIds) || uniqueTrackIds.some(id => typeof id !== 'string' || !id.startsWith('track_'))) {
+      throw new Error('Invalid list.json content – must be array of track_<id> strings only.');
+    }
+    
+    // One final check - log the type of the list
+    console.log(`🔍 Final validation - data type is: ${typeof uniqueTrackIds} (should be 'object' for array)`);
+    console.log(`🔍 Is array: ${Array.isArray(uniqueTrackIds)}`);
+    console.log(`🔍 First few items:`, uniqueTrackIds.slice(0, 3));
+    
     // Upload the fixed array to R2
-    console.log(`📤 Uploading repaired tracks/list.json with ${trackIds.length} valid track IDs`);
-    await uploadJsonToR2(trackIds, 'tracks/list.json');
+    console.log(`📤 Uploading repaired tracks/list.json with ${uniqueTrackIds.length} valid track IDs`);
+    
+    // ✅ DIRECT UPLOAD: Pass the array directly to uploadJsonToR2
+    // DO NOT stringify the array - uploadJsonToR2 handles that internally
+    await uploadJsonToR2(uniqueTrackIds, 'tracks/list.json');
     
     console.log('✅ Successfully repaired tracks/list.json in R2');
     
     // Log changes compared to the previous version
     if (currentIsValid && Array.isArray(current)) {
-      const added = trackIds.filter(id => !current.includes(id));
-      const removed = current.filter(id => !trackIds.includes(id));
+      const added = uniqueTrackIds.filter(id => !current.includes(id));
+      const removed = current.filter(id => !uniqueTrackIds.includes(id));
       
       if (added.length > 0) {
         console.log(`✅ Added ${added.length} new track IDs to the list`);

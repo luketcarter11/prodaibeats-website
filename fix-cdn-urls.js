@@ -19,7 +19,7 @@ const r2Client = new S3Client({
 
 // Configure bucket and CDN
 const R2_BUCKET = process.env.R2_BUCKET || 'prodai-beats-storage';
-const OLD_CDN_URL = 'https://pub-c059baad842f47laaa2labb935e98d.r2.dev';
+const OLD_CDN_URL = 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
 const NEW_CDN_URL = 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
 
 // Create readline interface for user input

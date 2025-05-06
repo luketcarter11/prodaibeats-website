@@ -18,7 +18,7 @@ function updateR2Config() {
     const fileContent = fs.readFileSync(r2ConfigPath, 'utf8');
     
     // Old incorrect URL
-    const oldUrl = 'https://pub-c059baad842f47laaa2labb935e98d.r2.dev';
+    const oldUrl = 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
     
     // New correct URL
     const newUrl = 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
