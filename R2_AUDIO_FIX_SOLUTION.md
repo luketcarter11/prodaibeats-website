@@ -1,109 +1,59 @@
-# Fixing Audio Playback - Solution
+# R2 Audio Playback Fix
 
-## Summary of Findings
+## Issue Summary
 
-After extensive testing, we've identified the following issues:
+The audio playback was failing on the website with an error message: "Error loading audio: [track-name] may not be available."
 
-1. **Public URL Typo**: The URL in the code (`https://pub-c059baad842f47laaa2labb935e98d.r2.dev`) had a typo and didn't match the actual public URL from Cloudflare (`https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev`).
+## Root Cause
 
-2. **No Access to R2 API**: We encountered issues with the R2 API credentials, which suggests there might be issues with the API tokens or permissions.
+The issue was due to a typo in the Cloudflare R2 public URL used to access the audio files. 
 
-3. **No Files Found**: When accessing paths through the public URL, all requests returned 404 errors, which indicates either:
-   - The bucket is empty (no files have been uploaded yet)
-   - Files exist but are in different paths than expected
-   - Public access isn't correctly configured
+- **Incorrect URL:** `https://pub-c059baad842f47laaa2labb935e98d.r2.dev`
+- **Correct URL:** `https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev`
 
-## Solution Steps
+The issue was in the middle portion of the URL where:
+- `47laaa2labb` (incorrect) 
+- `471aaaa2a1bbb` (correct)
 
-### 1. Fix the URL in the Code
+This caused the audio requests to fail as they were being sent to a non-existent domain.
 
-We've already updated the URL in the code by running the `update-r2-url.js` script. This script corrected the typo in the `r2Config.ts` file, changing:
+## Resolution Steps Taken
 
-```
-https://pub-c059baad842f47laaa2labb935e98d.r2.dev
-```
-
-to:
-
-```
-https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev
-```
-
-### 2. Upload Some Test Audio Files
-
-Since it appears there might not be any audio files in the bucket (or they're not where the code expects them), you should upload test audio files:
-
-1. Go to the Cloudflare R2 dashboard
-2. Select your bucket (`prodai-beats-storage`)
-3. Upload a test MP3 file to the following paths:
-   - `/tracks/test.mp3`
-   - `/audio/test.mp3`
-
-### 3. Verify Public Access Settings
-
-1. In the Cloudflare R2 dashboard, go to your bucket settings
-2. Ensure "Public Access" is enabled (which you confirmed it is)
-3. Verify the Public Development URL matches `https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev`
-
-### 4. Test Access to Uploaded Files
-
-After uploading files, try accessing them directly in your browser:
-```
-https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev/tracks/test.mp3
-```
-
-### 5. Update the Environment Variables
-
-Make sure your environment variables are updated in all necessary places:
-
-- `.env.local` file for local development
-- `.env.production` file 
-- Vercel environment variables (if you're deploying there)
-
-```
-NEXT_PUBLIC_STORAGE_BASE_URL=https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev
-```
-
-### 6. Update the R2 API Credentials
-
-If you're still having issues with the R2 API, you may need to regenerate your API tokens:
-
-1. In Cloudflare dashboard, go to R2 → "Manage R2 API Tokens"
-2. Create a new API token with read/write permissions
-3. Update your environment variables with the new values:
+1. Verified the issue by testing a specific audio file URL:
    ```
-   R2_ACCESS_KEY_ID=your_new_access_key
-   R2_SECRET_ACCESS_KEY=your_new_secret_key
+   node check-specific-track.js
+   ```
+   This confirmed that the correct URL could successfully access the audio files.
+
+2. Updated the environment variables:
+   ```
+   node fix-environment-vars.js
+   ```
+   This fixed the URL in the `.env.production` file.
+
+3. Created a new `.env.local` file with the correct URL for local development:
+   ```
+   NEXT_PUBLIC_STORAGE_BASE_URL=https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev
    ```
 
-### 7. Check File Structure in the Application
+4. Verified that `src/lib/r2Config.ts` already had the correct URL.
 
-Make sure the application code expects files in the correct paths. Based on your code:
+## Next Steps
 
-- Audio files should be in: `/tracks/{trackId}.mp3`
-- Cover images should be in: `/covers/{trackId}.jpg`
+1. **Restart the development server** - The changes will take effect after a restart.
 
-### 8. Using the Correct Track IDs
+2. **Update Vercel environment variables** - If this website is deployed on Vercel, update the `NEXT_PUBLIC_STORAGE_BASE_URL` environment variable in the Vercel dashboard to the correct URL.
 
-When testing, make sure you're using the correct track IDs that actually exist in your system. Your metadata should have track IDs that correspond to the actual files in your bucket.
+3. **Verify audio playback** - Check that audio playback works correctly after restarting the server.
 
-## Testing After Changes
+## Prevention
 
-1. Restart your development server to ensure the changes are applied
-2. Run the test scripts we created to verify accessibility:
-   ```
-   node test-audio-url.js
-   ```
-3. Try playing audio on the website
+To prevent similar issues in the future:
 
-## Fallback Solution
+1. Store sensitive or critical configuration values in a single, version-controlled file to avoid typos.
+2. Use automated validation tools to verify URL formats and connectivity during the build process.
+3. Consider creating helper scripts that validate environment variables before app startup.
 
-If all else fails, consider these options:
+## Additional Notes
 
-1. **Host audio files elsewhere**: You could host your audio files on another service like AWS S3, Google Cloud Storage, or even simply in your application's public directory for testing.
-
-2. **Create a server proxy**: Create an API endpoint in your application that fetches and serves the audio files from R2, which would bypass any client-side issues.
-
-3. **Use a different CDN**: Connect your R2 bucket to Cloudflare's CDN or another CDN service that might handle the files differently.
-
-Let me know which solution steps you've tried and if there are any specific issues you're still encountering. 
+The Cloudflare R2 storage appears to be set up correctly with public access to the audio files. The issue was purely related to the URL typo in the application configuration. 
