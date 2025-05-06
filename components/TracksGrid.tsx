@@ -5,6 +5,9 @@ import Image from 'next/image';
 import type { Track } from '@/types/track';
 import { PlayIcon, PauseIcon } from '@radix-ui/react-icons';
 
+// Use environment variable for CDN base URL
+const CDN = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
+
 // Define a type for tracks that might have different property names
 type SrcTrack = {
   id: string;
@@ -100,8 +103,13 @@ export default function TracksGrid() {
       // Create new audio element if one doesn't exist
       const audio = audioElement || new Audio();
       
+      // Ensure audio URL is constructed properly
+      const audioUrl = track.audioUrl && track.audioUrl.includes('://') 
+        ? track.audioUrl  // Use existing URL if it already includes protocol
+        : `${CDN}/tracks/${track.id}.mp3`;  // Construct URL with CDN
+      
       // Set new audio source
-      audio.src = track.audioUrl;
+      audio.src = audioUrl;
       
       // Play the audio
       audio.play()
@@ -110,7 +118,7 @@ export default function TracksGrid() {
           setAudioElement(audio);
         })
         .catch((err) => {
-          console.error('Error playing audio:', err);
+          console.error('Error playing audio:', err, 'URL was:', audioUrl);
           setError('Failed to play audio');
         });
       

@@ -165,8 +165,8 @@ async function fetchTracksFromR2(): Promise<Track[]> {
         }
         
         // Construct track object with R2 URLs
-        const audioUrl = getR2PublicUrl(`tracks/${trackId}.mp3`);
-        const coverUrl = getR2PublicUrl(`covers/${trackId}.jpg`);
+        const audioUrl = `${CDN_BASE_URL}/tracks/${trackId}.mp3`;
+        const coverUrl = `${CDN_BASE_URL}/covers/${trackId}.jpg`;
         
         console.log(`🔊 Constructed audio URL: ${audioUrl}`);
         console.log(`🖼️ Constructed cover URL: ${coverUrl}`);

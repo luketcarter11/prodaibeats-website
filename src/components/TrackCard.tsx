@@ -8,6 +8,9 @@ import { useCart } from '../context/CartContext'
 import LicenseSelectionModal from './LicenseSelectionModal'
 import CartPopup from './CartPopup'
 
+// Use environment variable for CDN base URL
+const CDN = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev'
+
 interface TrackCardProps extends Omit<Track, 'key'> {
   musicalKey: string
   onPlay?: (track: Track) => void

@@ -4,6 +4,9 @@ import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { Track } from '@/types/track'
 
+// Use environment variable for CDN base URL
+const CDN = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev'
+
 interface AudioPlayerProps {
   currentTrack: Track | null
   onClose: () => void
