@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Old incorrect URL
-const oldUrl = 'https://pub-c059baad842f47laaa2labb935e98d.r2.dev';
+const oldUrl = 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
 
 // New correct URL
 const newUrl = 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
