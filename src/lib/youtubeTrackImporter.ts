@@ -5,50 +5,77 @@ import path from 'path';
 import { execSync } from 'child_process';
 import { v4 as uuidv4 } from 'uuid';
 import { uploadFileToR2, uploadJsonToR2 } from './r2Uploader';
-import { getR2PublicUrl } from './r2Config';
+import { getR2PublicUrl, CDN_BASE_URL } from './r2Config';
 import { Track } from '../types/track';
 import { extractMetadataFromTitle } from './metadataExtractor';
 
 const TEMP_DIR = path.join(process.cwd(), 'tmp');
 
+// Ensure temp directory exists
 if (!fs.existsSync(TEMP_DIR)) {
   fs.mkdirSync(TEMP_DIR, { recursive: true });
 }
 
+/**
+ * Import a single track from YouTube
+ * @param videoId YouTube video ID
+ * @param videoUrl Full YouTube video URL
+ * @returns The imported track object or null if import failed
+ */
 export async function importTrackFromYoutube(videoId: string, videoUrl: string): Promise<Track | null> {
   try {
     console.log(`📥 Starting import for YouTube video: ${videoId}`);
 
+    // Create a unique temporary directory for this import
     const tempTrackDir = path.join(TEMP_DIR, `yt-${videoId}-${Date.now()}`);
     fs.mkdirSync(tempTrackDir, { recursive: true });
 
+    // Download the video using yt-dlp
     const ytDlpCommand = `yt-dlp "${videoUrl}" --write-thumbnail --extract-audio --audio-format mp3 --audio-quality 0 --output "${tempTrackDir}/%(title)s.%(ext)s" --write-info-json`;
     execSync(ytDlpCommand, { stdio: 'inherit' });
 
+    // Find the downloaded files
     const files = fs.readdirSync(tempTrackDir);
     const audioFile = files.find(f => f.endsWith('.mp3'));
     const thumbnailFile = files.find(f => f.match(/\.(jpg|webp|png)$/));
     const infoFile = files.find(f => f.endsWith('.info.json'));
-    if (!audioFile || !infoFile) return null;
+    
+    if (!audioFile || !infoFile) {
+      console.error('❌ Required files not found after download');
+      return null;
+    }
 
+    // Parse the downloaded info JSON file
     const info = JSON.parse(fs.readFileSync(path.join(tempTrackDir, infoFile), 'utf8'));
 
+    // Generate a unique ID for this track
     const id = `track_${uuidv4().replace(/-/g, '')}`;
+    
+    // Set up file paths
     const audioFilePath = path.join(tempTrackDir, audioFile);
     const coverFilePath = thumbnailFile ? path.join(tempTrackDir, thumbnailFile) : '';
     const ext = path.extname(coverFilePath || '.jpg');
 
+    // Define R2 storage keys with proper paths
     const audioR2Key = `tracks/${id}.mp3`;
     const coverR2Key = `covers/${id}${ext}`;
     const metadataR2Key = `metadata/${id}.json`;
 
+    // Upload the cover image to R2 if available, or use default cover
+    const coverUrl = coverFilePath 
+      ? await uploadFileToR2(coverFilePath, coverR2Key) 
+      : getR2PublicUrl('defaults/default-cover.jpg');
+      
+    // Get the public audio URL (to be used after uploading the file)
     const audioUrl = getR2PublicUrl(audioR2Key);
-    const coverUrl = coverFilePath ? await uploadFileToR2(coverFilePath, coverR2Key) : getR2PublicUrl('defaults/default-cover.jpg');
 
+    // Extract metadata from the video title
     const extracted = extractMetadataFromTitle(info.title || '');
 
+    // Format the duration
     const duration = typeof info.duration === 'number' ? formatDuration(info.duration) : '0:00';
 
+    // Create the track object with all required metadata
     const track: Track = {
       id,
       title: info.title || 'Untitled',
@@ -57,8 +84,8 @@ export async function importTrackFromYoutube(videoId: string, videoUrl: string):
       key: extracted.key || 'C',
       duration,
       price: 12.99,
-      coverUrl,
-      audioUrl,
+      coverUrl, // Uses the correct URL from getR2PublicUrl
+      audioUrl, // Uses the correct URL from getR2PublicUrl
       tags: info.tags?.slice(0, 5) || [],
       licenseType: 'Non-Exclusive',
       videoId,
@@ -66,16 +93,31 @@ export async function importTrackFromYoutube(videoId: string, videoUrl: string):
       slug: id,
     };
 
-    // Upload metadata JSON to R2
+    // Validate the audioUrl and coverUrl
+    if (!track.audioUrl.includes(CDN_BASE_URL)) {
+      console.warn(`⚠️ Warning: Generated audioUrl doesn't contain the correct base URL. Expected base: ${CDN_BASE_URL}, Got: ${track.audioUrl}`);
+      // Force correct URL if needed
+      track.audioUrl = `${CDN_BASE_URL}/tracks/${id}.mp3`;
+    }
+    
+    if (!track.coverUrl.includes(CDN_BASE_URL)) {
+      console.warn(`⚠️ Warning: Generated coverUrl doesn't contain the correct base URL. Expected base: ${CDN_BASE_URL}, Got: ${track.coverUrl}`);
+      // Force correct URL if needed
+      track.coverUrl = `${CDN_BASE_URL}/covers/${id}${ext}`;
+    }
+
+    // Upload metadata JSON to R2 using the dedicated JSON upload function
     await uploadJsonToR2(track, metadataR2Key);
+    console.log(`✅ Uploaded metadata to R2: ${metadataR2Key}`);
 
-    // Upload audio
+    // Upload audio file to R2
     await uploadFileToR2(audioFilePath, audioR2Key);
+    console.log(`✅ Uploaded audio to R2: ${audioR2Key}`);
 
-    // Clean up
+    // Clean up temporary files
     fs.rmSync(tempTrackDir, { recursive: true, force: true });
 
-    console.log(`✅ Uploaded track: ${track.title}`);
+    console.log(`✅ Successfully imported track: ${track.title} (ID: ${id})`);
     return track;
   } catch (err) {
     console.error('❌ Failed to import track:', err);
@@ -149,6 +191,9 @@ export async function importTracksFromSource(sourceUrl: string, limit: number = 
   }
 }
 
+/**
+ * Format seconds into a MM:SS string
+ */
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
