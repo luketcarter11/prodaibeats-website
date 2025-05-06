@@ -136,14 +136,17 @@ export default function TrackCard({
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="text-white font-medium truncate">{title}</h3>
-            <p className="text-sm text-gray-400 truncate">{artist}</p>
-            <div className="flex gap-2 text-xs text-white/80">
-              <span className="bg-neutral-800 px-2 py-1 rounded-full">
-                {bpm || 0} BPM
-              </span>
-              <span className="bg-neutral-800 px-2 py-1 rounded-full">
-                {formatDuration(duration || 0)}
-              </span>
+            <div className="mt-1 flex gap-2 text-xs text-white/80">
+              {bpm && (
+                <span className="bg-neutral-800 px-2 py-1 rounded-full">
+                  {bpm} BPM
+                </span>
+              )}
+              {duration && (
+                <span className="bg-neutral-800 px-2 py-1 rounded-full">
+                  {formatDuration(duration)}
+                </span>
+              )}
             </div>
           </div>
         </div>
