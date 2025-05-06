@@ -14,7 +14,7 @@ export interface LicenseTier {
 }
 
 // CDN base URL
-const CDN_BASE_URL = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f47laaa2labb935e98d.r2.dev'
+const CDN_BASE_URL = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev'
 
 interface R2Object {
   Key?: string

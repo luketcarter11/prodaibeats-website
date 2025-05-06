@@ -25,7 +25,7 @@ const r2Client = new S3Client({
 
 // Configure bucket and CDN
 const R2_BUCKET = process.env.R2_BUCKET || 'prodai-beats-storage';
-const CDN_BASE_URL = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f47laaa2labb935e98d.r2.dev';
+const CDN_BASE_URL = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
 
 // Get R2 public URL
 const getR2PublicUrl = (key) => {

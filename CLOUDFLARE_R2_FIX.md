@@ -4,7 +4,7 @@ We've identified that the audio files stored in Cloudflare R2 are not accessible
 
 ## Issue Diagnosis
 
-1. We tested accessing audio files directly through the current CDN URL (https://pub-c059baad842f47laaa2labb935e98d.r2.dev) and received 401 Unauthorized errors.
+1. We tested accessing audio files directly through the current CDN URL (https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev) and received 401 Unauthorized errors.
 2. This indicates that either:
    - The bucket does not have public access enabled
    - The R2 public bucket URL is incorrectly configured
