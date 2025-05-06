@@ -174,6 +174,7 @@ const AudioPlayer = ({ currentTrack, onClose }: AudioPlayerProps) => {
               src={coverSrc}
               alt={currentTrack.title ?? 'Untitled Track'}
               fill
+              unoptimized
               className="object-cover rounded-md"
             />
           </div>

@@ -112,6 +112,7 @@ export default function TrackCard({
               src={coverSrc}
               alt={`Cover art for ${title}`}
               fill
+              unoptimized
               className="object-cover rounded"
             />
             <button 

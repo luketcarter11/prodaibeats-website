@@ -207,6 +207,7 @@ export default function TracksGrid() {
               src={getCoverImage(track)}
               alt={`${track.title} cover art`}
               fill
+              unoptimized
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               className="object-cover"
               priority={parseInt(track.id) <= 3}
