@@ -26,10 +26,10 @@ For persistent storage between runs, you need to set up Cloudflare R2 credential
 
 2. Edit the `.env` file and add your Cloudflare R2 credentials:
    ```
-   R2_ACCESS_KEY_ID=your_access_key_id
-   R2_SECRET_ACCESS_KEY=your_secret_access_key
-   R2_BUCKET=your_bucket_name
-   R2_ENDPOINT=https://your-account-id.r2.cloudflarestorage.com
+   R2_ACCESS_KEY_ID=3cb677b9b6722a66a2dc626c404d8c4e
+   R2_SECRET_ACCESS_KEY=4ba2531ef45d5f9d9b1657a252fd8b57dfe6404fff21d85713a3c9e8355cfadd
+   R2_BUCKET=prodai-beats-storage
+   R2_ENDPOINT=https://1992471ec8cc523889f80797e15a0529.r2.cloudflarestorage.com
    ```
 
 3. Verify your R2 credentials:
