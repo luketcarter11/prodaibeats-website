@@ -22,7 +22,9 @@
     "r2:repair": "tsx repair-r2-storage.ts",
     "r2:repair-list": "tsx repair-list-json.ts",
     "r2:repair-metadata": "tsx repair-metadata-urls.ts",
-    "r2:check": "tsx check-r2-urls.ts"
+    "r2:check": "tsx check-r2-urls.ts",
+    "r2:verify-list": "tsx verify-list-json.ts",
+    "r2:update-list": "tsx update-list-from-tracks.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
