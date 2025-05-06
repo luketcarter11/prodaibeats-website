@@ -8,6 +8,15 @@ import { PlayIcon, PauseIcon } from '@radix-ui/react-icons';
 // Use environment variable for CDN base URL
 const CDN = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
 
+// Helper function to format duration to mm:ss
+function formatDuration(seconds: number | string): string {
+  const totalSeconds = typeof seconds === 'string' ? parseInt(seconds, 10) : seconds;
+  if (isNaN(totalSeconds)) return '0:00';
+  const minutes = Math.floor(totalSeconds / 60);
+  const secs = Math.floor(totalSeconds % 60);
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
 export default function TracksGrid() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,8 +134,14 @@ export default function TracksGrid() {
             <div className="p-4">
               <h3 className="font-semibold text-lg">{track.title}</h3>
               <p className="text-gray-600">{track.artist}</p>
-              {track.bpm && <p className="text-sm text-gray-500">BPM: {track.bpm}</p>}
-              {track.key && <p className="text-sm text-gray-500">Key: {track.key}</p>}
+              <div className="flex gap-2 text-xs mt-2">
+                <span className="bg-neutral-100 px-2 py-1 rounded-full">
+                  {track.bpm || 0} BPM
+                </span>
+                <span className="bg-neutral-100 px-2 py-1 rounded-full">
+                  {formatDuration(track.duration || 0)}
+                </span>
+              </div>
             </div>
           </div>
         );

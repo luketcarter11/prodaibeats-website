@@ -8,6 +8,15 @@ import { PlayIcon, PauseIcon } from '@radix-ui/react-icons';
 // Use environment variable for CDN base URL
 const CDN = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
 
+// Helper function to format duration to mm:ss
+function formatDuration(seconds: number | string): string {
+  const totalSeconds = typeof seconds === 'string' ? parseInt(seconds, 10) : seconds;
+  if (isNaN(totalSeconds)) return '0:00';
+  const minutes = Math.floor(totalSeconds / 60);
+  const secs = Math.floor(totalSeconds % 60);
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
 // Define a type for tracks that might have different property names
 type SrcTrack = {
   id: string;
@@ -229,7 +238,21 @@ export default function TracksGrid() {
           <div className="p-4">
             <h3 className="font-bold text-lg line-clamp-1">{track.title}</h3>
             <p className="text-gray-600">{track.artist}</p>
-            <p className="text-sm text-gray-500 mt-2">{formatDate(getDisplayDate(track))}</p>
+            <div className="flex items-center justify-between mt-2">
+              <div className="flex gap-2 text-xs">
+                {'bpm' in track && (
+                  <span className="bg-gray-100 px-2 py-1 rounded-full">
+                    {track.bpm || 0} BPM
+                  </span>
+                )}
+                {'duration' in track && (
+                  <span className="bg-gray-100 px-2 py-1 rounded-full">
+                    {formatDuration(track.duration || 0)}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-gray-500">{formatDate(getDisplayDate(track))}</p>
+            </div>
           </div>
         </div>
       ))}

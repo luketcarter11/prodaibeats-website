@@ -11,6 +11,15 @@ import CartPopup from './CartPopup'
 // Use environment variable for CDN base URL
 const CDN = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev'
 
+// Helper function to format duration to mm:ss
+function formatDuration(seconds: number | string): string {
+  const totalSeconds = typeof seconds === 'string' ? parseInt(seconds, 10) : seconds;
+  if (isNaN(totalSeconds)) return '0:00';
+  const minutes = Math.floor(totalSeconds / 60);
+  const secs = Math.floor(totalSeconds % 60);
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
 interface TrackCardProps extends Omit<Track, 'key'> {
   musicalKey: string
   onPlay?: (track: Track) => void
@@ -128,10 +137,13 @@ export default function TrackCard({
           <div className="min-w-0 flex-1">
             <h3 className="text-white font-medium truncate">{title}</h3>
             <p className="text-sm text-gray-400 truncate">{artist}</p>
-            <div className="flex items-center space-x-4 text-sm text-gray-400">
-              <span>{duration}</span>
-              <span>{bpm} BPM</span>
-              <span>{musicalKey}</span>
+            <div className="flex gap-2 text-xs text-white/80">
+              <span className="bg-neutral-800 px-2 py-1 rounded-full">
+                {bpm || 0} BPM
+              </span>
+              <span className="bg-neutral-800 px-2 py-1 rounded-full">
+                {formatDuration(duration || 0)}
+              </span>
             </div>
           </div>
         </div>
