@@ -20,6 +20,7 @@ const r2Client = new S3Client({
 // Configure bucket and CDN
 const R2_BUCKET = process.env.R2_BUCKET || 'prodai-beats-storage';
 const OLD_CDN_URL = 'https://pub-c059baad842f47laaa2labb935e98d.r2.dev';
+const NEW_CDN_URL = 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
 
 // Create readline interface for user input
 const rl = readline.createInterface({ input, output });
@@ -134,40 +135,27 @@ async function main() {
   try {
     console.log('🚀 R2 Metadata URL Fixer');
     console.log('======================');
-    console.log('This script will update the audio URLs in all metadata files to use a new CDN URL.');
+    console.log('This script will update the audio URLs in all metadata files to use the correct CDN URL.');
     console.log(`Current R2 bucket: ${R2_BUCKET}`);
-    console.log(`Current CDN URL in code: ${OLD_CDN_URL}`);
+    console.log(`Old CDN URL (incorrect): ${OLD_CDN_URL}`);
+    console.log(`New CDN URL (correct): ${NEW_CDN_URL}`);
     console.log('');
     
-    // Prompt for new CDN URL
-    rl.question('Enter the new CDN URL (e.g., https://your-bucket.r2.dev): ', async (newCdnUrl) => {
-      if (!newCdnUrl || !newCdnUrl.startsWith('http')) {
-        console.error('❌ Invalid URL. URL must start with http:// or https://');
-        rl.close();
-        return;
+    // Confirm before proceeding
+    rl.question('Proceed with updating metadata to use the correct URL? (y/n): ', async (answer) => {
+      if (answer.toLowerCase() === 'y') {
+        const files = await getMetadataFiles();
+        
+        if (files.length > 0) {
+          await updateMetadataFiles(files, NEW_CDN_URL);
+        } else {
+          console.log('❌ No files to update');
+        }
+      } else {
+        console.log('❌ Operation cancelled');
       }
       
-      // Remove trailing slash if present
-      newCdnUrl = newCdnUrl.replace(/\/$/, '');
-      
-      console.log(`\n🔍 Will update all URLs from: ${OLD_CDN_URL}\n                        to: ${newCdnUrl}`);
-      
-      // Confirm before proceeding
-      rl.question('\nProceed with updating metadata? (y/n): ', async (answer) => {
-        if (answer.toLowerCase() === 'y') {
-          const files = await getMetadataFiles();
-          
-          if (files.length > 0) {
-            await updateMetadataFiles(files, newCdnUrl);
-          } else {
-            console.log('❌ No files to update');
-          }
-        } else {
-          console.log('❌ Operation cancelled');
-        }
-        
-        rl.close();
-      });
+      rl.close();
     });
   } catch (error) {
     console.error('❌ Fatal error:', error);
