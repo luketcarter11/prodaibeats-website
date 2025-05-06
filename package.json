@@ -22,7 +22,7 @@
     "r2:repair": "tsx repair-r2-storage.ts",
     "r2:repair-list": "tsx repair-list-json.ts",
     "r2:repair-metadata": "tsx repair-metadata-urls.ts",
-    "r2:check": "tsx src/lib/check-r2-urls.ts"
+    "r2:check": "tsx check-r2-urls.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

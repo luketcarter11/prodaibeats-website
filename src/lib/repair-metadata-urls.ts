@@ -5,6 +5,7 @@
 import { ListObjectsV2Command, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { r2Client, R2_BUCKET_NAME, CDN_BASE_URL } from './r2Config';
 import { uploadJsonToR2 } from './r2Uploader';
+import { fileURLToPath } from 'url';
 
 // The incorrect domain that needs to be replaced
 const INCORRECT_DOMAIN = 'https://pub-c059baad842f47laaa2labb935e98d.r2.dev';
@@ -166,8 +167,10 @@ export async function repairMetadataUrls(): Promise<{ total: number; updated: nu
   }
 }
 
-// If this script is run directly
-if (require.main === module) {
+// If this script is run directly from Node.js
+// In ES modules, use import.meta.url instead of require.main === module
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
   repairMetadataUrls()
     .then(result => {
       if (result.failed === 0) {

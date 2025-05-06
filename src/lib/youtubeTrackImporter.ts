@@ -61,14 +61,18 @@ export async function importTrackFromYoutube(videoId: string, videoUrl: string):
     const coverR2Key = `covers/${id}${ext}`;
     const metadataR2Key = `metadata/${id}.json`;
 
-    // Upload the cover image to R2 if available, or use default cover
-    const coverUrl = coverFilePath 
-      ? await uploadFileToR2(coverFilePath, coverR2Key) 
-      : getR2PublicUrl('defaults/default-cover.jpg');
-      
-    // Get the public audio URL (to be used after uploading the file)
+    // Generate URLs using the getR2PublicUrl function to ensure correct domain
     const audioUrl = getR2PublicUrl(audioR2Key);
-
+    
+    // Upload the cover image to R2 if available, or use default cover
+    let coverUrl = '';
+    if (coverFilePath) {
+      await uploadFileToR2(coverFilePath, coverR2Key);
+      coverUrl = getR2PublicUrl(coverR2Key);
+    } else {
+      coverUrl = getR2PublicUrl('defaults/default-cover.jpg');
+    }
+      
     // Extract metadata from the video title
     const extracted = extractMetadataFromTitle(info.title || '');
 
@@ -84,8 +88,8 @@ export async function importTrackFromYoutube(videoId: string, videoUrl: string):
       key: extracted.key || 'C',
       duration,
       price: 12.99,
-      coverUrl, // Uses the correct URL from getR2PublicUrl
-      audioUrl, // Uses the correct URL from getR2PublicUrl
+      coverUrl,
+      audioUrl,
       tags: info.tags?.slice(0, 5) || [],
       licenseType: 'Non-Exclusive',
       videoId,
@@ -93,17 +97,17 @@ export async function importTrackFromYoutube(videoId: string, videoUrl: string):
       slug: id,
     };
 
-    // Validate the audioUrl and coverUrl
-    if (!track.audioUrl.includes(CDN_BASE_URL)) {
-      console.warn(`⚠️ Warning: Generated audioUrl doesn't contain the correct base URL. Expected base: ${CDN_BASE_URL}, Got: ${track.audioUrl}`);
-      // Force correct URL if needed
-      track.audioUrl = `${CDN_BASE_URL}/tracks/${id}.mp3`;
+    // Validate the audioUrl and coverUrl to ensure they contain the correct domain
+    if (!track.audioUrl.startsWith(CDN_BASE_URL)) {
+      console.warn(`⚠️ Warning: Generated audioUrl has incorrect base URL. Expected base: ${CDN_BASE_URL}, Got: ${track.audioUrl}`);
+      // Force correct URL
+      track.audioUrl = `${CDN_BASE_URL}/${audioR2Key}`;
     }
     
-    if (!track.coverUrl.includes(CDN_BASE_URL)) {
-      console.warn(`⚠️ Warning: Generated coverUrl doesn't contain the correct base URL. Expected base: ${CDN_BASE_URL}, Got: ${track.coverUrl}`);
-      // Force correct URL if needed
-      track.coverUrl = `${CDN_BASE_URL}/covers/${id}${ext}`;
+    if (!track.coverUrl.startsWith(CDN_BASE_URL)) {
+      console.warn(`⚠️ Warning: Generated coverUrl has incorrect base URL. Expected base: ${CDN_BASE_URL}, Got: ${track.coverUrl}`);
+      // Force correct URL
+      track.coverUrl = `${CDN_BASE_URL}/${coverR2Key}`;
     }
 
     // Upload metadata JSON to R2 using the dedicated JSON upload function
@@ -118,6 +122,8 @@ export async function importTrackFromYoutube(videoId: string, videoUrl: string):
     fs.rmSync(tempTrackDir, { recursive: true, force: true });
 
     console.log(`✅ Successfully imported track: ${track.title} (ID: ${id})`);
+    console.log(`   Audio URL: ${track.audioUrl}`);
+    console.log(`   Cover URL: ${track.coverUrl}`);
     return track;
   } catch (err) {
     console.error('❌ Failed to import track:', err);

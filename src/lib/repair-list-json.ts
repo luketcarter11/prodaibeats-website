@@ -5,6 +5,7 @@
 import { ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { r2Client, R2_BUCKET_NAME } from './r2Config';
 import { uploadJsonToR2 } from './r2Uploader';
+import { fileURLToPath } from 'url';
 
 /**
  * List all .mp3 files in the tracks/ prefix of the R2 bucket
@@ -109,8 +110,10 @@ export async function repairTracksList(): Promise<boolean> {
   }
 }
 
-// If this script is run directly
-if (require.main === module) {
+// If this script is run directly from Node.js
+// In ES modules, use import.meta.url instead of require.main === module
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
   repairTracksList()
     .then(success => {
       if (success) {

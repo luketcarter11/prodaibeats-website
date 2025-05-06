@@ -6,9 +6,36 @@
  */
 import { repairTracksList } from './src/lib/repair-list-json';
 import { repairMetadataUrls } from './src/lib/repair-metadata-urls';
+import { hasR2Credentials } from './src/lib/r2Config';
 
 console.log('🚀 R2 Storage Repair Tool');
 console.log('=======================');
+
+// Check for credentials before running repairs
+async function checkCredentialsAndRun() {
+  // First verify R2 credentials
+  const credentialsOk = await hasR2Credentials();
+  
+  if (!credentialsOk) {
+    console.error('❌ R2 credentials are not properly configured');
+    console.log('\n💡 Make sure to set the following environment variables:');
+    console.log('- R2_ACCESS_KEY_ID');
+    console.log('- R2_SECRET_ACCESS_KEY');
+    console.log('- R2_ENDPOINT');
+    console.log('- R2_BUCKET');
+    console.log('- NEXT_PUBLIC_STORAGE_BASE_URL');
+    
+    console.log('\n💡 You can set them by:');
+    console.log('1. Creating a .env file in the project root');
+    console.log('2. Setting them in your shell before running the script');
+    console.log('3. Using the Vercel dashboard for production deployments');
+    process.exit(1);
+    return false;
+  }
+  
+  // If credentials are OK, proceed with repairs
+  return await runRepairs();
+}
 
 // Run both repair operations in sequence
 async function runRepairs() {
@@ -45,8 +72,8 @@ async function runRepairs() {
   }
 }
 
-// Run the repair process
-runRepairs()
+// Run the repair process with credential check
+checkCredentialsAndRun()
   .then(success => {
     if (success) {
       console.log('\n🎉 All repairs completed successfully!');
