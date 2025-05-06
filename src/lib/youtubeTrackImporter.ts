@@ -83,6 +83,72 @@ export async function importTrackFromYoutube(videoId: string, videoUrl: string):
   }
 }
 
+/**
+ * Import multiple tracks from a YouTube channel or playlist
+ * @param sourceUrl URL of the YouTube channel or playlist
+ * @param limit Maximum number of tracks to import
+ * @returns Array of imported tracks
+ */
+export async function importTracksFromSource(sourceUrl: string, limit: number = 5): Promise<Track[]> {
+  try {
+    console.log(`📥 Starting batch import from source: ${sourceUrl} (limit: ${limit})`);
+    
+    // Create a unique temporary directory for this import
+    const tempSourceDir = path.join(TEMP_DIR, `source-${Date.now()}`);
+    fs.mkdirSync(tempSourceDir, { recursive: true });
+    
+    // Get the playlist or channel video list using yt-dlp
+    // --flat-playlist gets just the video info without downloading
+    // --max-downloads limits the number of entries
+    const ytDlpListCommand = `yt-dlp "${sourceUrl}" --flat-playlist --max-downloads ${limit} --print id --print title`;
+    
+    const result = execSync(ytDlpListCommand, { encoding: 'utf8' });
+    const lines = result.split('\n').filter(line => line.trim());
+    
+    // Process in pairs (id, title)
+    const videos = [];
+    for (let i = 0; i < lines.length; i += 2) {
+      if (i + 1 < lines.length) {
+        videos.push({
+          id: lines[i],
+          title: lines[i + 1]
+        });
+      }
+    }
+    
+    console.log(`Found ${videos.length} videos`);
+    
+    // Import each video
+    const importedTracks: Track[] = [];
+    for (const video of videos) {
+      const videoUrl = `https://www.youtube.com/watch?v=${video.id}`;
+      console.log(`Processing video: ${video.title} (${video.id})`);
+      
+      try {
+        const track = await importTrackFromYoutube(video.id, videoUrl);
+        if (track) {
+          importedTracks.push(track);
+        }
+      } catch (error) {
+        console.error(`Error importing video ${video.id}:`, error);
+      }
+    }
+    
+    // Clean up the temporary directory
+    try {
+      fs.rmSync(tempSourceDir, { recursive: true, force: true });
+    } catch (error) {
+      console.warn('Warning: Could not clean up temporary directory:', error);
+    }
+    
+    console.log(`✅ Batch import complete. Imported ${importedTracks.length} tracks`);
+    return importedTracks;
+  } catch (error) {
+    console.error('❌ Failed to import tracks from source:', error);
+    return [];
+  }
+}
+
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
