@@ -95,6 +95,11 @@ const AudioPlayer = ({ currentTrack, onClose }: AudioPlayerProps) => {
 
   if (!currentTrack) return null
 
+  // Ensure proper cover URL with fallback to CDN
+  const coverSrc = currentTrack.coverUrl && currentTrack.coverUrl.includes('://') 
+    ? currentTrack.coverUrl 
+    : `${CDN}/covers/${currentTrack.id}.jpg`
+
   const handlePlayPause = () => {
     if (hasError) {
       // Try loading the audio again
@@ -166,7 +171,7 @@ const AudioPlayer = ({ currentTrack, onClose }: AudioPlayerProps) => {
         <div className="flex items-center space-x-4 w-1/4">
           <div className="relative w-12 h-12 flex-shrink-0">
             <Image
-              src={currentTrack.coverUrl}
+              src={coverSrc}
               alt={currentTrack.title ?? 'Untitled Track'}
               fill
               className="object-cover rounded-md"

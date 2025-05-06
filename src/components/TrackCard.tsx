@@ -40,12 +40,17 @@ export default function TrackCard({
   const [isCartPopupOpen, setIsCartPopupOpen] = useState(false)
   const [addedTrack, setAddedTrack] = useState<Track | null>(null)
   const isInCart = cart.some(item => item.id === id)
+  
+  // Ensure proper cover URL with fallback to CDN
+  const coverSrc = coverUrl && coverUrl.includes('://') 
+    ? coverUrl 
+    : `${CDN}/covers/${id}.jpg`
 
   const track: Track = { 
     id, 
     title, 
     artist, 
-    coverUrl, 
+    coverUrl: coverSrc, // Use the corrected cover URL
     price, 
     bpm, 
     key: musicalKey, 
@@ -104,7 +109,7 @@ export default function TrackCard({
         <div className="flex items-center flex-1">
           <div className="relative w-12 h-12 mr-4 group-hover:opacity-80 transition-opacity">
             <Image
-              src={coverUrl}
+              src={coverSrc}
               alt={`Cover art for ${title}`}
               fill
               className="object-cover rounded"

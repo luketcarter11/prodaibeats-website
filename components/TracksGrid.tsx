@@ -31,9 +31,18 @@ function hasCoverUrl(track: AnyTrack): track is Track {
 // Helper function to get cover image regardless of track type
 function getCoverImage(track: AnyTrack): string {
   if (hasCoverUrl(track)) {
-    return track.coverUrl || '/images/default-cover.jpg';
+    const coverUrl = track.coverUrl;
+    // Ensure proper cover URL with fallback to CDN
+    return coverUrl && coverUrl.includes('://') 
+      ? coverUrl 
+      : `${CDN}/covers/${track.id}.jpg`;
   }
-  return track.coverImage || '/images/default-cover.jpg';
+  
+  const coverImage = track.coverImage;
+  // Ensure proper cover URL with fallback to CDN for coverImage 
+  return coverImage && coverImage.includes('://') 
+    ? coverImage 
+    : `${CDN}/covers/${track.id}.jpg`;
 }
 
 export default function TracksGrid() {

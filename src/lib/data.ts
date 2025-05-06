@@ -179,6 +179,17 @@ async function fetchTracksFromR2(): Promise<Track[]> {
           coverUrl,
         };
         
+        // Validate the URLs to ensure they contain the correct domain
+        if (!track.audioUrl || !track.audioUrl.includes(CDN_BASE_URL)) {
+          console.warn(`⚠️ Warning: Invalid audioUrl for track ${trackId}. Applying fallback.`);
+          track.audioUrl = `${CDN_BASE_URL}/tracks/${trackId}.mp3`;
+        }
+        
+        if (!track.coverUrl || !track.coverUrl.includes(CDN_BASE_URL)) {
+          console.warn(`⚠️ Warning: Invalid coverUrl for track ${trackId}. Applying fallback.`);
+          track.coverUrl = `${CDN_BASE_URL}/covers/${trackId}.jpg`;
+        }
+        
         return track;
       })
     )
