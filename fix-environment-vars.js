@@ -1,7 +1,12 @@
 // Script to help update environment variables with the correct URL
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
+
+// Setup ES module compatible __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Old incorrect URL
 const oldUrl = 'https://pub-c059baad842f47laaa2labb935e98d.r2.dev';
