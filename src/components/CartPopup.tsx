@@ -28,6 +28,9 @@ export default function CartPopup({ isOpen, onClose, addedTrack }: CartPopupProp
     }
   }, [isOpen])
 
+  // Use environment variable for CDN base URL
+  const CDN = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev'
+
   if (!isOpen && !isVisible) return null
 
   return (
@@ -61,7 +64,11 @@ export default function CartPopup({ isOpen, onClose, addedTrack }: CartPopupProp
             <div className="flex items-start space-x-4 mb-6">
               <div className="relative w-20 h-20 flex-shrink-0">
                 <Image
-                  src={addedTrack.coverUrl}
+                  src={
+                    addedTrack.coverUrl && addedTrack.coverUrl.includes('://')
+                      ? addedTrack.coverUrl
+                      : `${CDN}/covers/${addedTrack.id}.jpg`
+                  }
                   alt={addedTrack.title ?? 'Untitled Track'}
                   fill
                   className="object-cover rounded"
