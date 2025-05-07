@@ -156,8 +156,8 @@ export default function TrackCard({
         role="article"
         aria-label={`Track: ${title} by ${artist}`}
       >
-        <div className="flex items-center flex-1">
-          <div className="relative w-12 h-12 mr-4 group-hover:opacity-80 transition-opacity">
+        <div className="flex items-center flex-1 min-w-0">
+          <div className="relative w-12 h-12 mr-4 flex-shrink-0 group-hover:opacity-80 transition-opacity">
             <Image
               src={coverSrc}
               alt={`Cover art for ${title}`}
@@ -176,8 +176,8 @@ export default function TrackCard({
             </button>
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between gap-4 w-full overflow-hidden">
-              <h3 className="text-white font-medium truncate whitespace-nowrap overflow-hidden max-w-[calc(100%-100px)]">{title}</h3>
+            <div className="flex items-center justify-between gap-4 w-full">
+              <h3 className="text-white font-medium truncate whitespace-nowrap overflow-hidden">{title}</h3>
               <div className="hidden md:flex items-center gap-2 shrink-0">
                 {bpm && (
                   <span className="bg-neutral-800 px-2 py-0.5 text-xs text-white/80 rounded-full">
@@ -193,7 +193,7 @@ export default function TrackCard({
             </div>
           </div>
         </div>
-        <div className="hidden md:flex items-center space-x-2 mx-4">
+        <div className="hidden md:flex items-center space-x-2 mx-4 flex-shrink-0">
           {filteredTags.map((tag) => (
             <span 
               key={tag} 
@@ -204,7 +204,7 @@ export default function TrackCard({
             </span>
           ))}
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 flex-shrink-0 ml-4">
           <button 
             onClick={handleDownload}
             className="hidden md:flex p-2 text-gray-400 hover:text-white transition-colors"
@@ -227,22 +227,22 @@ export default function TrackCard({
           </button>
           <button 
             onClick={handleAddToCart}
-            className={`px-5 py-2.5 rounded font-medium transition-colors flex items-center ${
+            className={`px-4 py-2.5 rounded-lg font-medium transition-all flex items-center justify-center min-w-[80px] ${
               isInCart 
                 ? 'bg-green-600 hover:bg-green-700 text-white' 
-                : 'bg-purple-600 hover:bg-purple-700 text-white'
+                : 'bg-purple-600 hover:bg-purple-700 text-white hover:scale-105 active:scale-95'
             }`}
             aria-label={isInCart ? `${title} is in your cart` : `Add ${title} to cart for $${(price ?? 0).toFixed(2)}`}
           >
             {isInCart ? (
               <>
-                <FaShoppingCart className="mr-2 w-4 h-4" />
-                <span className="hidden md:inline">In Cart</span>
+                <FaShoppingCart className="w-4 h-4" />
+                <span className="hidden md:inline ml-2">In Cart</span>
               </>
             ) : (
               <>
-                <FaShoppingCart className="md:hidden w-4 h-4" />
-                <span className="hidden md:inline">${(price ?? 0).toFixed(2)}</span>
+                <FaShoppingCart className="w-4 h-4" />
+                <span className="hidden md:inline ml-2">${(price ?? 0).toFixed(2)}</span>
               </>
             )}
           </button>
