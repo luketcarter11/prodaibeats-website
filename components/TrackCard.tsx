@@ -5,6 +5,15 @@ import Image from 'next/image'
 import { FaPlay } from 'react-icons/fa'
 import { Track } from '@/types/track'
 
+// Helper function to format duration to mm:ss
+function formatDuration(seconds: number | string): string {
+  const totalSeconds = typeof seconds === 'string' ? parseInt(seconds, 10) : seconds;
+  if (isNaN(totalSeconds)) return '0:00';
+  const minutes = Math.floor(totalSeconds / 60);
+  const secs = Math.floor(totalSeconds % 60);
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
 interface TrackCardProps extends Omit<Track, 'tags'> {
   tags?: string[]
   onPlay: (track: Track) => void
@@ -73,13 +82,22 @@ export default function TrackCard({
           </button>
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-white font-medium truncate whitespace-nowrap overflow-hidden max-w-[200px] sm:max-w-[300px] md:max-w-[400px] lg:max-w-[500px]">{title}</h3>
-          <p className="text-gray-400 text-sm truncate">{artist}</p>
-          <div className="flex items-center space-x-4 text-sm text-gray-400">
-            <span>{duration}</span>
-            <span>{bpm} BPM</span>
-            <span>{musicalKey}</span>
+          <div className="flex items-center justify-between gap-4 w-full overflow-hidden">
+            <h3 className="text-white font-medium truncate whitespace-nowrap overflow-hidden max-w-[calc(100%-100px)]">{title}</h3>
+            <div className="flex items-center gap-2 shrink-0">
+              {bpm && (
+                <span className="bg-neutral-800 px-2 py-0.5 text-xs text-white/80 rounded-full">
+                  {bpm} BPM
+                </span>
+              )}
+              {duration && (
+                <span className="bg-neutral-800 px-2 py-0.5 text-xs text-white/80 rounded-full">
+                  {formatDuration(duration)}
+                </span>
+              )}
+            </div>
           </div>
+          <p className="text-gray-400 text-sm truncate">{artist}</p>
         </div>
       </div>
       <div className="hidden md:flex items-center space-x-2 mx-4">
