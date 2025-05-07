@@ -183,8 +183,8 @@ export default function TrackCard({
               aria-label={isInCart ? `${title} is in your cart` : `Add ${title} to cart`}
               disabled={isInCart}
             >
-              <FaShoppingCart className="w-5 h-5 mr-0 sm:mr-2 mx-auto" />
-              <span className="hidden sm:inline">Buy</span>
+              <FaShoppingCart className="w-5 h-5 mr-0 md:mr-2 mx-auto" />
+              <span className="hidden md:inline font-normal">${(price ?? 0).toFixed(2)}</span>
             </button>
           </div>
         </div>
