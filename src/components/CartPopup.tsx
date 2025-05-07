@@ -63,16 +63,19 @@ export default function CartPopup({ isOpen, onClose, addedTrack }: CartPopupProp
           <div className="p-6">
             <div className="flex items-start space-x-4 mb-6">
               <div className="relative w-20 h-20 flex-shrink-0">
-                <Image
-                  src={
-                    addedTrack.coverUrl && addedTrack.coverUrl.includes('://')
-                      ? addedTrack.coverUrl
-                      : `${CDN}/covers/${addedTrack.id}.jpg`
-                  }
-                  alt={addedTrack.title ?? 'Untitled Track'}
-                  fill
-                  className="object-cover rounded"
-                />
+                {(() => {
+                  const coverSrc = addedTrack.coverUrl && addedTrack.coverUrl.includes('://')
+                    ? addedTrack.coverUrl
+                    : `${CDN}/covers/${addedTrack.id}.jpg`;
+                  return (
+                    <Image
+                      src={coverSrc}
+                      alt={addedTrack.title ?? 'Untitled Track'}
+                      fill
+                      className="object-cover rounded"
+                    />
+                  );
+                })()}
               </div>
               <div className="flex-1">
                 <h3 className="text-white font-medium">{addedTrack.title}</h3>
