@@ -136,18 +136,6 @@ export default function TrackCard({
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="text-white font-medium truncate">{title}</h3>
-            <div className="mt-1 flex gap-2 text-xs text-white/80">
-              {bpm && (
-                <span className="bg-neutral-800 px-2 py-1 rounded-full">
-                  {bpm} BPM
-                </span>
-              )}
-              {duration && (
-                <span className="bg-neutral-800 px-2 py-1 rounded-full">
-                  {formatDuration(duration)}
-                </span>
-              )}
-            </div>
           </div>
         </div>
         <div className="hidden md:flex items-center space-x-2 mx-4">
@@ -162,6 +150,18 @@ export default function TrackCard({
           ))}
         </div>
         <div className="flex items-center space-x-2">
+          <div className="flex items-center mr-2">
+            {bpm && (
+              <span className="bg-neutral-800 px-2 py-0.5 text-xs text-white/80 rounded-full mr-2">
+                {bpm} BPM
+              </span>
+            )}
+            {duration && (
+              <span className="bg-neutral-800 px-2 py-0.5 text-xs text-white/80 rounded-full">
+                {formatDuration(duration)}
+              </span>
+            )}
+          </div>
           <button 
             onClick={handleDownload}
             onKeyDown={(e) => e.key === 'Enter' && handleDownload()}

@@ -237,17 +237,19 @@ export default function TracksGrid() {
           </div>
           <div className="p-4">
             <h3 className="font-bold text-lg line-clamp-1">{track.title}</h3>
-            <div className="mt-1 flex gap-2 text-xs">
-              {'bpm' in track && track.bpm && (
-                <span className="bg-gray-100 px-2 py-1 rounded-full">
-                  {track.bpm} BPM
-                </span>
-              )}
-              {'duration' in track && track.duration && (
-                <span className="bg-gray-100 px-2 py-1 rounded-full">
-                  {formatDuration(track.duration)}
-                </span>
-              )}
+            <div className="flex justify-end mt-2">
+              <div className="flex gap-2 text-xs">
+                {'bpm' in track && track.bpm && (
+                  <span className="bg-gray-100 px-2 py-1 rounded-full">
+                    {track.bpm} BPM
+                  </span>
+                )}
+                {'duration' in track && track.duration && (
+                  <span className="bg-gray-100 px-2 py-1 rounded-full">
+                    {formatDuration(track.duration)}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex justify-end mt-2">
               <p className="text-xs text-gray-500">{formatDate(getDisplayDate(track))}</p>
