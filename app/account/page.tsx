@@ -38,6 +38,7 @@ export default function AccountPage() {
   const [isEditMode, setIsEditMode] = useState(false)
   const [licenses, setLicenses] = useState<License[]>([])
   const [isDownloading, setIsDownloading] = useState<string | null>(null)
+  const [expandedLicense, setExpandedLicense] = useState<string | null>(null)
   const router = useRouter()
   
   const [profile, setProfile] = useState<UserProfile>({
@@ -729,6 +730,14 @@ export default function AccountPage() {
     }
   }
 
+  const toggleLicense = (license: string) => {
+    if (expandedLicense === license) {
+      setExpandedLicense(null)
+    } else {
+      setExpandedLicense(license)
+    }
+  }
+
   return (
     <main className="min-h-screen bg-black text-white py-20 px-4">
       {/* Add global styles to handle autofill styling */}
@@ -1071,40 +1080,193 @@ export default function AccountPage() {
                 </div>
                 
                 <div className="pt-4 border-t border-white/10">
-                  <h3 className="text-sm font-medium mb-3">License Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-400">
-                    <div>
-                      <h4 className="font-semibold text-gray-300 mb-1">Basic License</h4>
-                      <ul className="list-disc list-inside space-y-1">
-                        <li>MP3 format</li>
-                        <li>Non-exclusive rights</li>
-                        <li>Limited distribution (5,000 copies)</li>
-                        <li>1-year license term</li>
-                      </ul>
+                  <h3 className="text-sm font-medium mb-4">License Information</h3>
+                  
+                  <div className="space-y-2">
+                    {/* Non-Exclusive License Dropdown */}
+                    <div className="bg-zinc-900/70 rounded-lg overflow-hidden border border-white/5">
+                      <button 
+                        onClick={() => toggleLicense('non-exclusive')}
+                        className="w-full px-5 py-3 flex justify-between items-center hover:bg-zinc-800/50 transition-colors text-left"
+                      >
+                        <div className="flex items-center">
+                          <h4 className="font-medium text-white">Non-Exclusive License</h4>
+                        </div>
+                        <div className="flex items-center">
+                          <span className="text-purple-400 font-medium mr-3">$12.99</span>
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            className={`h-5 w-5 text-gray-400 transition-transform ${expandedLicense === 'non-exclusive' ? 'transform rotate-180' : ''}`} 
+                            fill="none" 
+                            viewBox="0 0 24 24" 
+                            stroke="currentColor"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </button>
+                      
+                      {expandedLicense === 'non-exclusive' && (
+                        <div className="p-5 bg-black/30">
+                          <ul className="space-y-1.5 text-sm text-gray-300">
+                            <li>• MP3 File (Tagless)</li>
+                            <li>• Up to 100k streams</li>
+                            <li>• All platforms</li>
+                            <li>• 50% royalty split</li>
+                          </ul>
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-300 mb-1">Premium License</h4>
-                      <ul className="list-disc list-inside space-y-1">
-                        <li>WAV + MP3 formats</li>
-                        <li>Trackout stems included</li>
-                        <li>Commercial use allowed</li>
-                        <li>Up to 10,000 distribution copies</li>
-                        <li>1-year license term</li>
-                      </ul>
+                    
+                    {/* Non-Exclusive Plus Dropdown */}
+                    <div className="bg-zinc-900/70 rounded-lg overflow-hidden border border-white/5">
+                      <button 
+                        onClick={() => toggleLicense('non-exclusive-plus')}
+                        className="w-full px-5 py-3 flex justify-between items-center hover:bg-zinc-800/50 transition-colors text-left"
+                      >
+                        <div className="flex items-center">
+                          <h4 className="font-medium text-white">Non-Exclusive Plus</h4>
+                        </div>
+                        <div className="flex items-center">
+                          <span className="text-purple-400 font-medium mr-3">$24.99</span>
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            className={`h-5 w-5 text-gray-400 transition-transform ${expandedLicense === 'non-exclusive-plus' ? 'transform rotate-180' : ''}`} 
+                            fill="none" 
+                            viewBox="0 0 24 24" 
+                            stroke="currentColor"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </button>
+                      
+                      {expandedLicense === 'non-exclusive-plus' && (
+                        <div className="p-5 bg-black/30">
+                          <ul className="space-y-1.5 text-sm text-gray-300">
+                            <li>• MP3 File (Tagless)</li>
+                            <li>• Unlimited streams</li>
+                            <li>• All platforms</li>
+                            <li>• 40% royalty split</li>
+                          </ul>
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-300 mb-1">Exclusive License</h4>
-                      <ul className="list-disc list-inside space-y-1">
-                        <li>Full ownership rights</li>
-                        <li>All file formats + stems</li>
-                        <li>Unlimited distribution</li>
-                        <li>No expiration date</li>
-                        <li>Beat removed from catalog</li>
-                      </ul>
+                    
+                    {/* Exclusive Dropdown */}
+                    <div className="bg-zinc-900/70 rounded-lg overflow-hidden border border-white/5">
+                      <button 
+                        onClick={() => toggleLicense('exclusive')}
+                        className="w-full px-5 py-3 flex justify-between items-center hover:bg-zinc-800/50 transition-colors text-left"
+                      >
+                        <div className="flex items-center">
+                          <h4 className="font-medium text-white">Exclusive</h4>
+                        </div>
+                        <div className="flex items-center">
+                          <span className="text-purple-400 font-medium mr-3">$29.99</span>
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            className={`h-5 w-5 text-gray-400 transition-transform ${expandedLicense === 'exclusive' ? 'transform rotate-180' : ''}`} 
+                            fill="none" 
+                            viewBox="0 0 24 24" 
+                            stroke="currentColor"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </button>
+                      
+                      {expandedLicense === 'exclusive' && (
+                        <div className="p-5 bg-black/30">
+                          <ul className="space-y-1.5 text-sm text-gray-300">
+                            <li>• MP3 File (Tagless)</li>
+                            <li>• Up to 100k streams</li>
+                            <li>• All platforms</li>
+                            <li>• 50% royalty split</li>
+                            <li>• Producer keeps distribution</li>
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Exclusive Plus Dropdown */}
+                    <div className="bg-zinc-900/70 rounded-lg overflow-hidden border border-white/5">
+                      <button 
+                        onClick={() => toggleLicense('exclusive-plus')}
+                        className="w-full px-5 py-3 flex justify-between items-center hover:bg-zinc-800/50 transition-colors text-left"
+                      >
+                        <div className="flex items-center">
+                          <h4 className="font-medium text-white">Exclusive Plus</h4>
+                          <span className="ml-4 bg-purple-600 text-white text-xs px-2.5 py-0.5 rounded-full">
+                            Best Value
+                          </span>
+                        </div>
+                        <div className="flex items-center">
+                          <span className="text-purple-400 font-medium mr-3">$49.99</span>
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            className={`h-5 w-5 text-gray-400 transition-transform ${expandedLicense === 'exclusive-plus' ? 'transform rotate-180' : ''}`} 
+                            fill="none" 
+                            viewBox="0 0 24 24" 
+                            stroke="currentColor"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </button>
+                      
+                      {expandedLicense === 'exclusive-plus' && (
+                        <div className="p-5 bg-black/30">
+                          <ul className="space-y-1.5 text-sm text-gray-300">
+                            <li>• MP3 File (Tagless)</li>
+                            <li>• Unlimited streams</li>
+                            <li>• All platforms</li>
+                            <li>• 30% royalty split</li>
+                            <li>• Producer keeps distribution</li>
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Exclusive Pro Dropdown */}
+                    <div className="bg-zinc-900/70 rounded-lg overflow-hidden border border-white/5">
+                      <button 
+                        onClick={() => toggleLicense('exclusive-pro')}
+                        className="w-full px-5 py-3 flex justify-between items-center hover:bg-zinc-800/50 transition-colors text-left"
+                      >
+                        <div className="flex items-center">
+                          <h4 className="font-medium text-white">Exclusive Pro</h4>
+                        </div>
+                        <div className="flex items-center">
+                          <span className="text-purple-400 font-medium mr-3">$79.99</span>
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            className={`h-5 w-5 text-gray-400 transition-transform ${expandedLicense === 'exclusive-pro' ? 'transform rotate-180' : ''}`} 
+                            fill="none" 
+                            viewBox="0 0 24 24" 
+                            stroke="currentColor"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </button>
+                      
+                      {expandedLicense === 'exclusive-pro' && (
+                        <div className="p-5 bg-black/30">
+                          <ul className="space-y-1.5 text-sm text-gray-300">
+                            <li>• MP3 File (Tagless)</li>
+                            <li>• Unlimited streams</li>
+                            <li>• All platforms</li>
+                            <li>• 10% royalty split</li>
+                            <li>• Producer keeps distribution</li>
+                            <li>• Free Non-Exclusive Plus beat</li>
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   </div>
                   
-                  <p className="text-gray-500 text-xs mt-4">
+                  <p className="text-gray-500 text-xs mt-6">
                     For questions about your licenses or to upgrade, please <Link href="/contact" className="text-purple-400 hover:text-purple-300">contact our support team</Link>.
                   </p>
                 </div>
