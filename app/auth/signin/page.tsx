@@ -3,17 +3,48 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { supabase } from '../../../lib/supabaseClient'
+import { useRouter } from 'next/navigation'
 
 export default function SignInPage() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement authentication logic
-    console.log('Sign in attempt:', formData)
+    setLoading(true)
+    setError(null)
+    console.log('Sign in attempt:', formData.email)
+    
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      })
+      
+      console.log('Supabase response:', { data, error })
+      
+      if (error) {
+        setError(error.message)
+        console.error('Login error:', error.message)
+        setLoading(false)
+        return
+      }
+      
+      console.log('Login successful, user:', data.user)
+      // Navigate to account page
+      router.push('/account')
+    } catch (err) {
+      console.error('Unexpected error during login:', err)
+      setError('An unexpected error occurred. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -25,6 +56,9 @@ export default function SignInPage() {
           transition={{ duration: 0.5 }}
           className="bg-zinc-900/50 border border-white/10 rounded-lg p-8"
         >
+          {error && (
+            <div className="mb-4 text-red-500 text-sm text-center">{error}</div>
+          )}
           <div className="text-center mb-8">
             <h1 className="text-2xl font-bold text-white mb-2">Welcome Back</h1>
             <p className="text-gray-400">Sign in to your account to continue</p>
@@ -79,9 +113,10 @@ export default function SignInPage() {
 
             <button
               type="submit"
-              className="w-full bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors"
+              className="w-full bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-60"
+              disabled={loading}
             >
-              Sign In
+              {loading ? 'Signing In...' : 'Sign In'}
             </button>
           </form>
 
