@@ -155,7 +155,7 @@ export default function TrackCard({
             </button>
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="text-white font-medium truncate">{title}</h3>
+            <h3 className="text-white font-medium truncate whitespace-nowrap overflow-hidden max-w-[200px] sm:max-w-[300px] md:max-w-[400px] lg:max-w-[500px]">{title}</h3>
           </div>
         </div>
         <div className="hidden md:flex items-center space-x-2 mx-4">
