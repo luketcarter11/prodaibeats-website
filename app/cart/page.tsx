@@ -7,6 +7,9 @@ import { useCart } from '../../src/context/CartContext'
 import { motion } from 'framer-motion'
 import { FaMusic, FaTrash } from 'react-icons/fa'
 
+// Use environment variable for CDN base URL
+const CDN = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
+
 export default function CartPage() {
   const { cart, removeFromCart, clearCart, cartTotal, cartCount } = useCart()
   const [isProcessing, setIsProcessing] = useState(false)
@@ -60,45 +63,50 @@ export default function CartPage() {
             </h2>
             
             <div className="space-y-6">
-              {cart.map((item) => (
-                <div key={item.id} className="flex items-start space-x-4 pb-6 border-b border-white/10">
-                  <div className="relative w-20 h-20 flex-shrink-0">
-                    <Image
-                      src={item.coverUrl}
-                      alt={item.title ?? 'Untitled Track'}
-                      fill
-                      className="object-cover rounded"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between">
-                      <h3 className="text-white font-medium">{item.title ?? 'Untitled Track'}</h3>
-                      <button
-                        onClick={() => removeFromCart(item.id)}
-                        className="text-gray-400 hover:text-red-500 transition-colors"
-                        aria-label={`Remove ${item.title} from cart`}
-                      >
-                        <FaTrash />
-                      </button>
+              {cart.map((item) => {
+                const coverSrc = item.coverUrl && item.coverUrl.includes('://')
+                  ? item.coverUrl
+                  : `${CDN}/covers/${item.id}.jpg`;
+                return (
+                  <div key={item.id} className="flex items-start space-x-4 pb-6 border-b border-white/10">
+                    <div className="relative w-20 h-20 flex-shrink-0">
+                      <Image
+                        src={coverSrc}
+                        alt={item.title ?? 'Untitled Track'}
+                        fill
+                        className="object-cover rounded"
+                      />
                     </div>
-                    <p className="text-gray-400 text-sm">{item.artist}</p>
-                    <div className="mt-2 flex justify-between items-center">
-                      <span className="text-sm text-purple-400">
-                        {item.licenseType} License
-                      </span>
-                      <div className="text-right">
-                        <p className="text-white font-medium">${item.price?.toFixed(2) ?? '0.00'}</p>
+                    <div className="flex-1">
+                      <div className="flex justify-between">
+                        <h3 className="text-white font-medium">{item.title ?? 'Untitled Track'}</h3>
                         <button
                           onClick={() => removeFromCart(item.id)}
-                          className="text-red-400 hover:text-red-300 text-sm"
+                          className="text-gray-400 hover:text-red-500 transition-colors"
+                          aria-label={`Remove ${item.title} from cart`}
                         >
-                          Remove
+                          <FaTrash />
                         </button>
+                      </div>
+                      <p className="text-gray-400 text-sm">{item.artist}</p>
+                      <div className="mt-2 flex justify-between items-center">
+                        <span className="text-sm text-purple-400">
+                          {item.licenseType} License
+                        </span>
+                        <div className="text-right">
+                          <p className="text-white font-medium">${item.price?.toFixed(2) ?? '0.00'}</p>
+                          <button
+                            onClick={() => removeFromCart(item.id)}
+                            className="text-red-400 hover:text-red-300 text-sm"
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
