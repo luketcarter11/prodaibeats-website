@@ -3,78 +3,132 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { Track } from '@/types/track'
 
+// Use environment variable for CDN base URL
+const CDN = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev'
+
 // Define CartContextType
 interface CartContextType {
   cart: Track[];
-  addToCart: (track: Track) => void;
-  removeFromCart: (trackId: string) => void;
+  addToCart: (track: Track, licenseType?: string) => void;
+  removeFromCart: (id: string) => void;
   clearCart: () => void;
+  updateTrack: (id: string, updates: Partial<Track>) => void;
   cartCount: number;
   cartTotal: number;
 }
 
-const CartContext = createContext<CartContextType | undefined>(undefined)
+export const CartContext = createContext<CartContextType>({
+  cart: [],
+  addToCart: () => {},
+  removeFromCart: () => {},
+  clearCart: () => {},
+  updateTrack: () => {},
+  cartCount: 0,
+  cartTotal: 0,
+})
 
-export const CartProvider = ({ children }: { children: React.ReactNode }) => {
+export function useCart() {
+  return useContext(CartContext)
+}
+
+export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<Track[]>([])
-  const [cartCount, setCartCount] = useState(0)
-  const [cartTotal, setCartTotal] = useState(0)
-
-  // Load cart from localStorage on initial render
+  
+  // Load cart from localStorage on client-side
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    const savedCart = localStorage.getItem('cart')
+    if (savedCart) {
       try {
-        const storedCart = localStorage.getItem('cart')
-        if (storedCart) setCart(JSON.parse(storedCart))
+        const parsedCart = JSON.parse(savedCart)
+        
+        // Verify and fix any broken coverUrl
+        const fixedCart = parsedCart.map((item: Track) => {
+          // Ensure coverUrl is an absolute URL
+          if (!item.coverUrl || !item.coverUrl.includes('://')) {
+            return {
+              ...item,
+              coverUrl: `${CDN}/covers/${item.id}.jpg`
+            }
+          }
+          return item
+        })
+        
+        setCart(fixedCart)
       } catch (error) {
-        console.error('Error loading cart from localStorage', error)
+        console.error('Failed to parse cart from localStorage:', error)
       }
     }
   }, [])
-
-  // Update localStorage and calculate totals when cart changes
+  
+  // Save cart to localStorage whenever it changes
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (cart.length) {
       localStorage.setItem('cart', JSON.stringify(cart))
-      
-      // Update cart count and total
-      setCartCount(cart.length)
-      setCartTotal(cart.reduce((total, item) => total + (item.price ?? 0), 0))
+    } else {
+      localStorage.removeItem('cart')
     }
   }, [cart])
-
-  const addToCart = (track: Track) => {
-    setCart((prev) => {
-      // Remove the track if it already exists in the cart, then add it
-      const filteredCart = prev.filter(t => t.id !== track.id)
-      return [...filteredCart, track]
+  
+  const addToCart = (track: Track, licenseType?: string) => {
+    // Ensure coverUrl is an absolute URL
+    const coverUrl = track.coverUrl && track.coverUrl.includes('://')
+      ? track.coverUrl
+      : `${CDN}/covers/${track.id}.jpg`
+      
+    setCart(prev => {
+      // Check if track is already in cart
+      const exists = prev.some(item => item.id === track.id)
+      if (exists) {
+        return prev
+      }
+      
+      // Add track to cart with correct coverUrl
+      return [...prev, { 
+        ...track, 
+        licenseType: (licenseType || track.licenseType || 'Non-Exclusive') as 'Non-Exclusive' | 'Non-Exclusive Plus' | 'Exclusive' | 'Exclusive Plus' | 'Exclusive Pro',
+        coverUrl  // Use the fixed coverUrl
+      }]
     })
   }
-
-  const removeFromCart = (trackId: string) => {
-    setCart((prev) => prev.filter(track => track.id !== trackId))
+  
+  const removeFromCart = (id: string) => {
+    setCart(prev => prev.filter(item => item.id !== id))
   }
-
+  
   const clearCart = () => {
     setCart([])
   }
-
+  
+  const updateTrack = (id: string, updates: Partial<Track>) => {
+    setCart(prev => 
+      prev.map(item => 
+        item.id === id ? { ...item, ...updates } : item
+      )
+    )
+  }
+  
+  // Calculate cart total
+  const cartTotal = cart.reduce((total, item) => {
+    return total + (item.price || 0)
+  }, 0)
+  
+  // Cart count
+  const cartCount = cart.length
+  
+  // Context value
+  const value = {
+    cart,
+    addToCart,
+    removeFromCart,
+    clearCart,
+    updateTrack,
+    cartTotal,
+    cartCount,
+  }
+  
   return (
-    <CartContext.Provider value={{ 
-      cart, 
-      addToCart, 
-      removeFromCart, 
-      clearCart,
-      cartCount,
-      cartTotal
-    }}>
+    <CartContext.Provider value={value}>
       {children}
     </CartContext.Provider>
   )
-}
-
-export const useCart = () => {
-  const context = useContext(CartContext)
-  if (!context) throw new Error('useCart must be used within a CartProvider')
-  return context
 } 

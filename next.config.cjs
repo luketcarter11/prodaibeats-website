@@ -12,7 +12,7 @@ const nextConfig = {
         hostname: '**',
       },
     ],
-    domains: ['localhost', 'cdn.prodaibeats.com'],
+    domains: ['localhost', 'cdn.prodaibeats.com', 'pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev'],
     unoptimized: true,
   },
   swcMinify: true,
