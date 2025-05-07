@@ -178,7 +178,7 @@ export default function TrackCard({
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-4 w-full overflow-hidden">
               <h3 className="text-white font-medium truncate whitespace-nowrap overflow-hidden max-w-[calc(100%-100px)]">{title}</h3>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="hidden md:flex items-center gap-2 shrink-0">
                 {bpm && (
                   <span className="bg-neutral-800 px-2 py-0.5 text-xs text-white/80 rounded-full">
                     {bpm} BPM
@@ -207,7 +207,7 @@ export default function TrackCard({
         <div className="flex items-center space-x-2">
           <button 
             onClick={handleDownload}
-            className="p-2 text-gray-400 hover:text-white transition-colors"
+            className="hidden md:flex p-2 text-gray-400 hover:text-white transition-colors"
             aria-label={`Download ${title}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
@@ -217,7 +217,7 @@ export default function TrackCard({
           <button 
             onClick={handleShare}
             onKeyDown={(e) => e.key === 'Enter' && handleShare()}
-            className="p-2 text-gray-400 hover:text-white transition-colors"
+            className="hidden md:flex p-2 text-gray-400 hover:text-white transition-colors"
             aria-label={`Share ${title}`}
             tabIndex={0}
           >
@@ -227,7 +227,7 @@ export default function TrackCard({
           </button>
           <button 
             onClick={handleAddToCart}
-            className={`px-4 py-2 rounded font-medium transition-colors flex items-center ${
+            className={`px-5 py-2.5 rounded font-medium transition-colors flex items-center ${
               isInCart 
                 ? 'bg-green-600 hover:bg-green-700 text-white' 
                 : 'bg-purple-600 hover:bg-purple-700 text-white'
@@ -236,11 +236,14 @@ export default function TrackCard({
           >
             {isInCart ? (
               <>
-                <FaShoppingCart className="mr-1.5 w-3.5 h-3.5" />
-                In Cart
+                <FaShoppingCart className="mr-2 w-4 h-4" />
+                <span className="hidden md:inline">In Cart</span>
               </>
             ) : (
-              `$${(price ?? 0).toFixed(2)}`
+              <>
+                <FaShoppingCart className="md:hidden w-4 h-4" />
+                <span className="hidden md:inline">${(price ?? 0).toFixed(2)}</span>
+              </>
             )}
           </button>
         </div>
