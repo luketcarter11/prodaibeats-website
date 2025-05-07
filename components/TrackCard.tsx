@@ -53,22 +53,28 @@ export default function TrackCard({
     return true;
   });
 
-  const handleDownload = async () => {
+  const handleDownload = () => {
     try {
-      const trackAudioUrl = audioUrl || `${process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev'}/tracks/${id}.mp3`;
-      const response = await fetch(trackAudioUrl, { mode: 'cors' });
-      if (!response.ok) throw new Error('Network response was not ok');
-      const blob = await response.blob();
-      const a = document.createElement('a');
-      const url = window.URL.createObjectURL(blob);
-      a.href = url;
-      a.download = `${title}.mp3`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      // Get the correct audio URL
+      const downloadUrl = audioUrl || `${process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev'}/tracks/${id}.mp3`;
+      
+      // Create an invisible anchor element
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `${title || 'track'}.mp3`; // Set filename
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      
+      // Trigger the download
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(link);
+      }, 100);
     } catch (error) {
-      console.error('Download failed:', error);
+      console.error('Failed to start download:', error);
     }
   };
 

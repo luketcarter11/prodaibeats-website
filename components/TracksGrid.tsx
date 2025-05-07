@@ -150,24 +150,30 @@ export default function TracksGrid() {
     }
   };
 
-  const handleDownload = async (track: AnyTrack) => {
+  const handleDownload = (track: AnyTrack) => {
     try {
-      const trackAudioUrl = track.audioUrl && track.audioUrl.includes('://') 
+      // Get the correct audio URL
+      const downloadUrl = track.audioUrl && track.audioUrl.includes('://') 
         ? track.audioUrl 
         : `${CDN}/tracks/${track.id}.mp3`;
-      const response = await fetch(trackAudioUrl, { mode: 'cors' });
-      if (!response.ok) throw new Error('Network response was not ok');
-      const blob = await response.blob();
-      const a = document.createElement('a');
-      const url = window.URL.createObjectURL(blob);
-      a.href = url;
-      a.download = `${track.title}.mp3`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      
+      // Create an invisible anchor element
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `${track.title || 'track'}.mp3`; // Set filename
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      
+      // Trigger the download
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(link);
+      }, 100);
     } catch (error) {
-      console.error('Download failed:', error);
+      console.error('Failed to start download:', error);
     }
   };
 
