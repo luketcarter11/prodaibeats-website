@@ -123,16 +123,25 @@ export default function Home() {
   }
 
   // Handle track download
-  const handleDownload = (track: AnyTrack) => {
-    const a = document.createElement('a');
-    const audioUrl = track.audioUrl && track.audioUrl.includes('://') 
-      ? track.audioUrl 
-      : `${process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev'}/tracks/${track.id}.mp3`;
-    a.href = audioUrl;
-    a.download = `${track.title}.mp3`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const handleDownload = async (track: AnyTrack) => {
+    try {
+      const trackAudioUrl = track.audioUrl && track.audioUrl.includes('://') 
+        ? track.audioUrl 
+        : `${process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev'}/tracks/${track.id}.mp3`;
+      const response = await fetch(trackAudioUrl, { mode: 'cors' });
+      if (!response.ok) throw new Error('Network response was not ok');
+      const blob = await response.blob();
+      const a = document.createElement('a');
+      const url = window.URL.createObjectURL(blob);
+      a.href = url;
+      a.download = `${track.title}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+    }
   };
 
   // Helper to get BPM safely

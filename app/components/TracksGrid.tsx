@@ -90,15 +90,25 @@ export default function TracksGrid() {
     }
   };
 
-  const handleDownload = (track: Track) => {
-    const a = document.createElement('a');
-    a.href = track.audioUrl && track.audioUrl.includes('://') 
-      ? track.audioUrl 
-      : `${CDN}/tracks/${track.id}.mp3`;
-    a.download = `${track.title}.mp3`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const handleDownload = async (track: Track) => {
+    try {
+      const trackAudioUrl = track.audioUrl && track.audioUrl.includes('://') 
+        ? track.audioUrl 
+        : `${CDN}/tracks/${track.id}.mp3`;
+      const response = await fetch(trackAudioUrl, { mode: 'cors' });
+      if (!response.ok) throw new Error('Network response was not ok');
+      const blob = await response.blob();
+      const a = document.createElement('a');
+      const url = window.URL.createObjectURL(blob);
+      a.href = url;
+      a.download = `${track.title}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+    }
   };
 
   if (loading) {
