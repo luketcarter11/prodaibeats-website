@@ -155,7 +155,21 @@ export default function TrackCard({
             </button>
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="text-white font-medium truncate whitespace-nowrap overflow-hidden max-w-[200px] sm:max-w-[300px] md:max-w-[400px] lg:max-w-[500px]">{title}</h3>
+            <div className="flex items-center justify-between gap-4 w-full overflow-hidden">
+              <h3 className="text-white font-medium truncate whitespace-nowrap overflow-hidden max-w-[calc(100%-100px)]">{title}</h3>
+              <div className="flex items-center gap-2 shrink-0">
+                {bpm && (
+                  <span className="bg-neutral-800 px-2 py-0.5 text-xs text-white/80 rounded-full">
+                    {bpm} BPM
+                  </span>
+                )}
+                {duration && (
+                  <span className="bg-neutral-800 px-2 py-0.5 text-xs text-white/80 rounded-full">
+                    {formatDuration(duration)}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
         <div className="hidden md:flex items-center space-x-2 mx-4">
@@ -170,18 +184,6 @@ export default function TrackCard({
           ))}
         </div>
         <div className="flex items-center space-x-2">
-          <div className="flex items-center mr-2">
-            {bpm && (
-              <span className="bg-neutral-800 px-2 py-0.5 text-xs text-white/80 rounded-full mr-2">
-                {bpm} BPM
-              </span>
-            )}
-            {duration && (
-              <span className="bg-neutral-800 px-2 py-0.5 text-xs text-white/80 rounded-full">
-                {formatDuration(duration)}
-              </span>
-            )}
-          </div>
           <button 
             onClick={handleDownload}
             onKeyDown={(e) => e.key === 'Enter' && handleDownload()}
