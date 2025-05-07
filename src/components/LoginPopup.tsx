@@ -149,7 +149,13 @@ export default function LoginPopup({ isOpen, onClose }: LoginPopupProps) {
                       Remember me
                     </label>
                   </div>
-                  <Link href="/auth/forgot-password" className="text-sm text-purple-500 hover:text-purple-400">
+                  <Link 
+                    href="/auth/forgot-password" 
+                    className="text-sm text-purple-500 hover:text-purple-400"
+                    onClick={() => {
+                      onClose();
+                    }}
+                  >
                     Forgot password?
                   </Link>
                 </div>
@@ -167,7 +173,13 @@ export default function LoginPopup({ isOpen, onClose }: LoginPopupProps) {
               <div className="mt-6 text-center">
                 <p className="text-sm text-gray-400">
                   Don't have an account?{' '}
-                  <Link href="/auth/signup" className="text-purple-500 hover:text-purple-400">
+                  <Link 
+                    href="/auth/signup" 
+                    className="text-purple-500 hover:text-purple-400"
+                    onClick={() => {
+                      onClose();
+                    }}
+                  >
                     Sign up
                   </Link>
                 </p>

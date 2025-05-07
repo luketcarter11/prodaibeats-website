@@ -98,7 +98,7 @@ export default function CartPage() {
                       </div>
                       <p className="text-gray-400 text-sm">{item.artist}</p>
                       <div className="mt-2 flex justify-between items-center">
-                        <span className="text-sm text-purple-400">
+                        <span className="text-sm text-purple-400 font-semibold">
                           {item.licenseType} License
                         </span>
                         <div className="text-right">
