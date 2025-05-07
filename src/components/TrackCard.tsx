@@ -108,6 +108,26 @@ export default function TrackCard({
     }
   }
 
+  // Filter unwanted tags
+  const filteredTags = tags.filter(tag => {
+    // Skip artist name tag
+    if (tag.toLowerCase() === 'prod ai' || (artist && tag.toLowerCase() === artist.toLowerCase())) {
+      return false;
+    }
+    
+    // Skip tags that are just the track title or parts of it
+    if (title && title.toLowerCase().includes(tag.toLowerCase())) {
+      return false;
+    }
+    
+    // Skip tags that are BPM info since we display that separately
+    if (/^\d{2,3}\s*bpm$/i.test(tag) || tag.toLowerCase().includes('bpm')) {
+      return false;
+    }
+    
+    return true;
+  });
+
   return (
     <>
       <div 
@@ -139,7 +159,7 @@ export default function TrackCard({
           </div>
         </div>
         <div className="hidden md:flex items-center space-x-2 mx-4">
-          {tags.map((tag) => (
+          {filteredTags.map((tag) => (
             <span 
               key={tag} 
               className="px-3 py-1 text-sm bg-white/10 text-gray-300 rounded-full"
