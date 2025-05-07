@@ -64,14 +64,37 @@ export default function CartPopup({ isOpen, onClose, addedTrack }: CartPopupProp
             <div className="flex items-start space-x-4 mb-6">
               <div className="relative w-20 h-20 flex-shrink-0">
                 {(() => {
+                  // Force absolute URLs for images
                   const coverSrc = addedTrack.coverUrl && addedTrack.coverUrl.includes('://')
                     ? addedTrack.coverUrl
                     : `${CDN}/covers/${addedTrack.id}.jpg`;
+                  
+                  console.log('CART POPUP IMAGE DEBUG:', { 
+                    id: addedTrack.id, 
+                    originalUrl: addedTrack.coverUrl, 
+                    finalUrl: coverSrc 
+                  });
+                  
+                  // Use a direct img tag instead of Next.js Image component
+                  // as a reliable fallback that should ALWAYS work
+                  if (typeof window !== 'undefined') {
+                    return (
+                      <div className="relative w-full h-full">
+                        <img
+                          src={coverSrc}
+                          alt={addedTrack.title ?? 'Untitled Track'}
+                          className="absolute inset-0 w-full h-full object-cover rounded"
+                        />
+                      </div>
+                    );
+                  }
+                  
                   return (
                     <Image
                       src={coverSrc}
                       alt={addedTrack.title ?? 'Untitled Track'}
                       fill
+                      unoptimized={true}
                       className="object-cover rounded"
                     />
                   );

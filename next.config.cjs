@@ -11,8 +11,17 @@ const nextConfig = {
         protocol: 'https',
         hostname: '**',
       },
+      {
+        protocol: 'http',
+        hostname: '**',
+      },
     ],
-    domains: ['localhost', 'cdn.prodaibeats.com', 'pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev'],
+    domains: [
+      'localhost', 
+      'cdn.prodaibeats.com', 
+      'pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev',
+      'r2.dev'
+    ],
     unoptimized: true,
   },
   swcMinify: true,

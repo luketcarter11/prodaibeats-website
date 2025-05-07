@@ -67,6 +67,13 @@ export default function CartPage() {
                 const coverSrc = item.coverUrl && item.coverUrl.includes('://')
                   ? item.coverUrl
                   : `${CDN}/covers/${item.id}.jpg`;
+                
+                console.log('CART IMAGE DEBUG:', { 
+                  id: item.id, 
+                  originalUrl: item.coverUrl, 
+                  finalUrl: coverSrc 
+                });
+                
                 return (
                   <div key={item.id} className="flex items-start space-x-4 pb-6 border-b border-white/10">
                     <div className="relative w-20 h-20 flex-shrink-0">
@@ -74,6 +81,7 @@ export default function CartPage() {
                         src={coverSrc}
                         alt={item.title ?? 'Untitled Track'}
                         fill
+                        unoptimized={true}
                         className="object-cover rounded"
                       />
                     </div>

@@ -87,6 +87,11 @@ export default function CheckoutPage() {
                 const coverSrc = item.coverUrl && item.coverUrl.includes('://')
                   ? item.coverUrl
                   : `${CDN}/covers/${item.id}.jpg`;
+                console.log('CHECKOUT IMAGE DEBUG:', { 
+                  id: item.id, 
+                  originalUrl: item.coverUrl, 
+                  finalUrl: coverSrc 
+                });
                 return (
                   <div key={item.id} className="flex items-start space-x-4">
                     <div className="relative w-16 h-16 md:w-20 md:h-20 flex-shrink-0">
@@ -94,6 +99,7 @@ export default function CheckoutPage() {
                         src={coverSrc}
                         alt={item.title ?? 'Untitled Track'}
                         fill
+                        unoptimized={true}
                         className="object-cover rounded"
                       />
                     </div>
