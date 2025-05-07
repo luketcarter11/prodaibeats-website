@@ -133,17 +133,19 @@ export default function TracksGrid() {
             </div>
             <div className="p-4">
               <h3 className="font-semibold text-lg">{track.title}</h3>
-              <div className="mt-1 flex gap-2 text-xs">
-                {track.bpm && (
-                  <span className="bg-neutral-100 px-2 py-1 rounded-full">
-                    {track.bpm} BPM
-                  </span>
-                )}
-                {track.duration && (
-                  <span className="bg-neutral-100 px-2 py-1 rounded-full">
-                    {formatDuration(track.duration)}
-                  </span>
-                )}
+              <div className="flex justify-between items-center mt-2">
+                <div className="flex gap-2 text-xs">
+                  {track.bpm && (
+                    <span className="bg-neutral-100 px-2 py-1 rounded-full">
+                      {track.bpm} BPM
+                    </span>
+                  )}
+                  {track.duration && (
+                    <span className="bg-neutral-100 px-2 py-1 rounded-full">
+                      {formatDuration(track.duration)}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
