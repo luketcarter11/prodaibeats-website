@@ -236,7 +236,7 @@ export default function TracksGrid() {
             </button>
           </div>
           <div className="p-4">
-            <h3 className="font-bold text-lg line-clamp-1">{track.title}</h3>
+            <h3 className="font-bold text-lg truncate whitespace-nowrap overflow-hidden max-w-[200px] sm:max-w-[300px] md:max-w-[400px] lg:max-w-[500px]">{track.title}</h3>
             <div className="flex justify-end mt-2">
               <div className="flex gap-2 text-xs">
                 {'bpm' in track && track.bpm && (
