@@ -152,7 +152,7 @@ export default function TrackCard({
   return (
     <>
       <div 
-        className="flex items-center justify-between w-full p-4 hover:bg-white/5 transition-colors rounded-lg group"
+        className="flex items-center justify-between w-full bg-transparent p-0"
         role="article"
         aria-label={`Track: ${title} by ${artist}`}
       >
@@ -175,77 +175,18 @@ export default function TrackCard({
               <FaPlay className="w-6 h-6 text-white" />
             </button>
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between gap-4 w-full">
-              <h3 className="text-white font-medium truncate whitespace-nowrap overflow-hidden">{title}</h3>
-              <div className="hidden md:flex items-center gap-2 shrink-0">
-                {bpm && (
-                  <span className="bg-neutral-800 px-2 py-0.5 text-xs text-white/80 rounded-full">
-                    {bpm} BPM
-                  </span>
-                )}
-                {duration && (
-                  <span className="bg-neutral-800 px-2 py-0.5 text-xs text-white/80 rounded-full">
-                    {formatDuration(duration)}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="hidden md:flex items-center space-x-2 mx-4 flex-shrink-0">
-          {filteredTags.map((tag) => (
-            <span 
-              key={tag} 
-              className="px-3 py-1 text-sm bg-white/10 text-gray-300 rounded-full"
-              role="listitem"
+          <div className="flex items-center w-full min-w-0">
+            <h3 className="flex-1 text-white font-medium truncate">{title}</h3>
+            <button 
+              onClick={handleAddToCart}
+              className={`ml-4 flex-shrink-0 bg-purple-600 hover:bg-purple-700 text-white rounded-md font-semibold px-4 py-2.5 text-base transition-colors flex items-center justify-center ${isInCart ? 'opacity-60 cursor-not-allowed' : ''}`}
+              aria-label={isInCart ? `${title} is in your cart` : `Add ${title} to cart`}
+              disabled={isInCart}
             >
-              {tag}
-            </span>
-          ))}
-        </div>
-        <div className="flex items-center space-x-2 flex-shrink-0 ml-4">
-          <button 
-            onClick={handleDownload}
-            className="hidden md:flex p-2 text-gray-400 hover:text-white transition-colors"
-            aria-label={`Download ${title}`}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-            </svg>
-          </button>
-          <button 
-            onClick={handleShare}
-            onKeyDown={(e) => e.key === 'Enter' && handleShare()}
-            className="hidden md:flex p-2 text-gray-400 hover:text-white transition-colors"
-            aria-label={`Share ${title}`}
-            tabIndex={0}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
-            </svg>
-          </button>
-          <button 
-            onClick={handleAddToCart}
-            className={`px-4 py-2.5 rounded-lg font-medium transition-all flex items-center justify-center min-w-[80px] ${
-              isInCart 
-                ? 'bg-green-600 hover:bg-green-700 text-white' 
-                : 'bg-purple-600 hover:bg-purple-700 text-white hover:scale-105 active:scale-95'
-            }`}
-            aria-label={isInCart ? `${title} is in your cart` : `Add ${title} to cart for $${(price ?? 0).toFixed(2)}`}
-          >
-            {isInCart ? (
-              <>
-                <FaShoppingCart className="w-4 h-4" />
-                <span className="hidden md:inline ml-2">In Cart</span>
-              </>
-            ) : (
-              <>
-                <FaShoppingCart className="w-4 h-4" />
-                <span className="hidden md:inline ml-2">${(price ?? 0).toFixed(2)}</span>
-              </>
-            )}
-          </button>
+              <FaShoppingCart className="w-5 h-5 mr-0 sm:mr-2 mx-auto" />
+              <span className="hidden sm:inline">Buy</span>
+            </button>
+          </div>
         </div>
       </div>
 
