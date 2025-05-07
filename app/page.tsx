@@ -122,6 +122,19 @@ export default function Home() {
     setCurrentPlayingTrack(null)
   }
 
+  // Handle track download
+  const handleDownload = (track: AnyTrack) => {
+    const a = document.createElement('a');
+    const audioUrl = track.audioUrl && track.audioUrl.includes('://') 
+      ? track.audioUrl 
+      : `${process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev'}/tracks/${track.id}.mp3`;
+    a.href = audioUrl;
+    a.download = `${track.title}.mp3`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
   // Helper to get BPM safely
   const getBpm = (track: AnyTrack): number => {
     if (hasCoverUrl(track)) {
@@ -233,20 +246,15 @@ export default function Home() {
                 </>
               )}
             </button>
-            <a
-              href={featuredTrack.audioUrl && featuredTrack.audioUrl.includes('://') 
-                ? featuredTrack.audioUrl 
-                : `${process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev'}/tracks/${featuredTrack.id}.mp3`}
-              download
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => handleDownload(featuredTrack)}
               className="text-white hover:text-purple-400 transition-colors p-2 rounded-full bg-white/10 hover:bg-white/20"
               aria-label={`Download ${featuredTrack.title}`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
-            </a>
+            </button>
           </div>
         </div>
       </section>

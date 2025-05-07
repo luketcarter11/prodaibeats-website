@@ -42,6 +42,15 @@ export default function TrackCard({
     
     return true;
   });
+  
+  const handleDownload = () => {
+    const a = document.createElement('a');
+    a.href = audioUrl || `${process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev'}/tracks/${id}.mp3`;
+    a.download = `${title}.mp3`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
 
   return (
     <div className="flex items-center justify-between w-full p-4 hover:bg-white/5 transition-colors rounded-lg group">
@@ -100,18 +109,15 @@ export default function TrackCard({
         ))}
       </div>
       <div className="flex items-center space-x-2">
-        <a
-          href={audioUrl}
-          download
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          onClick={handleDownload}
           className="p-2 text-gray-400 hover:text-white transition-colors"
           aria-label={`Download ${title}`}
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
           </svg>
-        </a>
+        </button>
         <button className="p-2 text-gray-400 hover:text-white transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
