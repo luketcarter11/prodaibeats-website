@@ -14,6 +14,7 @@ interface CartItem {
   artist?: string;
   licenseType: string;
   coverUrl?: string;
+  quantity: number;
 }
 
 export async function POST(req: Request) {
@@ -33,30 +34,49 @@ export async function POST(req: Request) {
       );
     }
 
-    // Validate and get discount if provided
-    let couponId: string | undefined;
+    // Calculate initial total
+    let total = cart.reduce((sum: number, item: CartItem) => {
+      return sum + (item.price * item.quantity)
+    }, 0)
+
+    // Validate discount code if provided
     if (discountCode) {
-      const { data: code, error } = await supabase
+      const { data: discount, error: discountError } = await supabase
         .from('discount_codes')
         .select('*')
         .eq('code', discountCode)
-        .eq('isActive', true)
-        .single();
+        .eq('active', true)
+        .single()
 
-      if (!error && code) {
-        const now = new Date();
-        const expirationDate = new Date(code.expiration);
-
-        if (expirationDate > now && (!code.maxUses || code.currentUses < code.maxUses)) {
-          couponId = `COUPON_${code.code}`;
-
-          // Increment usage count
-          await supabase
-            .from('discount_codes')
-            .update({ currentUses: code.currentUses + 1 })
-            .eq('id', code.id);
-        }
+      if (discountError || !discount) {
+        return NextResponse.json(
+          { error: 'Invalid or inactive discount code' },
+          { status: 400 }
+        )
       }
+
+      // Check if code has expired
+      if (discount.expires_at && new Date(discount.expires_at) < new Date()) {
+        return NextResponse.json(
+          { error: 'This discount code has expired' },
+          { status: 400 }
+        )
+      }
+
+      // Check usage limit
+      if (discount.usage_limit && discount.used_count >= discount.usage_limit) {
+        return NextResponse.json(
+          { error: 'This discount code has reached its usage limit' },
+          { status: 400 }
+        )
+      }
+
+      // Apply discount
+      const discountAmount = discount.type === 'percentage' 
+        ? (total * discount.amount) / 100
+        : discount.amount
+
+      total = Math.max(0, total - discountAmount)
     }
 
     const line_items = cart.map((item: CartItem) => ({
@@ -79,7 +99,7 @@ export async function POST(req: Request) {
       customer_email: email,
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/cart`,
-      discounts: couponId ? [{ coupon: couponId }] : undefined,
+      discounts: discountCode ? [{ coupon: `COUPON_${discountCode}` }] : undefined,
       metadata: {
         items: JSON.stringify(cart.map((item: CartItem) => ({
           id: item.id,

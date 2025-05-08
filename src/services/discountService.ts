@@ -9,6 +9,7 @@ export interface DiscountValidationResult {
   isValid: boolean
   code?: DiscountCode
   error?: string
+  discountAmount?: number
 }
 
 export const discountService = {
@@ -71,41 +72,57 @@ export const discountService = {
     return discountCodes
   },
 
-  async validateDiscountCode(code: string): Promise<DiscountValidationResult> {
-    const { data: discountCode, error } = await supabase
-      .from('discount_codes')
-      .select('*')
-      .eq('code', code)
-      .eq('active', true)
-      .single()
+  async validateDiscountCode(code: string, total?: number): Promise<DiscountValidationResult> {
+    try {
+      const { data: discount, error } = await supabase
+        .from('discount_codes')
+        .select('*')
+        .eq('code', code)
+        .eq('active', true)
+        .single()
 
-    if (error || !discountCode) {
+      if (error || !discount) {
+        return {
+          isValid: false,
+          error: 'Invalid or inactive discount code'
+        }
+      }
+
+      // Check if code has expired
+      if (discount.expires_at && new Date(discount.expires_at) < new Date()) {
+        return {
+          isValid: false,
+          error: 'This discount code has expired'
+        }
+      }
+
+      // Check usage limit
+      if (discount.usage_limit && discount.used_count >= discount.usage_limit) {
+        return {
+          isValid: false,
+          error: 'This discount code has reached its usage limit'
+        }
+      }
+
+      // Calculate discount amount if total is provided
+      let discountAmount
+      if (total) {
+        discountAmount = discount.type === 'percentage'
+          ? (total * discount.amount) / 100
+          : discount.amount
+      }
+
+      return {
+        isValid: true,
+        code: discount,
+        discountAmount
+      }
+    } catch (err) {
+      console.error('Error validating discount code:', err)
       return {
         isValid: false,
-        error: 'Invalid discount code'
+        error: 'Failed to validate discount code'
       }
-    }
-
-    const now = new Date()
-    const expiresAt = discountCode.expires_at ? new Date(discountCode.expires_at) : null
-
-    if (expiresAt && expiresAt < now) {
-      return {
-        isValid: false,
-        error: 'This discount code has expired'
-      }
-    }
-
-    if (discountCode.usage_limit && discountCode.used_count >= discountCode.usage_limit) {
-      return {
-        isValid: false,
-        error: 'This discount code has reached its usage limit'
-      }
-    }
-
-    return {
-      isValid: true,
-      code: discountCode
     }
   },
 

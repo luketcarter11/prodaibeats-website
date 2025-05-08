@@ -7,87 +7,70 @@ import { useRouter } from 'next/navigation'
 import { useCart } from '@/context/CartContext'
 import { FaArrowLeft, FaSpinner, FaExclamationCircle } from 'react-icons/fa'
 import { supabase } from '@/lib/supabaseClient'
+import { discountService, DiscountCode } from '@/services/discountService'
 
 // Use environment variable for CDN base URL
 const CDN = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
 
-type ErrorMessage = {
+interface AppliedDiscount {
+  code: string
+  amount: number
+  type: 'percentage' | 'fixed'
+}
+
+interface ErrorMessage {
   message: string;
   field?: string;
-};
+}
 
 export default function CheckoutPage() {
   const { cart, cartTotal, isLoading } = useCart()
   const [email, setEmail] = useState('')
   const [discountCode, setDiscountCode] = useState('')
-  const [appliedDiscount, setAppliedDiscount] = useState<{
-    code: string;
-    amount: number;
-    type: 'percentage' | 'fixed';
-  } | null>(null)
+  const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscount | null>(null)
   const [isRedirecting, setIsRedirecting] = useState(false)
   const [isApplyingDiscount, setIsApplyingDiscount] = useState(false)
   const [error, setError] = useState<ErrorMessage | null>(null)
+  const [discountError, setDiscountError] = useState<string | null>(null)
+  const [isValidatingCode, setIsValidatingCode] = useState(false)
+  const [validDiscount, setValidDiscount] = useState<string | null>(null)
+  const [discountedTotal, setDiscountedTotal] = useState(cartTotal)
   const router = useRouter()
   
   const handleApplyDiscount = async () => {
-    if (!discountCode.trim()) return
-
-    setIsApplyingDiscount(true)
-    setError(null)
+    if (!discountCode.trim()) return;
+    
+    setError(null);
+    setIsApplyingDiscount(true);
 
     try {
-      const { data: codes, error } = await supabase
-        .from('discount_codes')
-        .select('*')
-        .eq('code', discountCode.trim())
-        .eq('isActive', true)
-        .single()
-
-      if (error) throw error
-
-      if (!codes) {
-        setError({ message: 'Invalid discount code', field: 'discountCode' })
-        return
+      const result = await discountService.validateDiscountCode(discountCode, cartTotal);
+      
+      if (!result.isValid) {
+        setError({ message: result.error || 'Invalid discount code', field: 'discountCode' });
+        setAppliedDiscount(null);
+        return;
       }
 
-      const code = codes
-      const now = new Date()
-      const expirationDate = new Date(code.expiration)
-
-      if (expirationDate < now) {
-        setError({ message: 'This discount code has expired', field: 'discountCode' })
-        return
+      if (result.code) {
+        setAppliedDiscount({
+          code: result.code.code,
+          amount: result.code.amount,
+          type: result.code.type
+        });
+        setError(null);
       }
-
-      if (code.maxUses && code.currentUses >= code.maxUses) {
-        setError({ message: 'This discount code has reached its usage limit', field: 'discountCode' })
-        return
-      }
-
-      setAppliedDiscount({
-        code: code.code,
-        amount: code.amount,
-        type: code.type
-      })
-      setError(null)
     } catch (err: any) {
-      setError({ message: err.message, field: 'discountCode' })
+      console.error('Error applying discount:', err);
+      setError({
+        message: err.message || 'Failed to apply discount code',
+        field: 'discountCode'
+      });
+      setAppliedDiscount(null);
     } finally {
-      setIsApplyingDiscount(false)
+      setIsApplyingDiscount(false);
     }
-  }
-
-  const calculateDiscountedTotal = () => {
-    if (!appliedDiscount) return cartTotal
-
-    if (appliedDiscount.type === 'percentage') {
-      const discount = (cartTotal * appliedDiscount.amount) / 100
-      return cartTotal - discount
-    } else {
-      return Math.max(0, cartTotal - appliedDiscount.amount)
-    }
-  }
+  };
 
   const handleCheckout = async () => {
     try {
@@ -245,7 +228,7 @@ export default function CheckoutPage() {
               )}
               <div className="flex justify-between text-white font-bold text-xl mt-4 pt-4 border-t border-white/10">
                 <dt>Total</dt>
-                <dd>${calculateDiscountedTotal().toFixed(2)}</dd>
+                <dd>${discountedTotal.toFixed(2)}</dd>
               </div>
             </dl>
           </div>
