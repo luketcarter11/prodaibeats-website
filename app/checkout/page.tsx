@@ -8,13 +8,28 @@ import { useCart } from '@/context/CartContext'
 import { FaArrowLeft } from 'react-icons/fa'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements } from '@stripe/react-stripe-js'
-import CheckoutForm from '../components/CheckoutForm'
+import CheckoutForm from '../../components/CheckoutForm'
+import type { Appearance } from '@stripe/stripe-js';
 
 // Use environment variable for CDN base URL
 const CDN = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
 
 // Load stripe outside of component render to avoid recreating the Stripe object on renders
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
+
+// Stripe appearance customization
+const appearance: Appearance = {
+  theme: 'night',
+  variables: {
+    colorPrimary: '#9333ea',
+    colorBackground: '#18181b',
+    colorText: '#ffffff',
+    colorDanger: '#ef4444',
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    spacingUnit: '4px',
+    borderRadius: '8px',
+  },
+};
 
 export default function CheckoutPage() {
   const { cart, cartTotal } = useCart()
@@ -56,10 +71,10 @@ export default function CheckoutPage() {
     }
   }, [cart, email, name]);
 
-  // Skip the fancy appearance options to avoid TypeScript issues
-  const options: any = {
+  const options = clientSecret ? {
     clientSecret,
-  };
+    appearance,
+  } : { appearance };
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 min-h-screen">
