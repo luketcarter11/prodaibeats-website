@@ -15,6 +15,7 @@ interface CartContextType {
   updateTrack: (id: string, updates: Partial<Track>) => void;
   cartCount: number;
   cartTotal: number;
+  isLoading: boolean;
 }
 
 export const CartContext = createContext<CartContextType>({
@@ -25,6 +26,7 @@ export const CartContext = createContext<CartContextType>({
   updateTrack: () => {},
   cartCount: 0,
   cartTotal: 0,
+  isLoading: true,
 })
 
 export function useCart() {
@@ -33,6 +35,7 @@ export function useCart() {
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<Track[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   
   // Load cart from localStorage on client-side
   useEffect(() => {
@@ -58,6 +61,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         console.error('Failed to parse cart from localStorage:', error)
       }
     }
+    setIsLoading(false)
   }, [])
   
   // Save cart to localStorage whenever it changes
@@ -124,6 +128,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     updateTrack,
     cartTotal,
     cartCount,
+    isLoading,
   }
   
   return (

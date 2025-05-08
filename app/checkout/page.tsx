@@ -16,7 +16,7 @@ type ErrorMessage = {
 };
 
 export default function CheckoutPage() {
-  const { cart, cartTotal, isLoading: cartLoading } = useCart()
+  const { cart, cartTotal, isLoading } = useCart()
   const [email, setEmail] = useState('')
   const [isRedirecting, setIsRedirecting] = useState(false)
   const [error, setError] = useState<ErrorMessage | null>(null)
@@ -53,7 +53,7 @@ export default function CheckoutPage() {
   };
 
   // Show loading state while cart is being initialized
-  if (cartLoading) {
+  if (isLoading) {
     return (
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 min-h-screen flex items-center justify-center">
         <div className="flex items-center space-x-4" role="status" aria-label="Loading cart">
@@ -65,7 +65,7 @@ export default function CheckoutPage() {
   }
 
   // Redirect to beats page if cart is empty
-  if (!cartLoading && (!cart || cart.length === 0)) {
+  if (!isLoading && (!cart || cart.length === 0)) {
     router.push('/beats');
     return null;
   }
