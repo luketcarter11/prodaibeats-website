@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
-import fs from 'fs';
-import path from 'path';
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('STRIPE_SECRET_KEY is not defined');
@@ -12,13 +10,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2025-04-30.basil'
 });
 
-// Define the orders directory path
-const ORDERS_DIR = path.join(process.cwd(), 'data', 'orders');
-
-// Ensure orders directory exists
-if (!fs.existsSync(ORDERS_DIR)) {
-  fs.mkdirSync(ORDERS_DIR, { recursive: true });
-}
+// Define the runtime configuration for edge compatibility
+export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
 
 interface CartItem {
   id: string;
@@ -59,9 +53,18 @@ async function storeOrder(orderDetails: {
     status: 'pending'
   };
 
-  // Store order in local file system
-  const orderPath = path.join(ORDERS_DIR, `${order.id}.json`);
-  fs.writeFileSync(orderPath, JSON.stringify(order, null, 2));
+  try {
+    // Store order metadata in Stripe
+    await stripe.customers.update(orderDetails.user_id, {
+      metadata: {
+        [`order_${order.id}`]: JSON.stringify(order)
+      }
+    });
+  } catch (error) {
+    console.error('Failed to store order metadata:', error);
+    // Continue execution even if metadata storage fails
+    // The order will still be tracked through the Stripe session
+  }
 
   return order;
 }
@@ -81,10 +84,6 @@ async function validateDiscountCode(code: string): Promise<{
     code
   } : null;
 }
-
-// Define the runtime configuration for edge compatibility
-export const runtime = 'edge';
-export const dynamic = 'force-dynamic';
 
 // Handle POST requests
 export async function POST(req: NextRequest) {
@@ -204,7 +203,8 @@ export async function POST(req: NextRequest) {
           title: item.title,
           licenseType: item.licenseType
         }))),
-        discountCode: discountCode || ''
+        discountCode: discountCode || '',
+        orderDate: new Date().toISOString()
       },
     });
 
@@ -247,7 +247,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Handle all other HTTP methods
+// Handle GET requests
 export async function GET(req: NextRequest) {
   return new NextResponse(
     JSON.stringify({ 
