@@ -82,23 +82,40 @@ async function validateDiscountCode(code: string): Promise<{
   } : null;
 }
 
+// Handle POST requests
 export async function POST(req: Request) {
   try {
+    // Validate request method
+    if (req.method !== 'POST') {
+      return NextResponse.json(
+        { error: 'Method not allowed' },
+        { status: 405 }
+      );
+    }
+
     const body = await req.json();
     const { cart, email, discountCode, userId } = body;
     const headersList = headers();
+    
+    // Validate required fields
+    if (!cart || !Array.isArray(cart) || cart.length === 0) {
+      return NextResponse.json(
+        { error: 'Invalid cart data' },
+        { status: 400 }
+      );
+    }
+
+    if (!email) {
+      return NextResponse.json(
+        { error: 'Email is required' },
+        { status: 400 }
+      );
+    }
     
     // Get the host from the headers
     const host = headersList.get('host');
     const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${host}`;
-
-    if (!cart?.length) {
-      return NextResponse.json(
-        { error: 'Cart is empty' },
-        { status: 400 }
-      );
-    }
 
     // Calculate initial total
     let total = cart.reduce((sum: number, item: CartItem) => {
@@ -169,12 +186,51 @@ export async function POST(req: Request) {
     // Store all orders in parallel
     await Promise.all(orderPromises);
 
-    return NextResponse.json({ url: session.url });
+    return NextResponse.json(
+      { success: true, url: session.url },
+      { status: 200 }
+    );
   } catch (error: any) {
     console.error('Checkout error:', error);
     return NextResponse.json(
-      { error: error.message },
+      { 
+        success: false, 
+        error: error.message || 'An error occurred during checkout' 
+      },
       { status: 500 }
     );
   }
+}
+
+// Handle GET requests
+export async function GET() {
+  return NextResponse.json(
+    { 
+      success: false, 
+      error: 'Method not allowed. Please use POST for checkout.' 
+    },
+    { status: 405 }
+  );
+}
+
+// Handle other HTTP methods
+export async function PUT() {
+  return NextResponse.json(
+    { success: false, error: 'Method not allowed' },
+    { status: 405 }
+  );
+}
+
+export async function DELETE() {
+  return NextResponse.json(
+    { success: false, error: 'Method not allowed' },
+    { status: 405 }
+  );
+}
+
+export async function PATCH() {
+  return NextResponse.json(
+    { success: false, error: 'Method not allowed' },
+    { status: 405 }
+  );
 } 
