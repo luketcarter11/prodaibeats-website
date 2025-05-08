@@ -1,28 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
-import { createClient } from '@supabase/supabase-js';
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('STRIPE_SECRET_KEY is not defined');
-}
+// Edge and Streaming flags
+export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
 
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('Supabase credentials are not defined');
-}
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+// Initialize Stripe
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2025-04-30.basil'
 });
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// Initialize Supabase with runtime check
+const getSupabase = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Define the runtime configuration for edge compatibility
-export const runtime = 'edge';
-export const dynamic = 'force-dynamic';
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Missing Supabase credentials');
+  }
+
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    }
+  });
+};
 
 interface CartItem {
   id: string;
@@ -77,9 +82,13 @@ async function storeOrder(orderDetails: {
   };
 
   try {
+    // Store order metadata in Stripe
     await stripe.customers.update(orderDetails.user_id, {
       metadata: {
-        [`order_${order.id}`]: JSON.stringify(order)
+        [`order_${order.id}`]: JSON.stringify({
+          ...order,
+          created_at: new Date().toISOString()
+        })
       }
     });
   } catch (error) {
@@ -90,33 +99,39 @@ async function storeOrder(orderDetails: {
 }
 
 async function getValidCoupon(code: string): Promise<Coupon | null> {
-  const { data: coupon, error } = await supabase
-    .from('coupons')
-    .select('*')
-    .eq('code', code)
-    .single();
+  try {
+    const supabase = getSupabase();
+    const { data: coupon, error } = await supabase
+      .from('coupons')
+      .select('*')
+      .eq('code', code)
+      .single();
 
-  if (error || !coupon) {
+    if (error || !coupon) {
+      return null;
+    }
+
+    // Check if coupon is valid
+    const now = new Date();
+    const validFrom = new Date(coupon.valid_from);
+    const validUntil = coupon.valid_until ? new Date(coupon.valid_until) : null;
+
+    if (
+      now < validFrom ||
+      (validUntil && now > validUntil) ||
+      (coupon.max_uses && coupon.current_uses >= coupon.max_uses)
+    ) {
+      return null;
+    }
+
+    return coupon;
+  } catch (error) {
+    console.error('Error fetching coupon:', error);
     return null;
   }
-
-  // Check if coupon is valid
-  const now = new Date();
-  const validFrom = new Date(coupon.valid_from);
-  const validUntil = coupon.valid_until ? new Date(coupon.valid_until) : null;
-
-  if (
-    now < validFrom ||
-    (validUntil && now > validUntil) ||
-    (coupon.max_uses && coupon.current_uses >= coupon.max_uses)
-  ) {
-    return null;
-  }
-
-  return coupon;
 }
 
-async function syncCouponWithStripe(coupon: Coupon): Promise<string> {
+async function syncCouponWithStripe(coupon: Coupon): Promise<string | null> {
   try {
     // If coupon already has a Stripe ID, verify it exists
     if (coupon.stripe_coupon_id) {
@@ -140,25 +155,46 @@ async function syncCouponWithStripe(coupon: Coupon): Promise<string> {
       ...(coupon.valid_until && { redeem_by: Math.floor(new Date(coupon.valid_until).getTime() / 1000) })
     });
 
-    // Update coupon in database with Stripe ID
-    await supabase
-      .from('coupons')
-      .update({ stripe_coupon_id: stripeCoupon.id })
-      .eq('id', coupon.id);
+    try {
+      // Update coupon in database with Stripe ID
+      const supabase = getSupabase();
+      await supabase
+        .from('coupons')
+        .update({ stripe_coupon_id: stripeCoupon.id })
+        .eq('id', coupon.id);
+    } catch (error) {
+      console.error('Failed to update Stripe coupon ID in database:', error);
+      // Continue even if database update fails
+    }
 
     return stripeCoupon.id;
   } catch (error) {
     console.error('Error syncing coupon with Stripe:', error);
-    throw error;
+    return null;
   }
 }
 
 async function incrementCouponUsage(couponId: string): Promise<void> {
-  await supabase.rpc('increment_coupon_usage', { coupon_id: couponId });
+  try {
+    const supabase = getSupabase();
+    await supabase.rpc('increment_coupon_usage', { coupon_id: couponId });
+  } catch (error) {
+    console.error('Failed to increment coupon usage:', error);
+  }
 }
 
-// Handle POST requests
 export async function POST(req: NextRequest) {
+  // Verify Stripe key is available
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return new NextResponse(
+      JSON.stringify({ error: 'Stripe configuration missing' }),
+      { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+  }
+
   if (req.method !== 'POST') {
     return new NextResponse(
       JSON.stringify({ error: 'Method not allowed' }),
@@ -199,8 +235,7 @@ export async function POST(req: NextRequest) {
     const { cart, email, discountCode, userId } = body;
     const headersList = headers();
     
-    // Validate required fields
-    if (!cart || !Array.isArray(cart) || cart.length === 0) {
+    if (!cart?.length || !Array.isArray(cart)) {
       return new NextResponse(
         JSON.stringify({ error: 'Invalid cart data' }),
         { 
@@ -220,22 +255,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get the host from the headers
-    const host = headersList.get('host');
+    const host = headersList.get('host') || '';
     const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${host}`;
 
     // Handle discount code
     let stripeCouponId: string | undefined;
     let appliedCoupon: Coupon | null = null;
+    
     if (discountCode) {
       appliedCoupon = await getValidCoupon(discountCode);
       if (appliedCoupon) {
-        try {
-          stripeCouponId = await syncCouponWithStripe(appliedCoupon);
-        } catch (error) {
-          console.error('Failed to sync coupon with Stripe:', error);
-          // Continue without discount if syncing fails
+        const couponId = await syncCouponWithStripe(appliedCoupon);
+        if (couponId) {
+          stripeCouponId = couponId;
         }
       }
     }
@@ -283,7 +316,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Increment coupon usage if successfully applied
-    if (appliedCoupon) {
+    if (appliedCoupon && stripeCouponId) {
       await incrementCouponUsage(appliedCoupon.id);
     }
 
@@ -304,7 +337,6 @@ export async function POST(req: NextRequest) {
       })
     );
 
-    // Store all orders in parallel
     await Promise.all(orderPromises);
 
     return new NextResponse(
@@ -330,7 +362,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Handle GET requests
 export async function GET(req: NextRequest) {
   return new NextResponse(
     JSON.stringify({ 
