@@ -1,35 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCart } from '@/context/CartContext'
 import { FaArrowLeft, FaSpinner, FaExclamationCircle } from 'react-icons/fa'
-import { loadStripe } from '@stripe/stripe-js'
-import { Elements } from '@stripe/react-stripe-js'
-import CheckoutForm from '../../components/CheckoutForm'
-import type { Appearance } from '@stripe/stripe-js';
 
 // Use environment variable for CDN base URL
 const CDN = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
-
-// Load stripe outside of component render to avoid recreating the Stripe object on renders
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
-
-// Stripe appearance customization
-const appearance: Appearance = {
-  theme: 'night',
-  variables: {
-    colorPrimary: '#9333ea',
-    colorBackground: '#18181b',
-    colorText: '#ffffff',
-    colorDanger: '#ef4444',
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-    spacingUnit: '4px',
-    borderRadius: '8px',
-  },
-};
 
 type ErrorMessage = {
   message: string;
@@ -39,59 +18,39 @@ type ErrorMessage = {
 export default function CheckoutPage() {
   const { cart, cartTotal, isLoading: cartLoading } = useCart()
   const [email, setEmail] = useState('')
-  const [name, setName] = useState('')
-  const [clientSecret, setClientSecret] = useState<string | null>(null)
-  const [paymentLoading, setPaymentLoading] = useState(false)
+  const [isRedirecting, setIsRedirecting] = useState(false)
   const [error, setError] = useState<ErrorMessage | null>(null)
   const router = useRouter()
   
-  useEffect(() => {
-    // Only redirect if cart is empty after loading is complete
-    if (!cartLoading && cart && Array.isArray(cart) && cart.length === 0) {
-      router.push('/beats')
-      return
-    }
-
-    // Create a PaymentIntent as soon as the page loads and cart is ready
-    if (!cartLoading && cart.length > 0 && !clientSecret) {
-      setPaymentLoading(true);
+  const handleCheckout = async () => {
+    try {
+      setIsRedirecting(true);
       setError(null);
-      
-      fetch('/api/create-payment-intent', {
+
+      const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          items: cart,
-          email,
-          name
-        }),
-      })
-        .then(async (res) => {
-          const data = await res.json();
-          if (!res.ok) {
-            throw new Error(data.error || 'Failed to create payment intent');
-          }
-          return data;
-        })
-        .then((data) => {
-          setClientSecret(data.clientSecret);
-          setPaymentLoading(false);
-        })
-        .catch((error) => {
-          console.error('Error creating payment intent:', error);
-          setError({
-            message: error.message || 'Failed to initialize payment. Please try again later.',
-            type: 'error'
-          });
-          setPaymentLoading(false);
-        });
-    }
-  }, [cart, email, name, cartLoading, clientSecret, router]);
+        body: JSON.stringify({ cart, email }),
+      });
 
-  const options = clientSecret ? {
-    clientSecret,
-    appearance,
-  } : { appearance };
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
+
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err: any) {
+      console.error('Checkout error:', err);
+      setError({
+        message: err.message || 'Failed to start checkout process',
+        type: 'error'
+      });
+      setIsRedirecting(false);
+    }
+  };
 
   // Show loading state while cart is being initialized
   if (cartLoading) {
@@ -103,6 +62,12 @@ export default function CheckoutPage() {
         </div>
       </div>
     )
+  }
+
+  // Redirect to beats page if cart is empty
+  if (!cartLoading && (!cart || cart.length === 0)) {
+    router.push('/beats');
+    return null;
   }
 
   return (
@@ -180,7 +145,7 @@ export default function CheckoutPage() {
           </div>
         </section>
         
-        {/* Payment Form */}
+        {/* Payment Section */}
         <section 
           className="bg-zinc-900/80 rounded-xl p-6 md:p-8 w-full"
           aria-labelledby="payment-heading"
@@ -201,34 +166,39 @@ export default function CheckoutPage() {
               <p className="text-white flex-1">{error.message}</p>
             </div>
           )}
-          
-          {paymentLoading ? (
-            <div 
-              className="flex items-center justify-center p-8" 
-              role="status" 
-              aria-label="Loading payment options"
-            >
-              <FaSpinner className="animate-spin h-12 w-12 text-purple-500" aria-hidden="true" />
-              <span className="ml-3 text-white">Loading payment options...</span>
-            </div>
-          ) : clientSecret ? (
-            <Elements options={options} stripe={stripePromise}>
-              <CheckoutForm 
-                clientSecret={clientSecret}
-                email={email}
-                setEmail={setEmail}
-                name={name}
-                setName={setName}
+
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-200 mb-1">
+                Email Address
+              </label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Enter your email"
+                required
               />
-            </Elements>
-          ) : (
-            <div 
-              className="bg-red-900/50 border border-red-500 p-4 rounded-lg"
-              role="alert"
-            >
-              <p className="text-white">Failed to load payment options. Please try again later.</p>
             </div>
-          )}
+
+            <button
+              onClick={handleCheckout}
+              disabled={isRedirecting || !email || cart.length === 0}
+              className="w-full bg-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            >
+              {isRedirecting ? (
+                <>
+                  <FaSpinner className="animate-spin -ml-1 mr-2 h-5 w-5" />
+                  Redirecting to Checkout...
+                </>
+              ) : (
+                'Complete Purchase'
+              )}
+            </button>
+          </div>
           
           <p className="text-center text-gray-400 text-sm mt-6">
             By completing your purchase, you agree to our{' '}
