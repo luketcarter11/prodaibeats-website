@@ -131,21 +131,26 @@ async function getValidCoupon(code: string): Promise<Coupon | null> {
   }
 }
 
-async function syncCouponWithStripe(coupon: Coupon): Promise<string | null> {
+async function getStripeCoupon(coupon: Coupon): Promise<string | null> {
   try {
-    // If coupon already has a Stripe ID, verify it exists
+    // First, try to find an existing coupon in Stripe
     if (coupon.stripe_coupon_id) {
       try {
-        await stripe.coupons.retrieve(coupon.stripe_coupon_id);
-        return coupon.stripe_coupon_id;
+        const existingCoupon = await stripe.coupons.retrieve(coupon.stripe_coupon_id);
+        if (existingCoupon && !existingCoupon.deleted) {
+          return existingCoupon.id;
+        }
       } catch (error) {
-        // Coupon doesn't exist in Stripe, continue to create new one
+        // Coupon not found or invalid, continue to create new one
       }
     }
 
-    // Create new coupon in Stripe
+    // Generate a unique ID for the Stripe coupon
+    const stripeCouponId = `coupon_${coupon.id}_${Date.now()}`;
+
+    // Create the coupon in Stripe
     const stripeCoupon = await stripe.coupons.create({
-      id: `coupon_${coupon.id}`,
+      id: stripeCouponId,
       name: coupon.description || `${coupon.amount}${coupon.type === 'percentage' ? '% off' : '$ off'}`,
       duration: 'once',
       ...(coupon.type === 'percentage' 
@@ -155,8 +160,8 @@ async function syncCouponWithStripe(coupon: Coupon): Promise<string | null> {
       ...(coupon.valid_until && { redeem_by: Math.floor(new Date(coupon.valid_until).getTime() / 1000) })
     });
 
+    // Update the coupon in Supabase with the new Stripe ID
     try {
-      // Update coupon in database with Stripe ID
       const supabase = getSupabase();
       await supabase
         .from('coupons')
@@ -164,12 +169,11 @@ async function syncCouponWithStripe(coupon: Coupon): Promise<string | null> {
         .eq('id', coupon.id);
     } catch (error) {
       console.error('Failed to update Stripe coupon ID in database:', error);
-      // Continue even if database update fails
     }
 
     return stripeCoupon.id;
   } catch (error) {
-    console.error('Error syncing coupon with Stripe:', error);
+    console.error('Error creating Stripe coupon:', error);
     return null;
   }
 }
@@ -262,11 +266,11 @@ export async function POST(req: NextRequest) {
     // Handle discount code
     let stripeCouponId: string | undefined;
     let appliedCoupon: Coupon | null = null;
-    
+
     if (discountCode) {
       appliedCoupon = await getValidCoupon(discountCode);
       if (appliedCoupon) {
-        const couponId = await syncCouponWithStripe(appliedCoupon);
+        const couponId = await getStripeCoupon(appliedCoupon);
         if (couponId) {
           stripeCouponId = couponId;
         }
@@ -290,15 +294,14 @@ export async function POST(req: NextRequest) {
     // Calculate total for metadata
     const total = lineItems.reduce((sum, item) => sum + item.price_data.unit_amount, 0);
 
-    // Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create({
+    // Create checkout session configuration
+    const sessionConfig: Stripe.Checkout.SessionCreateParams = {
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
       customer_email: email,
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/cart`,
-      ...(stripeCouponId && { discounts: [{ coupon: stripeCouponId }] }),
       metadata: {
         userId: userId || 'guest',
         items: JSON.stringify(cart.map((item: CartItem) => ({
@@ -312,12 +315,24 @@ export async function POST(req: NextRequest) {
         discountType: appliedCoupon ? appliedCoupon.type : 'none',
         orderDate: new Date().toISOString(),
         totalBeforeDiscount: (total / 100).toString()
-      },
-    });
+      }
+    };
+
+    // Add discount if coupon is valid
+    if (stripeCouponId) {
+      sessionConfig.discounts = [{
+        coupon: stripeCouponId
+      }];
+    }
+
+    // Create Stripe checkout session
+    const session = await stripe.checkout.sessions.create(sessionConfig);
 
     // Increment coupon usage if successfully applied
     if (appliedCoupon && stripeCouponId) {
-      await incrementCouponUsage(appliedCoupon.id);
+      await incrementCouponUsage(appliedCoupon.id).catch(error => {
+        console.error('Failed to increment coupon usage:', error);
+      });
     }
 
     // Store order details for each item in cart
@@ -334,6 +349,9 @@ export async function POST(req: NextRequest) {
             : appliedCoupon.amount / cart.length // Distribute fixed discount equally
         ) : 0,
         stripe_session_id: session.id
+      }).catch(error => {
+        console.error('Failed to store order:', error);
+        return null;
       })
     );
 
