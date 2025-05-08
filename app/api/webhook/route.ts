@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2025-04-30.basil',
+});
 
 // This is your Stripe webhook secret for testing your endpoint locally.
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 // Modern Next.js App Router configuration
 export const dynamic = 'force-dynamic';
@@ -41,14 +43,23 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case 'payment_intent.succeeded':
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        console.log(`💰 PaymentIntent successful: ${paymentIntent.id}`);
         
-        // Handle successful payment
-        // You could:
-        // 1. Save order to database
+        // Extract customer information from metadata
+        const { name, email, items } = paymentIntent.metadata;
+        const parsedItems = JSON.parse(items);
+
+        // Here you would typically:
+        // 1. Store the order in your database
         // 2. Send confirmation email
-        // 3. Generate license files/provide download access
-        // 4. Update inventory, etc.
+        // 3. Generate download links
+        // 4. Update inventory/licenses
+
+        console.log('Payment succeeded:', {
+          paymentIntentId: paymentIntent.id,
+          amount: paymentIntent.amount,
+          customer: { name, email },
+          items: parsedItems
+        });
         
         break;
         

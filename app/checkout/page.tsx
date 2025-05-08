@@ -47,14 +47,13 @@ export default function CheckoutPage() {
   
   useEffect(() => {
     // Only redirect if cart is empty after loading is complete
-    if (!cartLoading && cart.length === 0) {
+    if (!cartLoading && cart && Array.isArray(cart) && cart.length === 0) {
       router.push('/beats')
+      return
     }
-  }, [cart, router, cartLoading])
 
-  useEffect(() => {
     // Create a PaymentIntent as soon as the page loads and cart is ready
-    if (!cartLoading && cart.length > 0) {
+    if (!cartLoading && cart.length > 0 && !clientSecret) {
       setPaymentLoading(true);
       setError(null);
       
@@ -87,7 +86,7 @@ export default function CheckoutPage() {
           setPaymentLoading(false);
         });
     }
-  }, [cart, email, name, cartLoading]);
+  }, [cart, email, name, cartLoading, clientSecret, router]);
 
   const options = clientSecret ? {
     clientSecret,
