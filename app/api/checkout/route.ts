@@ -40,6 +40,7 @@ export async function POST(req: Request) {
     }, 0)
 
     // Validate discount code if provided
+    let validatedDiscount = null;
     if (discountCode) {
       const { data: discount, error: discountError } = await supabase
         .from('discount_codes')
@@ -71,6 +72,8 @@ export async function POST(req: Request) {
         )
       }
 
+      validatedDiscount = discount;
+
       // Apply discount
       const discountAmount = discount.type === 'percentage' 
         ? (total * discount.amount) / 100
@@ -99,7 +102,7 @@ export async function POST(req: Request) {
       customer_email: email,
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/cart`,
-      discounts: discountCode ? [{ coupon: `COUPON_${discountCode}` }] : undefined,
+      discounts: validatedDiscount ? [{ coupon: validatedDiscount.code }] : undefined,
       metadata: {
         items: JSON.stringify(cart.map((item: CartItem) => ({
           id: item.id,
@@ -109,6 +112,13 @@ export async function POST(req: Request) {
         discountCode: discountCode || ''
       },
     });
+
+    // If successful, increment the usage count
+    if (validatedDiscount) {
+      await supabase.rpc('increment_discount_code_usage', {
+        code_id: validatedDiscount.id
+      });
+    }
 
     return NextResponse.json({ url: session.url });
   } catch (error: any) {

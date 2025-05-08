@@ -49,15 +49,21 @@ export default function CheckoutPage() {
       if (!result.isValid) {
         setError({ message: result.error || 'Invalid discount code', field: 'discountCode' });
         setAppliedDiscount(null);
+        setDiscountedTotal(cartTotal);
         return;
       }
 
       if (result.code) {
+        const discountAmount = result.code.type === 'percentage'
+          ? (cartTotal * result.code.amount) / 100
+          : result.code.amount;
+
         setAppliedDiscount({
           code: result.code.code,
           amount: result.code.amount,
           type: result.code.type
         });
+        setDiscountedTotal(Math.max(0, cartTotal - discountAmount));
         setError(null);
       }
     } catch (err: any) {
@@ -67,6 +73,7 @@ export default function CheckoutPage() {
         field: 'discountCode'
       });
       setAppliedDiscount(null);
+      setDiscountedTotal(cartTotal);
     } finally {
       setIsApplyingDiscount(false);
     }
@@ -120,6 +127,13 @@ export default function CheckoutPage() {
     router.push('/beats');
     return null;
   }
+
+  // Update the display of discount amount in the UI
+  const displayDiscountAmount = appliedDiscount
+    ? appliedDiscount.type === 'percentage'
+      ? (cartTotal * appliedDiscount.amount) / 100
+      : appliedDiscount.amount
+    : 0;
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 min-h-screen">
@@ -219,11 +233,7 @@ export default function CheckoutPage() {
               {appliedDiscount && (
                 <div className="flex justify-between text-green-400 mb-2">
                   <dt>Discount</dt>
-                  <dd>
-                    -{appliedDiscount.type === 'percentage'
-                      ? `$${((cartTotal * appliedDiscount.amount) / 100).toFixed(2)}`
-                      : `$${appliedDiscount.amount.toFixed(2)}`}
-                  </dd>
+                  <dd>-${displayDiscountAmount.toFixed(2)}</dd>
                 </div>
               )}
               <div className="flex justify-between text-white font-bold text-xl mt-4 pt-4 border-t border-white/10">
