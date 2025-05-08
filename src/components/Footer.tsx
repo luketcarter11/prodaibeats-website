@@ -100,8 +100,8 @@ export default function Footer() {
             <ul className="space-y-2">
               <li><Link href="/about" className="text-gray-400 hover:text-white">About Us</Link></li>
               <li><Link href="/contact" className="text-gray-400 hover:text-white">Contact</Link></li>
-              <li><Link href="/legal/terms" className="text-gray-400 hover:text-white">Terms of Service</Link></li>
-              <li><Link href="/legal/privacy" className="text-gray-400 hover:text-white">Privacy Policy</Link></li>
+              <li><Link href="/legal/terms-of-use" className="text-gray-400 hover:text-white">Terms of Use</Link></li>
+              <li><Link href="/legal/privacy-policy" className="text-gray-400 hover:text-white">Privacy Policy</Link></li>
             </ul>
           </div>
 
@@ -126,9 +126,9 @@ export default function Footer() {
           <div className="flex items-center justify-center gap-2">
             <Link href="/legal/cookies" className="text-gray-500 hover:text-gray-400">Cookies</Link>
             <span className="text-gray-700">|</span>
-            <Link href="/legal/privacy" className="text-gray-500 hover:text-gray-400">Privacy Policy</Link>
+            <Link href="/legal/privacy-policy" className="text-gray-500 hover:text-gray-400">Privacy Policy</Link>
             <span className="text-gray-700">|</span>
-            <Link href="/legal/terms" className="text-gray-500 hover:text-gray-400">Terms of Use</Link>
+            <Link href="/legal/terms-of-use" className="text-gray-500 hover:text-gray-400">Terms of Use</Link>
           </div>
         </div>
       </div>

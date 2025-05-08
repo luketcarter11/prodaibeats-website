@@ -15,6 +15,7 @@ interface CartContextType {
   updateTrack: (id: string, updates: Partial<Track>) => void;
   cartCount: number;
   cartTotal: number;
+  isLoading: boolean;
 }
 
 export const CartContext = createContext<CartContextType>({
@@ -25,6 +26,7 @@ export const CartContext = createContext<CartContextType>({
   updateTrack: () => {},
   cartCount: 0,
   cartTotal: 0,
+  isLoading: true,
 })
 
 export function useCart() {
@@ -33,41 +35,53 @@ export function useCart() {
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<Track[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   
   // Load cart from localStorage on client-side
   useEffect(() => {
-    const savedCart = localStorage.getItem('cart')
-    if (savedCart) {
-      try {
-        const parsedCart = JSON.parse(savedCart)
-        
-        // Verify and fix any broken coverUrl
-        const fixedCart = parsedCart.map((item: Track) => {
-          // Ensure coverUrl is an absolute URL
-          if (!item.coverUrl || !item.coverUrl.includes('://')) {
-            return {
-              ...item,
-              coverUrl: `${CDN}/covers/${item.id}.jpg`
+    const loadCart = () => {
+      setIsLoading(true)
+      const savedCart = localStorage.getItem('cart')
+      if (savedCart) {
+        try {
+          const parsedCart = JSON.parse(savedCart)
+          
+          // Verify and fix any broken coverUrl
+          const fixedCart = parsedCart.map((item: Track) => {
+            // Ensure coverUrl is an absolute URL
+            if (!item.coverUrl || !item.coverUrl.includes('://')) {
+              return {
+                ...item,
+                coverUrl: `${CDN}/covers/${item.id}.jpg`
+              }
             }
-          }
-          return item
-        })
-        
-        setCart(fixedCart)
-      } catch (error) {
-        console.error('Failed to parse cart from localStorage:', error)
+            return item
+          })
+          
+          setCart(fixedCart)
+        } catch (error) {
+          console.error('Failed to parse cart from localStorage:', error)
+          // Clear invalid cart data
+          localStorage.removeItem('cart')
+          setCart([])
+        }
       }
+      setIsLoading(false)
     }
+
+    loadCart()
   }, [])
   
   // Save cart to localStorage whenever it changes
   useEffect(() => {
-    if (cart.length) {
-      localStorage.setItem('cart', JSON.stringify(cart))
-    } else {
-      localStorage.removeItem('cart')
+    if (!isLoading) { // Only save after initial load
+      if (cart.length) {
+        localStorage.setItem('cart', JSON.stringify(cart))
+      } else {
+        localStorage.removeItem('cart')
+      }
     }
-  }, [cart])
+  }, [cart, isLoading])
   
   const addToCart = (track: Track, licenseType?: string) => {
     // Ensure coverUrl is an absolute URL
@@ -124,6 +138,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     updateTrack,
     cartTotal,
     cartCount,
+    isLoading,
   }
   
   return (

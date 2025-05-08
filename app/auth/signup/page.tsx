@@ -137,8 +137,8 @@ export default function SignUpPage() {
               />
               <label htmlFor="terms" className="ml-2 block text-sm text-gray-400">
                 I agree to the{' '}
-                <Link href="/legal/terms" className="text-purple-500 hover:text-purple-400">
-                  Terms of Service
+                <Link href="/legal/terms-of-use" className="text-purple-500 hover:text-purple-400">
+                  Terms of Use
                 </Link>{' '}
                 and{' '}
                 <Link href="/legal/privacy" className="text-purple-500 hover:text-purple-400">

@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCart } from '@/context/CartContext'
-import { FaArrowLeft } from 'react-icons/fa'
+import { FaArrowLeft, FaSpinner, FaExclamationCircle } from 'react-icons/fa'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements } from '@stripe/react-stripe-js'
 import CheckoutForm from '../../components/CheckoutForm'
@@ -31,25 +31,33 @@ const appearance: Appearance = {
   },
 };
 
+type ErrorMessage = {
+  message: string;
+  type: 'error' | 'warning';
+};
+
 export default function CheckoutPage() {
-  const { cart, cartTotal } = useCart()
+  const { cart, cartTotal, isLoading: cartLoading } = useCart()
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [paymentLoading, setPaymentLoading] = useState(false)
+  const [error, setError] = useState<ErrorMessage | null>(null)
   const router = useRouter()
   
   useEffect(() => {
-    // If cart is empty, redirect to beats page
-    if (cart.length === 0) {
+    // Only redirect if cart is empty after loading is complete
+    if (!cartLoading && cart.length === 0) {
       router.push('/beats')
     }
-  }, [cart, router])
+  }, [cart, router, cartLoading])
 
   useEffect(() => {
-    // Create a PaymentIntent as soon as the page loads
-    if (cart.length > 0) {
+    // Create a PaymentIntent as soon as the page loads and cart is ready
+    if (!cartLoading && cart.length > 0) {
       setPaymentLoading(true);
+      setError(null);
+      
       fetch('/api/create-payment-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -59,37 +67,64 @@ export default function CheckoutPage() {
           name
         }),
       })
-        .then((res) => res.json())
+        .then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || 'Failed to create payment intent');
+          }
+          return data;
+        })
         .then((data) => {
           setClientSecret(data.clientSecret);
           setPaymentLoading(false);
         })
         .catch((error) => {
           console.error('Error creating payment intent:', error);
+          setError({
+            message: error.message || 'Failed to initialize payment. Please try again later.',
+            type: 'error'
+          });
           setPaymentLoading(false);
         });
     }
-  }, [cart, email, name]);
+  }, [cart, email, name, cartLoading]);
 
   const options = clientSecret ? {
     clientSecret,
     appearance,
   } : { appearance };
 
+  // Show loading state while cart is being initialized
+  if (cartLoading) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 min-h-screen flex items-center justify-center">
+        <div className="flex items-center space-x-4" role="status" aria-label="Loading cart">
+          <FaSpinner className="animate-spin h-8 w-8 text-purple-500" aria-hidden="true" />
+          <span className="text-white">Loading cart...</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 min-h-screen">
-      <Link 
-        href="/cart" 
-        className="inline-flex items-center text-gray-400 hover:text-white mb-8"
-      >
-        <FaArrowLeft className="mr-2" />
-        Back to Cart
-      </Link>
+      <nav aria-label="Breadcrumb">
+        <Link 
+          href="/cart" 
+          className="inline-flex items-center text-gray-400 hover:text-white mb-8 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-lg px-2 py-1"
+        >
+          <FaArrowLeft className="mr-2" aria-hidden="true" />
+          Back to Cart
+        </Link>
+      </nav>
       
       <div className="flex flex-col space-y-8">
         {/* Order Summary */}
-        <div className="bg-zinc-900/80 rounded-xl p-6 md:p-8 w-full">
-          <h1 className="text-2xl font-bold text-white mb-6">Checkout</h1>
+        <section 
+          className="bg-zinc-900/80 rounded-xl p-6 md:p-8 w-full"
+          aria-labelledby="order-heading"
+        >
+          <h1 id="order-heading" className="text-2xl font-bold text-white mb-6">Checkout</h1>
           
           <div className="mb-8">
             <h2 className="text-xl font-bold text-white mb-4">Order Summary</h2>
@@ -129,28 +164,52 @@ export default function CheckoutPage() {
           </div>
           
           <div className="border-t border-white/10 pt-4">
-            <div className="flex justify-between text-white mb-2">
-              <span>Subtotal</span>
-              <span>${cartTotal.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-gray-400 mb-2">
-              <span>Processing Fee</span>
-              <span>$0.00</span>
-            </div>
-            <div className="flex justify-between text-white font-bold text-xl mt-4 pt-4 border-t border-white/10">
-              <span>Total</span>
-              <span>${cartTotal.toFixed(2)}</span>
-            </div>
+            <dl>
+              <div className="flex justify-between text-white mb-2">
+                <dt>Subtotal</dt>
+                <dd>${cartTotal.toFixed(2)}</dd>
+              </div>
+              <div className="flex justify-between text-gray-400 mb-2">
+                <dt>Processing Fee</dt>
+                <dd>$0.00</dd>
+              </div>
+              <div className="flex justify-between text-white font-bold text-xl mt-4 pt-4 border-t border-white/10">
+                <dt>Total</dt>
+                <dd>${cartTotal.toFixed(2)}</dd>
+              </div>
+            </dl>
           </div>
-        </div>
+        </section>
         
         {/* Payment Form */}
-        <div className="bg-zinc-900/80 rounded-xl p-6 md:p-8 w-full">
-          <h2 className="text-xl font-bold text-white mb-6">Payment Details</h2>
+        <section 
+          className="bg-zinc-900/80 rounded-xl p-6 md:p-8 w-full"
+          aria-labelledby="payment-heading"
+        >
+          <h2 id="payment-heading" className="text-xl font-bold text-white mb-6">Payment Details</h2>
+          
+          {error && (
+            <div 
+              className={`mb-6 p-4 rounded-lg flex items-start ${
+                error.type === 'error' ? 'bg-red-900/50 border-red-500' : 'bg-yellow-900/50 border-yellow-500'
+              } border`}
+              role="alert"
+            >
+              <FaExclamationCircle 
+                className={`mt-1 mr-3 ${error.type === 'error' ? 'text-red-500' : 'text-yellow-500'}`}
+                aria-hidden="true"
+              />
+              <p className="text-white flex-1">{error.message}</p>
+            </div>
+          )}
           
           {paymentLoading ? (
-            <div className="flex items-center justify-center p-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+            <div 
+              className="flex items-center justify-center p-8" 
+              role="status" 
+              aria-label="Loading payment options"
+            >
+              <FaSpinner className="animate-spin h-12 w-12 text-purple-500" aria-hidden="true" />
               <span className="ml-3 text-white">Loading payment options...</span>
             </div>
           ) : clientSecret ? (
@@ -164,18 +223,24 @@ export default function CheckoutPage() {
               />
             </Elements>
           ) : (
-            <div className="bg-red-900/50 border border-red-500 p-4 rounded-lg">
+            <div 
+              className="bg-red-900/50 border border-red-500 p-4 rounded-lg"
+              role="alert"
+            >
               <p className="text-white">Failed to load payment options. Please try again later.</p>
             </div>
           )}
           
           <p className="text-center text-gray-400 text-sm mt-6">
             By completing your purchase, you agree to our{' '}
-            <Link href="/terms" className="text-purple-400 hover:text-purple-300">
+            <Link 
+              href="/terms" 
+              className="text-purple-400 hover:text-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded"
+            >
               Terms of Service
             </Link>
           </p>
-        </div>
+        </section>
       </div>
     </div>
   )

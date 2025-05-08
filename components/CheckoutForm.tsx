@@ -7,7 +7,7 @@ import {
   useElements,
   AddressElement
 } from '@stripe/react-stripe-js';
-import { FaLock, FaSpinner } from 'react-icons/fa';
+import { FaLock, FaSpinner, FaExclamationCircle } from 'react-icons/fa';
 
 type CheckoutFormProps = {
   clientSecret: string | null;
@@ -17,15 +17,33 @@ type CheckoutFormProps = {
   setName: (name: string) => void;
 };
 
+type MessageType = {
+  text: string;
+  type: 'error' | 'info' | 'success';
+};
+
 const CheckoutForm = ({ clientSecret, email, setEmail, name, setName }: CheckoutFormProps) => {
   const stripe = useStripe();
   const elements = useElements();
   const router = useRouter();
   const { clearCart } = useCart();
 
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<MessageType | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [addressComplete, setAddressComplete] = useState(false);
+  const [isStripeReady, setIsStripeReady] = useState(false);
+
+  // Validate form fields
+  const [formErrors, setFormErrors] = useState({
+    name: '',
+    email: '',
+  });
+
+  useEffect(() => {
+    if (stripe) {
+      setIsStripeReady(true);
+    }
+  }, [stripe]);
 
   useEffect(() => {
     if (!stripe) return;
@@ -41,17 +59,21 @@ const CheckoutForm = ({ clientSecret, email, setEmail, name, setName }: Checkout
         if (paymentIntent) {
           switch (paymentIntent.status) {
             case 'succeeded':
+              setMessage({ text: 'Payment successful!', type: 'success' });
               clearCart();
               router.push('/checkout/success');
               break;
             case 'processing':
-              setMessage('Your payment is processing.');
+              setMessage({ text: 'Your payment is processing.', type: 'info' });
               break;
             case 'requires_payment_method':
-              setMessage('Your payment was not successful, please try again.');
+              setMessage({ 
+                text: 'Your payment was not successful, please try again.',
+                type: 'error'
+              });
               break;
             default:
-              setMessage('Something went wrong.');
+              setMessage({ text: 'Something went wrong.', type: 'error' });
               break;
           }
         }
@@ -59,42 +81,87 @@ const CheckoutForm = ({ clientSecret, email, setEmail, name, setName }: Checkout
     }
   }, [stripe, router, clearCart]);
 
+  const validateForm = () => {
+    const errors = {
+      name: '',
+      email: '',
+    };
+
+    if (!name.trim()) {
+      errors.name = 'Name is required';
+    }
+
+    if (!email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+
+    setFormErrors(errors);
+    return !errors.name && !errors.email;
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    if (!validateForm()) {
+      return;
+    }
+
     if (!stripe || !elements || !clientSecret) {
-      // Stripe.js hasn't yet loaded or there's no client secret
+      setMessage({ 
+        text: 'Payment system is not ready. Please try again.',
+        type: 'error'
+      });
       return;
     }
 
     setIsLoading(true);
+    setMessage(null);
 
-    const { error } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/checkout/success`,
-        receipt_email: email,
-        payment_method_data: {
-          billing_details: {
-            name,
-            email
+    try {
+      const { error } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/checkout/success`,
+          receipt_email: email,
+          payment_method_data: {
+            billing_details: {
+              name,
+              email
+            }
           }
         }
+      });
+
+      if (error) {
+        setMessage({ 
+          text: error.message || 'An error occurred with your payment',
+          type: 'error'
+        });
       }
-    });
-
-    // This point will only be reached if there is an immediate error when
-    // confirming the payment
-    if (error) {
-      setMessage(error.message || 'Something went wrong with your payment.');
+    } catch (err) {
+      setMessage({ 
+        text: 'An unexpected error occurred. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
+  if (!isStripeReady) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <FaSpinner className="animate-spin text-purple-500 text-2xl mr-3" />
+        <span className="text-white">Loading payment system...</span>
+      </div>
+    );
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      <div>
+    <form onSubmit={handleSubmit} className="space-y-8" aria-label="Payment form">
+      <div role="region" aria-label="Customer Information">
         <h3 className="text-white font-medium mb-4">Customer Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
@@ -106,11 +173,23 @@ const CheckoutForm = ({ clientSecret, email, setEmail, name, setName }: Checkout
               id="name"
               name="name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                setFormErrors(prev => ({ ...prev, name: '' }));
+              }}
               placeholder="Enter your full name"
               required
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              aria-invalid={!!formErrors.name}
+              aria-describedby={formErrors.name ? 'name-error' : undefined}
+              className={`w-full bg-zinc-800 border ${
+                formErrors.name ? 'border-red-500' : 'border-zinc-700'
+              } rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500`}
             />
+            {formErrors.name && (
+              <p id="name-error" className="mt-1 text-red-500 text-sm">
+                {formErrors.name}
+              </p>
+            )}
           </div>
           
           <div>
@@ -122,16 +201,28 @@ const CheckoutForm = ({ clientSecret, email, setEmail, name, setName }: Checkout
               id="email"
               name="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setFormErrors(prev => ({ ...prev, email: '' }));
+              }}
               placeholder="Enter your email"
               required
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              aria-invalid={!!formErrors.email}
+              aria-describedby={formErrors.email ? 'email-error' : undefined}
+              className={`w-full bg-zinc-800 border ${
+                formErrors.email ? 'border-red-500' : 'border-zinc-700'
+              } rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500`}
             />
+            {formErrors.email && (
+              <p id="email-error" className="mt-1 text-red-500 text-sm">
+                {formErrors.email}
+              </p>
+            )}
           </div>
         </div>
       </div>
 
-      <div>
+      <div role="region" aria-label="Billing Address">
         <h3 className="text-white font-medium mb-4">Billing Address</h3>
         <AddressElement
           options={{
@@ -151,33 +242,46 @@ const CheckoutForm = ({ clientSecret, email, setEmail, name, setName }: Checkout
         />
       </div>
       
-      <div>
+      <div role="region" aria-label="Payment Method">
         <h3 className="text-white font-medium mb-4">Payment Method</h3>
         <PaymentElement />
       </div>
 
       {message && (
-        <div className="bg-red-900/50 border border-red-500 p-4 rounded-lg">
-          <p className="text-white">{message}</p>
+        <div 
+          className={`p-4 rounded-lg flex items-start ${
+            message.type === 'error' ? 'bg-red-900/50 border-red-500' :
+            message.type === 'success' ? 'bg-green-900/50 border-green-500' :
+            'bg-blue-900/50 border-blue-500'
+          } border`}
+          role="alert"
+        >
+          <FaExclamationCircle className={`mt-1 mr-3 ${
+            message.type === 'error' ? 'text-red-500' :
+            message.type === 'success' ? 'text-green-500' :
+            'text-blue-500'
+          }`} />
+          <p className="text-white flex-1">{message.text}</p>
         </div>
       )}
 
       <button
         type="submit"
         disabled={!stripe || !elements || isLoading || !addressComplete}
+        aria-disabled={!stripe || !elements || isLoading || !addressComplete}
         className={`w-full flex items-center justify-center ${
           isLoading || !stripe || !elements || !addressComplete ? 'bg-purple-700' : 'bg-purple-600 hover:bg-purple-700'
         } text-white py-4 px-6 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-70 mt-8 text-lg`}
       >
         {isLoading ? (
           <>
-            <FaSpinner className="animate-spin mr-2" />
-            Processing...
+            <FaSpinner className="animate-spin mr-2" aria-hidden="true" />
+            <span>Processing...</span>
           </>
         ) : (
           <>
-            <FaLock className="mr-2" />
-            Complete Payment
+            <FaLock className="mr-2" aria-hidden="true" />
+            <span>Complete Payment</span>
           </>
         )}
       </button>
