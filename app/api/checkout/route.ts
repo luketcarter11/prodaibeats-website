@@ -133,49 +133,55 @@ async function getValidCoupon(code: string): Promise<Coupon | null> {
 
 async function getStripeCoupon(coupon: Coupon): Promise<string | null> {
   try {
-    // First, try to find an existing coupon in Stripe
-    if (coupon.stripe_coupon_id) {
-      try {
-        const existingCoupon = await stripe.coupons.retrieve(coupon.stripe_coupon_id);
-        if (existingCoupon && !existingCoupon.deleted) {
-          return existingCoupon.id;
-        }
-      } catch (error) {
-        // Coupon not found or invalid, continue to create new one
-      }
+    // If we have a Stripe promotion ID stored, use it directly
+    if (coupon.stripe_coupon_id && coupon.stripe_coupon_id.startsWith('promo_')) {
+      return coupon.stripe_coupon_id;
     }
 
-    // Generate a unique ID for the Stripe coupon
-    const stripeCouponId = `coupon_${coupon.id}_${Date.now()}`;
-
-    // Create the coupon in Stripe
-    const stripeCoupon = await stripe.coupons.create({
-      id: stripeCouponId,
-      name: coupon.description || `${coupon.amount}${coupon.type === 'percentage' ? '% off' : '$ off'}`,
-      duration: 'once',
-      ...(coupon.type === 'percentage' 
-        ? { percent_off: coupon.amount }
-        : { amount_off: Math.round(coupon.amount * 100) }), // Convert to cents for fixed amounts
-      max_redemptions: coupon.max_uses,
-      ...(coupon.valid_until && { redeem_by: Math.floor(new Date(coupon.valid_until).getTime() / 1000) })
+    // For legacy coupons or if no Stripe ID exists, create a new promotion
+    const promotionId = `promo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const promotion = await stripe.promotionCodes.create({
+      coupon: await createStripeCoupon(coupon),
+      code: coupon.code,
+      active: true,
+      metadata: {
+        couponId: coupon.id,
+        type: coupon.type,
+        amount: coupon.amount.toString()
+      }
     });
 
-    // Update the coupon in Supabase with the new Stripe ID
+    // Update coupon in Supabase with the promotion ID
     try {
       const supabase = getSupabase();
       await supabase
         .from('coupons')
-        .update({ stripe_coupon_id: stripeCoupon.id })
+        .update({ stripe_coupon_id: promotion.id })
         .eq('id', coupon.id);
     } catch (error) {
-      console.error('Failed to update Stripe coupon ID in database:', error);
+      console.error('Failed to update Stripe promotion ID in database:', error);
     }
 
-    return stripeCoupon.id;
+    return promotion.id;
   } catch (error) {
-    console.error('Error creating Stripe coupon:', error);
+    console.error('Error getting/creating Stripe promotion:', error);
     return null;
   }
+}
+
+async function createStripeCoupon(coupon: Coupon): Promise<string> {
+  const stripeCoupon = await stripe.coupons.create({
+    name: coupon.description || `${coupon.amount}${coupon.type === 'percentage' ? '% off' : '$ off'}`,
+    duration: 'once',
+    ...(coupon.type === 'percentage' 
+      ? { percent_off: coupon.amount }
+      : { amount_off: Math.round(coupon.amount * 100) }), // Convert to cents for fixed amounts
+    max_redemptions: coupon.max_uses,
+    ...(coupon.valid_until && { redeem_by: Math.floor(new Date(coupon.valid_until).getTime() / 1000) })
+  });
+
+  return stripeCoupon.id;
 }
 
 async function incrementCouponUsage(couponId: string): Promise<void> {
@@ -264,15 +270,15 @@ export async function POST(req: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${host}`;
 
     // Handle discount code
-    let stripeCouponId: string | undefined;
+    let stripePromotionId: string | undefined;
     let appliedCoupon: Coupon | null = null;
 
     if (discountCode) {
       appliedCoupon = await getValidCoupon(discountCode);
       if (appliedCoupon) {
-        const couponId = await getStripeCoupon(appliedCoupon);
-        if (couponId) {
-          stripeCouponId = couponId;
+        const promotionId = await getStripeCoupon(appliedCoupon);
+        if (promotionId) {
+          stripePromotionId = promotionId;
         }
       }
     }
@@ -318,10 +324,10 @@ export async function POST(req: NextRequest) {
       }
     };
 
-    // Add discount if coupon is valid
-    if (stripeCouponId) {
+    // Add promotion code if valid
+    if (stripePromotionId) {
       sessionConfig.discounts = [{
-        coupon: stripeCouponId
+        promotion_code: stripePromotionId
       }];
     }
 
@@ -329,7 +335,7 @@ export async function POST(req: NextRequest) {
     const session = await stripe.checkout.sessions.create(sessionConfig);
 
     // Increment coupon usage if successfully applied
-    if (appliedCoupon && stripeCouponId) {
+    if (appliedCoupon && stripePromotionId) {
       await incrementCouponUsage(appliedCoupon.id).catch(error => {
         console.error('Failed to increment coupon usage:', error);
       });
