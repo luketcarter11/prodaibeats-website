@@ -1,14 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
-
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('Supabase credentials are not defined');
-}
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
-
 export interface Order {
   id: string;
   user_id: string;
@@ -23,16 +12,15 @@ export interface Order {
 }
 
 export async function getUserOrders(userId: string): Promise<Order[]> {
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('user_id', userId)
-    .order('order_date', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching orders:', error.message);
+  try {
+    const response = await fetch(`/api/orders?userId=${userId}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch orders');
+    }
+    const orders: Order[] = await response.json();
+    return orders;
+  } catch (error) {
+    console.error('Error fetching orders:', error);
     return [];
   }
-
-  return data || [];
 } 

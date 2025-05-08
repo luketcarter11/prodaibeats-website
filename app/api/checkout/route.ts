@@ -1,25 +1,24 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
-import { supabase } from '@/lib/supabaseClient';
+import fs from 'fs';
+import path from 'path';
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('STRIPE_SECRET_KEY is not defined');
-}
-
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('Supabase credentials are not defined');
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2025-04-30.basil'
 });
 
-const supabaseClient = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// Define the orders directory path
+const ORDERS_DIR = path.join(process.cwd(), 'data', 'orders');
+
+// Ensure orders directory exists
+if (!fs.existsSync(ORDERS_DIR)) {
+  fs.mkdirSync(ORDERS_DIR, { recursive: true });
+}
 
 interface CartItem {
   id: string;
@@ -31,6 +30,19 @@ interface CartItem {
   quantity: number;
 }
 
+interface Order {
+  id: string;
+  user_id: string;
+  track_id: string;
+  track_name: string;
+  license: string;
+  total_amount: number;
+  discount?: number;
+  order_date: string;
+  status: 'pending' | 'completed' | 'failed';
+  stripe_session_id: string;
+}
+
 async function storeOrder(orderDetails: {
   user_id: string;
   track_id: string;
@@ -39,23 +51,35 @@ async function storeOrder(orderDetails: {
   total_amount: number;
   discount?: number;
   stripe_session_id: string;
-}) {
-  const { data, error } = await supabaseClient
-    .from('orders')
-    .insert([{
-      ...orderDetails,
-      order_date: new Date().toISOString(),
-      status: 'pending' // Will be updated to 'completed' after successful payment
-    }])
-    .select()
-    .single();
+}): Promise<Order> {
+  const order: Order = {
+    id: `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    ...orderDetails,
+    order_date: new Date().toISOString(),
+    status: 'pending'
+  };
 
-  if (error) {
-    console.error('Error storing order:', error);
-    throw new Error(`Failed to store order: ${error.message}`);
-  }
+  // Store order in local file system
+  const orderPath = path.join(ORDERS_DIR, `${order.id}.json`);
+  fs.writeFileSync(orderPath, JSON.stringify(order, null, 2));
 
-  return data;
+  return order;
+}
+
+async function validateDiscountCode(code: string): Promise<{ 
+  valid: boolean; 
+  amount: number; 
+  type: 'percentage' | 'fixed';
+  code: string;
+} | null> {
+  // For now, return a fixed 10% discount for any code
+  // You can implement more sophisticated discount validation later
+  return code ? {
+    valid: true,
+    amount: 10,
+    type: 'percentage',
+    code
+  } : null;
 }
 
 export async function POST(req: Request) {
@@ -67,7 +91,7 @@ export async function POST(req: Request) {
     // Get the host from the headers
     const host = headersList.get('host');
     const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${host}`;
 
     if (!cart?.length) {
       return NextResponse.json(
@@ -79,49 +103,21 @@ export async function POST(req: Request) {
     // Calculate initial total
     let total = cart.reduce((sum: number, item: CartItem) => {
       return sum + (item.price * item.quantity)
-    }, 0)
+    }, 0);
 
     // Validate discount code if provided
     let validatedDiscount = null;
     if (discountCode) {
-      const { data: discount, error: discountError } = await supabase
-        .from('discount_codes')
-        .select('*')
-        .eq('code', discountCode)
-        .eq('active', true)
-        .single()
+      validatedDiscount = await validateDiscountCode(discountCode);
+      
+      if (validatedDiscount) {
+        // Apply discount
+        const discountAmount = validatedDiscount.type === 'percentage' 
+          ? (total * validatedDiscount.amount) / 100
+          : validatedDiscount.amount;
 
-      if (discountError || !discount) {
-        return NextResponse.json(
-          { error: 'Invalid or inactive discount code' },
-          { status: 400 }
-        )
+        total = Math.max(0, total - discountAmount);
       }
-
-      // Check if code has expired
-      if (discount.expires_at && new Date(discount.expires_at) < new Date()) {
-        return NextResponse.json(
-          { error: 'This discount code has expired' },
-          { status: 400 }
-        )
-      }
-
-      // Check usage limit
-      if (discount.usage_limit && discount.used_count >= discount.usage_limit) {
-        return NextResponse.json(
-          { error: 'This discount code has reached its usage limit' },
-          { status: 400 }
-        )
-      }
-
-      validatedDiscount = discount;
-
-      // Apply discount
-      const discountAmount = discount.type === 'percentage' 
-        ? (total * discount.amount) / 100
-        : discount.amount
-
-      total = Math.max(0, total - discountAmount)
     }
 
     // Create line items for Stripe
@@ -146,7 +142,6 @@ export async function POST(req: Request) {
       customer_email: email,
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/cart`,
-      discounts: validatedDiscount ? [{ coupon: validatedDiscount.code }] : undefined,
       metadata: {
         userId: userId || 'guest',
         items: JSON.stringify(cart.map((item: CartItem) => ({
@@ -166,20 +161,13 @@ export async function POST(req: Request) {
         track_name: item.title,
         license: item.licenseType,
         total_amount: item.price,
-        discount: discountCode ? item.price * 0.1 : 0, // Example 10% discount
+        discount: discountCode && validatedDiscount ? (item.price * validatedDiscount.amount) / 100 : 0,
         stripe_session_id: session.id
       })
     );
 
     // Store all orders in parallel
     await Promise.all(orderPromises);
-
-    // If successful, increment the usage count
-    if (validatedDiscount) {
-      await supabase.rpc('increment_discount_code_usage', {
-        code_id: validatedDiscount.id
-      });
-    }
 
     return NextResponse.json({ url: session.url });
   } catch (error: any) {

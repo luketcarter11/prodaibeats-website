@@ -641,8 +641,8 @@ export default function AccountPage() {
   ]
 
   // Define a consistent input style for all form elements
-  const inputClass = "w-full bg-zinc-900/50 border border-white/10 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 [&:-webkit-autofill]:bg-zinc-900/50"
-  const disabledInputClass = "w-full bg-zinc-900/50 border border-white/10 rounded-lg px-4 py-2 text-gray-400 focus:outline-none cursor-not-allowed [&:-webkit-autofill]:bg-zinc-900/50"
+  const inputClass = "w-full bg-[#111111] border border-white/10 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+  const disabledInputClass = "w-full bg-[#111111] border border-white/10 rounded-lg px-4 py-2 text-gray-400 focus:outline-none cursor-not-allowed"
 
   const handleProfilePicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -743,13 +743,166 @@ export default function AccountPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">My Account</h1>
+        <h1 className="text-4xl font-bold mb-2">Your Account</h1>
+        <p className="text-gray-400 mb-8">Welcome back, {profile.email}</p>
         
-        <div className="space-y-8">
+        <div className="space-y-6">
+          {/* Profile Section */}
+          <div className="bg-[#111111] rounded-lg p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold">Your Profile</h2>
+              {!isEditMode ? (
+                <button
+                  onClick={toggleEditMode}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm"
+                >
+                  Edit Details
+                </button>
+              ) : (
+                <div className="flex gap-2">
+                  <button
+                    onClick={cancelEdit}
+                    className="px-4 py-2 border border-white/10 text-gray-300 rounded-lg hover:bg-gray-800 transition-colors text-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={isSaving}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Profile Picture */}
+            <div className="flex items-center mb-8">
+              <div className="relative">
+                <div className="w-24 h-24 rounded-full overflow-hidden bg-[#1A1A1A] border border-white/10">
+                  {profile.profile_picture_url ? (
+                    <img
+                      src={profile.profile_picture_url}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <img src="/logo.png" alt="Default Profile" className="w-16 h-16 opacity-50" />
+                    </div>
+                  )}
+                </div>
+                <p className="text-sm text-gray-400 mt-2 text-center">Your profile picture</p>
+              </div>
+            </div>
+
+            {/* Profile Form */}
+            <form className="grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={handleSubmit}>
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  name="full_name"
+                  value={profile.full_name}
+                  onChange={handleChange}
+                  disabled={!isEditMode}
+                  className={isEditMode ? inputClass : disabledInputClass}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">
+                  Display Name
+                </label>
+                <input
+                  type="text"
+                  name="display_name"
+                  value={profile.display_name}
+                  onChange={handleChange}
+                  disabled={!isEditMode}
+                  className={isEditMode ? inputClass : disabledInputClass}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={profile.email}
+                  disabled={true}
+                  className={disabledInputClass}
+                />
+                <p className="text-xs text-gray-500 mt-1">To change your email, please contact support</p>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">
+                  Phone Number <span className="text-gray-500">(optional)</span>
+                </label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={profile.phone}
+                  onChange={handleChange}
+                  disabled={!isEditMode}
+                  className={isEditMode ? inputClass : disabledInputClass}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm text-gray-400 mb-2">
+                  Billing Address
+                </label>
+                <textarea
+                  name="billing_address"
+                  value={profile.billing_address}
+                  onChange={handleChange}
+                  disabled={!isEditMode}
+                  className={isEditMode ? inputClass : disabledInputClass}
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">
+                  Country
+                </label>
+                <select
+                  name="country"
+                  value={profile.country}
+                  onChange={handleChange}
+                  disabled={!isEditMode}
+                  className={isEditMode ? inputClass : disabledInputClass}
+                >
+                  {countries.map(country => (
+                    <option key={country.value} value={country.value}>
+                      {country.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </form>
+          </div>
+
           {/* Orders Section */}
           {userId && <OrdersList userId={userId} />}
-          
-          {/* Additional account sections can be added here */}
+
+          {/* Account Actions */}
+          <div className="bg-[#111111] rounded-lg p-6">
+            <h2 className="text-xl font-semibold mb-4">Account Actions</h2>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-600/20 text-red-500 rounded-lg hover:bg-red-600/30 transition-colors text-sm"
+            >
+              Log Out
+            </button>
+          </div>
         </div>
       </div>
     </div>
