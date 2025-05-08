@@ -7,6 +7,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 // This is your Stripe webhook secret for testing your endpoint locally.
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
 
+// Modern Next.js way to disable body parsing
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+export const bodyParser = false;
+
 export async function POST(request: NextRequest) {
   const body = await request.text();
   const headersList = headers();
@@ -68,11 +73,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-// Disable body parsing, as we need the raw body to verify the webhook
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-}; 
+} 
