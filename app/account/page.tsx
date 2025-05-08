@@ -53,43 +53,84 @@ export default function AccountPage() {
 
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [loadingError, setLoadingError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
 
+  // Add browser detection
   useEffect(() => {
-    const getUser = async () => {
-      setIsLoading(true)
-      const { data, error } = await supabase.auth.getUser()
+    if (typeof window !== 'undefined') {
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      console.log(`Running on ${isMobile ? 'mobile' : 'desktop'} browser`);
       
-      if (error || !data?.user) {
-        router.push('/auth/signin')
-        return
+      // Apply different handling for desktop if needed
+      if (!isMobile) {
+        // Force a small delay for desktop browsers to ensure Supabase is fully initialized
+        setTimeout(() => {
+          const currentUser = supabase.auth.getUser();
+          console.log('Desktop browser: checking auth state', currentUser);
+        }, 500);
+      }
+    }
+  }, []);
+
+  const handleRetryProfileLoad = () => {
+    setRetryCount(prev => prev + 1);
+    setLoadingError(null);
+    setIsLoading(true);
+    getUser();
+  };
+
+  const getUser = async () => {
+    setIsLoading(true);
+    console.log('Fetching user data...', retryCount > 0 ? `(Retry ${retryCount})` : '');
+    
+    try {
+      const { data, error } = await supabase.auth.getUser();
+      
+      if (error) {
+        console.error('Authentication error:', error.message);
+        setLoadingError(`Authentication error: ${error.message}`);
+        setIsLoading(false);
+        return;
       }
       
-      setUserId(data.user.id)
-      setUserEmail(data.user.email || null)
+      if (!data?.user) {
+        console.log('No user data found');
+        setLoadingError('Unable to retrieve user data. Please sign in again.');
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log('User authenticated successfully:', data.user.id);
+      setUserId(data.user.id);
+      setUserEmail(data.user.email || null);
       
       if (data.user.email) {
-        setProfile(prev => ({ ...prev, email: data.user.email || '' }))
+        setProfile(prev => ({ ...prev, email: data.user.email || '' }));
       }
       
       try {
         // First check if the profiles table exists
+        console.log('Checking profiles table...');
         const { error: tableCheckError } = await supabase
           .from('profiles')
           .select('id')
-          .limit(1)
+          .limit(1);
         
         if (tableCheckError) {
-          console.warn('Profiles table may not exist:', tableCheckError.message)
+          console.warn('Profiles table may not exist:', tableCheckError.message);
           // Table doesn't exist - we'll create the user profile when they save
         } else {
           // Table exists, try to get the user's profile
+          console.log('Fetching user profile for ID:', data.user.id);
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', data.user.id)
-            .single()
-            
+            .single();
+          
           if (profileData && !profileError) {
+            console.log('Profile data retrieved successfully');
             setProfile({
               full_name: profileData.full_name || '',
               display_name: profileData.display_name || '',
@@ -98,88 +139,101 @@ export default function AccountPage() {
               country: profileData.country || '',
               phone: profileData.phone || '',
               profile_picture_url: profileData.profile_picture_url || ''
-            })
-          } else if (profileError && profileError.code !== 'PGRST116') {
-            // PGRST116 is "Row not found" error - this is expected for new users
-            console.error('Error fetching profile:', profileError)
+            });
+          } else if (profileError) {
+            if (profileError.code === 'PGRST116') {
+              console.log('New user, no profile record found');
+            } else {
+              console.error('Error fetching profile:', profileError);
+            }
           }
         }
+        
+        // Load sample license data
+        console.log('Loading sample license data');
+        setLicenses([
+          {
+            id: 'lic_123456',
+            beat_id: 'beat_1',
+            beat_name: 'Midnight Dreams',
+            license_type: 'Premium',
+            purchased_date: '2023-12-15',
+            expires: '2024-12-15',
+            status: 'active',
+            price: 79.99,
+            download_url: '/downloads/beat_1_stems.zip',
+            producer: 'Producer X',
+            image_url: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
+          },
+          {
+            id: 'lic_789012',
+            beat_id: 'beat_2',
+            beat_name: 'Summer Vibes',
+            license_type: 'Basic',
+            purchased_date: '2023-10-05',
+            expires: '2024-10-05',
+            status: 'active',
+            price: 29.99,
+            download_url: '/downloads/beat_2.mp3',
+            producer: 'Beat Maker Pro',
+            image_url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
+          },
+          {
+            id: 'lic_345678',
+            beat_id: 'beat_3',
+            beat_name: 'Urban Nights',
+            license_type: 'Exclusive',
+            purchased_date: '2023-08-20',
+            status: 'active',
+            price: 249.99,
+            download_url: '/downloads/beat_3_exclusive.zip',
+            producer: 'Urban Beats',
+            image_url: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
+          },
+          {
+            id: 'lic_901234',
+            beat_id: 'beat_4',
+            beat_name: 'Retro Wave',
+            license_type: 'Basic',
+            purchased_date: '2023-05-10',
+            expires: '2024-05-10',
+            status: 'expired',
+            price: 19.99,
+            download_url: '/downloads/beat_4.mp3',
+            producer: 'Retro Studios',
+            image_url: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
+          },
+          {
+            id: 'lic_567890',
+            beat_id: 'beat_5',
+            beat_name: 'Chill Flow',
+            license_type: 'Premium',
+            purchased_date: '2024-02-28',
+            expires: '2025-02-28',
+            status: 'pending',
+            price: 59.99,
+            download_url: '/downloads/beat_5_stems.zip',
+            producer: 'Chill House',
+            image_url: 'https://images.unsplash.com/photo-1571330735066-03aaa9429d89?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
+          }
+        ]);
+        setIsLoading(false);
+        
       } catch (err) {
-        console.error('Error in profile setup:', err)
+        console.error('Error in profile setup:', err);
+        setLoadingError('Error loading profile data. Please try again.');
+        setIsLoading(false);
       }
-      
-      // Load sample license data - This would normally come from your database
-      setLicenses([
-        {
-          id: 'lic_123456',
-          beat_id: 'beat_1',
-          beat_name: 'Midnight Dreams',
-          license_type: 'Premium',
-          purchased_date: '2023-12-15',
-          expires: '2024-12-15',
-          status: 'active',
-          price: 79.99,
-          download_url: '/downloads/beat_1_stems.zip',
-          producer: 'Producer X',
-          image_url: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
-        },
-        {
-          id: 'lic_789012',
-          beat_id: 'beat_2',
-          beat_name: 'Summer Vibes',
-          license_type: 'Basic',
-          purchased_date: '2023-10-05',
-          expires: '2024-10-05',
-          status: 'active',
-          price: 29.99,
-          download_url: '/downloads/beat_2.mp3',
-          producer: 'Beat Maker Pro',
-          image_url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
-        },
-        {
-          id: 'lic_345678',
-          beat_id: 'beat_3',
-          beat_name: 'Urban Nights',
-          license_type: 'Exclusive',
-          purchased_date: '2023-08-20',
-          status: 'active',
-          price: 249.99,
-          download_url: '/downloads/beat_3_exclusive.zip',
-          producer: 'Urban Beats',
-          image_url: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
-        },
-        {
-          id: 'lic_901234',
-          beat_id: 'beat_4',
-          beat_name: 'Retro Wave',
-          license_type: 'Basic',
-          purchased_date: '2023-05-10',
-          expires: '2024-05-10',
-          status: 'expired',
-          price: 19.99,
-          download_url: '/downloads/beat_4.mp3',
-          producer: 'Retro Studios',
-          image_url: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
-        },
-        {
-          id: 'lic_567890',
-          beat_id: 'beat_5',
-          beat_name: 'Chill Flow',
-          license_type: 'Premium',
-          purchased_date: '2024-02-28',
-          expires: '2025-02-28',
-          status: 'pending',
-          price: 59.99,
-          download_url: '/downloads/beat_5_stems.zip',
-          producer: 'Chill House',
-          image_url: 'https://images.unsplash.com/photo-1571330735066-03aaa9429d89?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
-        }
-      ])
-      setIsLoading(false)
+    } catch (err) {
+      console.error('Unexpected error in account page initialization:', err);
+      setLoadingError('An unexpected error occurred. Please try again.');
+      setIsLoading(false);
     }
+  };
 
-    getUser()
-  }, [router])
+  useEffect(() => {
+    getUser();
+  }, [router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -190,6 +244,7 @@ export default function AccountPage() {
     e.preventDefault()
     
     if (!userId) {
+      console.error("Cannot save profile: No user ID available");
       setSaveStatus('error')
       return
     }
@@ -776,7 +831,7 @@ export default function AccountPage() {
           <section className="border border-white/10 rounded-lg p-6 bg-white/5">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold">Your Profile</h2>
-              {!isLoading && (
+              {!isLoading && !loadingError && (
                 isEditMode ? (
                   <div className="flex space-x-3">
                     <button
@@ -803,8 +858,24 @@ export default function AccountPage() {
                 <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-purple-500 border-r-transparent"></div>
                 <p className="mt-2 text-sm text-gray-400">Loading your profile...</p>
               </div>
+            ) : loadingError ? (
+              <div className="text-center py-6">
+                <div className="text-red-500 mb-4">{loadingError}</div>
+                <button
+                  onClick={handleRetryProfileLoad}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors"
+                >
+                  Try Again
+                </button>
+                <button
+                  onClick={() => router.push('/auth/signin')}
+                  className="px-4 py-2 ml-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded transition-colors"
+                >
+                  Sign In Again
+                </button>
+              </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-6 w-full">
                 <div className="flex flex-col items-center mb-6">
                   <div className="relative group">
                     <div className="w-24 h-24 rounded-full overflow-hidden bg-zinc-800 mb-2">
@@ -813,6 +884,11 @@ export default function AccountPage() {
                           src={profile.profile_picture_url} 
                           alt="Profile" 
                           className="w-full h-full object-cover"
+                          loading="eager"
+                          onError={(e) => {
+                            console.error('Profile image failed to load');
+                            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGNsYXNzPSJoLTEyIHctMTIiIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCAyNCAyNCIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiPgogIDxwYXRoIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIxIiBkPSJNMTYgN2E0IDQgMCAxMS04IDAgNCA0IDAgMDE4IDB6TTEyIDE0YTcgNyAwIDAwLTcgN2gxNGE3IDcgMCAwMC03LTd6IiAvPgo8L3N2Zz4=';
+                          }}
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-400">
