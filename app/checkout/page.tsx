@@ -302,7 +302,7 @@ export default function CheckoutPage() {
           <p className="text-center text-gray-400 text-sm mt-6">
             By completing your purchase, you agree to our{' '}
             <Link 
-              href="/terms" 
+              href="/terms-of-use" 
               className="text-purple-400 hover:text-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded"
             >
               Terms of Service

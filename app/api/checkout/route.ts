@@ -1,14 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('STRIPE_SECRET_KEY is not defined');
 }
 
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('Supabase credentials are not defined');
+}
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2025-04-30.basil'
 });
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 // Define the runtime configuration for edge compatibility
 export const runtime = 'edge';
@@ -37,6 +47,19 @@ interface Order {
   stripe_session_id: string;
 }
 
+interface Coupon {
+  id: string;
+  code: string;
+  type: 'percentage' | 'fixed';
+  amount: number;
+  description?: string;
+  valid_from: string;
+  valid_until?: string;
+  max_uses?: number;
+  current_uses: number;
+  stripe_coupon_id?: string;
+}
+
 async function storeOrder(orderDetails: {
   user_id: string;
   track_id: string;
@@ -54,7 +77,6 @@ async function storeOrder(orderDetails: {
   };
 
   try {
-    // Store order metadata in Stripe
     await stripe.customers.update(orderDetails.user_id, {
       metadata: {
         [`order_${order.id}`]: JSON.stringify(order)
@@ -62,32 +84,81 @@ async function storeOrder(orderDetails: {
     });
   } catch (error) {
     console.error('Failed to store order metadata:', error);
-    // Continue execution even if metadata storage fails
-    // The order will still be tracked through the Stripe session
   }
 
   return order;
 }
 
-async function validateDiscountCode(code: string): Promise<{ 
-  valid: boolean; 
-  amount: number; 
-  type: 'percentage' | 'fixed';
-  code: string;
-} | null> {
-  // For now, return a fixed 10% discount for any code
-  // You can implement more sophisticated discount validation later
-  return code ? {
-    valid: true,
-    amount: 10,
-    type: 'percentage',
-    code
-  } : null;
+async function getValidCoupon(code: string): Promise<Coupon | null> {
+  const { data: coupon, error } = await supabase
+    .from('coupons')
+    .select('*')
+    .eq('code', code)
+    .single();
+
+  if (error || !coupon) {
+    return null;
+  }
+
+  // Check if coupon is valid
+  const now = new Date();
+  const validFrom = new Date(coupon.valid_from);
+  const validUntil = coupon.valid_until ? new Date(coupon.valid_until) : null;
+
+  if (
+    now < validFrom ||
+    (validUntil && now > validUntil) ||
+    (coupon.max_uses && coupon.current_uses >= coupon.max_uses)
+  ) {
+    return null;
+  }
+
+  return coupon;
+}
+
+async function syncCouponWithStripe(coupon: Coupon): Promise<string> {
+  try {
+    // If coupon already has a Stripe ID, verify it exists
+    if (coupon.stripe_coupon_id) {
+      try {
+        await stripe.coupons.retrieve(coupon.stripe_coupon_id);
+        return coupon.stripe_coupon_id;
+      } catch (error) {
+        // Coupon doesn't exist in Stripe, continue to create new one
+      }
+    }
+
+    // Create new coupon in Stripe
+    const stripeCoupon = await stripe.coupons.create({
+      id: `coupon_${coupon.id}`,
+      name: coupon.description || `${coupon.amount}${coupon.type === 'percentage' ? '% off' : '$ off'}`,
+      duration: 'once',
+      ...(coupon.type === 'percentage' 
+        ? { percent_off: coupon.amount }
+        : { amount_off: Math.round(coupon.amount * 100) }), // Convert to cents for fixed amounts
+      max_redemptions: coupon.max_uses,
+      ...(coupon.valid_until && { redeem_by: Math.floor(new Date(coupon.valid_until).getTime() / 1000) })
+    });
+
+    // Update coupon in database with Stripe ID
+    await supabase
+      .from('coupons')
+      .update({ stripe_coupon_id: stripeCoupon.id })
+      .eq('id', coupon.id);
+
+    return stripeCoupon.id;
+  } catch (error) {
+    console.error('Error syncing coupon with Stripe:', error);
+    throw error;
+  }
+}
+
+async function incrementCouponUsage(couponId: string): Promise<void> {
+  await supabase.rpc('increment_coupon_usage', { coupon_id: couponId });
 }
 
 // Handle POST requests
 export async function POST(req: NextRequest) {
-  // Ensure we're dealing with a POST request
   if (req.method !== 'POST') {
     return new NextResponse(
       JSON.stringify({ error: 'Method not allowed' }),
@@ -148,29 +219,24 @@ export async function POST(req: NextRequest) {
         }
       );
     }
-    
+
     // Get the host from the headers
     const host = headersList.get('host');
     const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${host}`;
 
-    // Calculate initial total
-    let total = cart.reduce((sum: number, item: CartItem) => {
-      return sum + (item.price * item.quantity)
-    }, 0);
-
-    // Validate discount code if provided
-    let validatedDiscount = null;
+    // Handle discount code
+    let stripeCouponId: string | undefined;
+    let appliedCoupon: Coupon | null = null;
     if (discountCode) {
-      validatedDiscount = await validateDiscountCode(discountCode);
-      
-      if (validatedDiscount) {
-        // Apply discount
-        const discountAmount = validatedDiscount.type === 'percentage' 
-          ? (total * validatedDiscount.amount) / 100
-          : validatedDiscount.amount;
-
-        total = Math.max(0, total - discountAmount);
+      appliedCoupon = await getValidCoupon(discountCode);
+      if (appliedCoupon) {
+        try {
+          stripeCouponId = await syncCouponWithStripe(appliedCoupon);
+        } catch (error) {
+          console.error('Failed to sync coupon with Stripe:', error);
+          // Continue without discount if syncing fails
+        }
       }
     }
 
@@ -188,6 +254,9 @@ export async function POST(req: NextRequest) {
       quantity: 1,
     }));
 
+    // Calculate total for metadata
+    const total = lineItems.reduce((sum, item) => sum + item.price_data.unit_amount, 0);
+
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -196,17 +265,27 @@ export async function POST(req: NextRequest) {
       customer_email: email,
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/cart`,
+      ...(stripeCouponId && { discounts: [{ coupon: stripeCouponId }] }),
       metadata: {
         userId: userId || 'guest',
         items: JSON.stringify(cart.map((item: CartItem) => ({
           id: item.id,
           title: item.title,
-          licenseType: item.licenseType
+          licenseType: item.licenseType,
+          price: item.price
         }))),
         discountCode: discountCode || '',
-        orderDate: new Date().toISOString()
+        discountAmount: appliedCoupon ? appliedCoupon.amount.toString() : '0',
+        discountType: appliedCoupon ? appliedCoupon.type : 'none',
+        orderDate: new Date().toISOString(),
+        totalBeforeDiscount: (total / 100).toString()
       },
     });
+
+    // Increment coupon usage if successfully applied
+    if (appliedCoupon) {
+      await incrementCouponUsage(appliedCoupon.id);
+    }
 
     // Store order details for each item in cart
     const orderPromises = cart.map((item: CartItem) => 
@@ -216,7 +295,11 @@ export async function POST(req: NextRequest) {
         track_name: item.title,
         license: item.licenseType,
         total_amount: item.price,
-        discount: discountCode && validatedDiscount ? (item.price * validatedDiscount.amount) / 100 : 0,
+        discount: appliedCoupon ? (
+          appliedCoupon.type === 'percentage' 
+            ? (item.price * appliedCoupon.amount / 100)
+            : appliedCoupon.amount / cart.length // Distribute fixed discount equally
+        ) : 0,
         stripe_session_id: session.id
       })
     );
