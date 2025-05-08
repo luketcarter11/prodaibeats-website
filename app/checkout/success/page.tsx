@@ -1,111 +1,103 @@
 'use client'
 
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { FaCheckCircle, FaDownload, FaMusic } from 'react-icons/fa'
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useCart } from '@/context/CartContext'
+import { FaCheckCircle, FaSpinner } from 'react-icons/fa'
 
-export default function SuccessPage() {
-  const router = useRouter()
-  const [orderNumber, setOrderNumber] = useState('')
-
+// Separate component that uses useSearchParams
+function SuccessContent() {
+  const searchParams = useSearchParams()
+  const { clearCart } = useCart()
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  
   useEffect(() => {
-    // Generate a random order number
-    const randomOrderNumber = Math.floor(10000000 + Math.random() * 90000000).toString()
-    setOrderNumber(randomOrderNumber)
+    const sessionId = searchParams.get('session_id')
     
-    // If the user refreshes the page, redirect them to the home page after 3 seconds
-    const timeoutId = setTimeout(() => {
-      router.push('/')
-    }, 60000) // 1 minute
-    
-    return () => clearTimeout(timeoutId)
-  }, [router])
+    if (!sessionId) {
+      setError('Invalid checkout session')
+      setIsLoading(false)
+      return
+    }
+
+    // Clear the cart after successful payment
+    clearCart()
+    setIsLoading(false)
+  }, [searchParams, clearCart])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex items-center space-x-4">
+          <FaSpinner className="animate-spin h-8 w-8 text-purple-500" />
+          <span className="text-white">Verifying payment...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-white mb-4">Something went wrong</h1>
+          <p className="text-gray-400 mb-8">{error}</p>
+          <Link
+            href="/cart"
+            className="inline-block bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
+          >
+            Return to Cart
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="bg-zinc-900 rounded-xl p-8 mb-8 text-center">
-        <div className="flex justify-center mb-6">
-          <FaCheckCircle className="w-16 h-16 text-green-500" />
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="max-w-md w-full text-center">
+        <div className="mb-8">
+          <FaCheckCircle className="mx-auto h-16 w-16 text-green-500" />
         </div>
-        <h1 className="text-3xl font-bold text-white mb-4">Order Successful!</h1>
-        <p className="text-gray-400 mb-4">
-          Thank you for your purchase. Your order has been confirmed.
+        <h1 className="text-3xl font-bold text-white mb-4">Thank You for Your Purchase!</h1>
+        <p className="text-gray-400 mb-8">
+          Your payment has been processed successfully. You will receive an email with your download links and license information shortly.
         </p>
-        <div className="inline-block bg-zinc-800 px-4 py-2 rounded-lg mb-8">
-          <span className="text-gray-400">Order number:</span>{' '}
-          <span className="text-white font-medium">{orderNumber}</span>
+        <div className="space-y-4">
+          <Link
+            href="/account/downloads"
+            className="block w-full bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
+          >
+            View Downloads
+          </Link>
+          <Link
+            href="/beats"
+            className="block w-full bg-zinc-800 text-white px-6 py-3 rounded-lg hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
+          >
+            Continue Shopping
+          </Link>
         </div>
-        
-        <p className="text-gray-400 mb-6">
-          You will receive a confirmation email shortly with your purchase details and download links.
-        </p>
-        
-        <div className="border-t border-white/10 pt-8 mt-8">
-          <h2 className="text-xl font-bold text-white mb-6">Your next steps</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-zinc-800 p-6 rounded-lg text-center">
-              <div className="flex justify-center mb-4">
-                <FaDownload className="w-8 h-8 text-purple-500" />
-              </div>
-              <h3 className="text-white font-medium mb-2">Download Files</h3>
-              <p className="text-gray-400 text-sm mb-4">
-                Access your purchased beats in the downloads section.
-              </p>
-              <Link
-                href="/downloads"
-                className="inline-block text-purple-400 hover:text-purple-300 font-medium"
-              >
-                Go to Downloads
-              </Link>
-            </div>
-            
-            <div className="bg-zinc-800 p-6 rounded-lg text-center">
-              <div className="flex justify-center mb-4">
-                <svg className="w-8 h-8 text-purple-500" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
-                </svg>
-              </div>
-              <h3 className="text-white font-medium mb-2">Create Music</h3>
-              <p className="text-gray-400 text-sm mb-4">
-                Start creating amazing tracks with your new beats.
-              </p>
-              <Link
-                href="/tutorials"
-                className="inline-block text-purple-400 hover:text-purple-300 font-medium"
-              >
-                View Tutorials
-              </Link>
-            </div>
-            
-            <div className="bg-zinc-800 p-6 rounded-lg text-center">
-              <div className="flex justify-center mb-4">
-                <FaMusic className="w-8 h-8 text-purple-500" />
-              </div>
-              <h3 className="text-white font-medium mb-2">Explore More</h3>
-              <p className="text-gray-400 text-sm mb-4">
-                Discover more beats that match your style.
-              </p>
-              <Link
-                href="/beats"
-                className="inline-block text-purple-400 hover:text-purple-300 font-medium"
-              >
-                Browse Beats
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <div className="text-center">
-        <Link
-          href="/"
-          className="text-gray-400 hover:text-white"
-        >
-          Return to Homepage
-        </Link>
       </div>
     </div>
+  )
+}
+
+// Main page component with Suspense boundary
+export default function SuccessPage() {
+  return (
+    <Suspense 
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="flex items-center space-x-4">
+            <FaSpinner className="animate-spin h-8 w-8 text-purple-500" />
+            <span className="text-white">Loading...</span>
+          </div>
+        </div>
+      }
+    >
+      <SuccessContent />
+    </Suspense>
   )
 } 

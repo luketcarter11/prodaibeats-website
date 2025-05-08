@@ -63,7 +63,6 @@ const CheckoutForm = ({ clientSecret, email, setEmail, name, setName }: Checkout
     e.preventDefault();
 
     if (!stripe || !elements || !clientSecret) {
-      // Stripe.js hasn't yet loaded or there's no client secret
       return;
     }
 
@@ -83,8 +82,6 @@ const CheckoutForm = ({ clientSecret, email, setEmail, name, setName }: Checkout
       }
     });
 
-    // This point will only be reached if there is an immediate error when
-    // confirming the payment
     if (error) {
       setMessage(error.message || 'Something went wrong with your payment.');
     }
@@ -153,7 +150,17 @@ const CheckoutForm = ({ clientSecret, email, setEmail, name, setName }: Checkout
       
       <div>
         <h3 className="text-white font-medium mb-4">Payment Method</h3>
-        <PaymentElement />
+        <PaymentElement 
+          options={{
+            layout: 'tabs',
+            defaultValues: {
+              billingDetails: {
+                name,
+                email
+              }
+            }
+          }}
+        />
       </div>
 
       {message && (
