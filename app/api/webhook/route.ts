@@ -1,85 +1,90 @@
+import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-04-30.basil',
+if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
+  throw new Error('Stripe credentials are not defined');
+}
+
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('Supabase credentials are not defined');
+}
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: '2025-04-30.basil'
 });
 
-// This is your Stripe webhook secret for testing your endpoint locally.
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+async function updateOrderStatus(sessionId: string, status: 'completed' | 'failed') {
+  const { error } = await supabase
+    .from('orders')
+    .update({ status })
+    .eq('stripe_session_id', sessionId);
+
+  if (error) {
+    console.error('Error updating order status:', error);
+    throw new Error(`Failed to update order status: ${error.message}`);
+  }
+}
 
 // Modern Next.js App Router configuration
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function POST(request: NextRequest) {
-  const body = await request.text();
-  const headersList = headers();
-  const sig = headersList.get('stripe-signature') as string;
-
-  let event;
-
+export async function POST(req: Request) {
   try {
-    if (!sig || !endpointSecret) {
+    const body = await req.text();
+    const signature = headers().get('stripe-signature');
+
+    if (!signature) {
       return NextResponse.json(
-        { error: 'Webhook signature or secret missing' },
+        { error: 'No signature found' },
         { status: 400 }
       );
     }
 
-    // Verify webhook signature and extract the event
-    event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
-  } catch (err: any) {
-    console.error(`Webhook Error: ${err.message}`);
-    return NextResponse.json(
-      { error: `Webhook Error: ${err.message}` },
-      { status: 400 }
-    );
-  }
+    // Verify webhook signature
+    let event: Stripe.Event;
+    try {
+      event = stripe.webhooks.constructEvent(
+        body,
+        signature,
+        process.env.STRIPE_WEBHOOK_SECRET!
+      );
+    } catch (err: any) {
+      console.error('Webhook signature verification failed:', err.message);
+      return NextResponse.json(
+        { error: `Webhook Error: ${err.message}` },
+        { status: 400 }
+      );
+    }
 
-  try {
     // Handle the event
     switch (event.type) {
-      case 'payment_intent.succeeded':
-        const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        
-        // Extract customer information from metadata
-        const { name, email, items } = paymentIntent.metadata;
-        const parsedItems = JSON.parse(items);
-
-        // Here you would typically:
-        // 1. Store the order in your database
-        // 2. Send confirmation email
-        // 3. Generate download links
-        // 4. Update inventory/licenses
-
-        console.log('Payment succeeded:', {
-          paymentIntentId: paymentIntent.id,
-          amount: paymentIntent.amount,
-          customer: { name, email },
-          items: parsedItems
-        });
-        
-        break;
-        
-      case 'payment_intent.payment_failed':
-        const failedPaymentIntent = event.data.object as Stripe.PaymentIntent;
-        console.error(`❌ Payment failed: ${failedPaymentIntent.id}`);
-        
-        // Handle failed payment - notify customer, log failure, etc.
+      case 'checkout.session.completed':
+        const session = event.data.object as Stripe.Checkout.Session;
+        await updateOrderStatus(session.id, 'completed');
         break;
       
-      // Add additional event types as needed
+      case 'checkout.session.expired':
+        const expiredSession = event.data.object as Stripe.Checkout.Session;
+        await updateOrderStatus(expiredSession.id, 'failed');
+        break;
+      
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }
 
     return NextResponse.json({ received: true });
-  } catch (error) {
-    console.error('Webhook handler error:', error);
+  } catch (error: any) {
+    console.error('Webhook error:', error);
     return NextResponse.json(
-      { error: 'Webhook handler failed' },
+      { error: error.message },
       { status: 500 }
     );
   }

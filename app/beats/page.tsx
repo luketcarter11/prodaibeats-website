@@ -27,7 +27,7 @@ export default function BeatsPage() {
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-0 py-0">
+      <div className="max-w-7xl mx-auto px-4 md:px-10 lg:px-8 py-0">
         <Suspense fallback={<div className="text-center py-8 text-gray-400">Loading...</div>}>
           <BeatsContent onTrackPlay={setCurrentPlayingTrack} />
         </Suspense>

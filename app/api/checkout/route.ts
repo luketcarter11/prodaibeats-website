@@ -1,11 +1,25 @@
+import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { supabase } from '@/lib/supabaseClient';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error('STRIPE_SECRET_KEY is not defined');
+}
+
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('Supabase credentials are not defined');
+}
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2025-04-30.basil'
 });
+
+const supabaseClient = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 interface CartItem {
   id: string;
@@ -17,9 +31,37 @@ interface CartItem {
   quantity: number;
 }
 
+async function storeOrder(orderDetails: {
+  user_id: string;
+  track_id: string;
+  track_name: string;
+  license: string;
+  total_amount: number;
+  discount?: number;
+  stripe_session_id: string;
+}) {
+  const { data, error } = await supabaseClient
+    .from('orders')
+    .insert([{
+      ...orderDetails,
+      order_date: new Date().toISOString(),
+      status: 'pending' // Will be updated to 'completed' after successful payment
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error storing order:', error);
+    throw new Error(`Failed to store order: ${error.message}`);
+  }
+
+  return data;
+}
+
 export async function POST(req: Request) {
   try {
-    const { cart, email, discountCode } = await req.json();
+    const body = await req.json();
+    const { cart, email, discountCode, userId } = body;
     const headersList = headers();
     
     // Get the host from the headers
@@ -82,7 +124,8 @@ export async function POST(req: Request) {
       total = Math.max(0, total - discountAmount)
     }
 
-    const line_items = cart.map((item: CartItem) => ({
+    // Create line items for Stripe
+    const lineItems = cart.map((item: CartItem) => ({
       price_data: {
         currency: 'usd',
         product_data: {
@@ -95,15 +138,17 @@ export async function POST(req: Request) {
       quantity: 1,
     }));
 
+    // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items,
+      line_items: lineItems,
       mode: 'payment',
       customer_email: email,
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/cart`,
       discounts: validatedDiscount ? [{ coupon: validatedDiscount.code }] : undefined,
       metadata: {
+        userId: userId || 'guest',
         items: JSON.stringify(cart.map((item: CartItem) => ({
           id: item.id,
           title: item.title,
@@ -112,6 +157,22 @@ export async function POST(req: Request) {
         discountCode: discountCode || ''
       },
     });
+
+    // Store order details for each item in cart
+    const orderPromises = cart.map((item: CartItem) => 
+      storeOrder({
+        user_id: userId || 'guest',
+        track_id: item.id,
+        track_name: item.title,
+        license: item.licenseType,
+        total_amount: item.price,
+        discount: discountCode ? item.price * 0.1 : 0, // Example 10% discount
+        stripe_session_id: session.id
+      })
+    );
+
+    // Store all orders in parallel
+    await Promise.all(orderPromises);
 
     // If successful, increment the usage count
     if (validatedDiscount) {
@@ -122,9 +183,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ url: session.url });
   } catch (error: any) {
-    console.error('Error creating checkout session:', error);
+    console.error('Checkout error:', error);
     return NextResponse.json(
-      { error: error.message || 'Error creating checkout session' },
+      { error: error.message },
       { status: 500 }
     );
   }

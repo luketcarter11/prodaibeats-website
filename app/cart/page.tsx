@@ -5,8 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useCart } from '../../src/context/CartContext'
 import { motion } from 'framer-motion'
-import { FaMusic, FaTrash } from 'react-icons/fa'
-import PaymentMethods from '../components/PaymentMethods'
+import { FaMusic, FaTrash, FaLock } from 'react-icons/fa'
 
 // Use environment variable for CDN base URL
 const CDN = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
@@ -159,8 +158,8 @@ export default function CartPage() {
               Continue Shopping
             </Link>
             
-            <div className="mt-6 pt-6 border-t border-white/10">
-              <PaymentMethods />
+            <div className="flex flex-col items-center text-sm text-gray-400 mt-6 pt-6 border-t border-white/10">
+              <span>Secured by <a href="https://stripe.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-gray-300 transition-colors underline">Stripe</a> · All transactions are encrypted and secure</span>
             </div>
           </div>
         </div>

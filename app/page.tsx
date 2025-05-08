@@ -294,7 +294,7 @@ export default function Home() {
       <section className="relative py-4 px-6 bg-black">
         <div className="max-w-5xl mx-auto">
           <div className="space-y-2">
-            {featuredTracks.map((track) => (
+            {featuredTracks.slice(0, 20).map((track) => (
               <div key={track.id}>
                 <TrackCard
                   id={track.id}
