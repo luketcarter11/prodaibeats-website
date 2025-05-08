@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server';
 import { r2Storage } from '@/lib/r2Storage';
-
-const DEFAULT_STATE = {
-  active: false,
-  nextRun: null,
-  sources: [],
-  logs: []
-};
+import { getScheduler } from '@/lib/models/Scheduler';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -17,25 +11,14 @@ export const runtime = 'nodejs';
  */
 export async function GET() {
   try {
-    // Wait for R2Storage to be ready
-    await r2Storage.waitForReady();
-    console.log('✅ R2Storage is ready');
-
-    // First try to load the scheduler data from R2
-    const data = await r2Storage.load('scheduler/scheduler.json', DEFAULT_STATE);
-    console.log('📥 Loaded scheduler state:', data);
-
-    // If we don't have any data, initialize with default state
-    if (!data) {
-      console.log('🆕 No scheduler state found, initializing with default state');
-      await r2Storage.save('scheduler/scheduler.json', DEFAULT_STATE);
-      console.log('✅ Saved default scheduler state to R2');
-    }
+    // Get the scheduler instance (this will initialize it if needed)
+    const scheduler = await getScheduler();
+    const state = scheduler.getState();
 
     return NextResponse.json({
       success: true,
       message: 'Scheduler initialized successfully',
-      data
+      data: state
     });
   } catch (error) {
     console.error('Error initializing scheduler:', error);

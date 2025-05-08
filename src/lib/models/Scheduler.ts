@@ -39,18 +39,46 @@ export const DEFAULT_STATE: SchedulerState = {
 }
 
 export class Scheduler {
+  private static instance: Scheduler | null = null
   private state: SchedulerState = DEFAULT_STATE
   private initialized: boolean = false
-  public initializationPromise: Promise<void>
+  private initializing: boolean = false
+  private initPromise: Promise<void> | null = null
 
-  constructor() {
-    // Initialize asynchronously
-    this.initializationPromise = this.initialize()
+  private constructor() {
+    // Private constructor to enforce singleton
+  }
+
+  public static async getInstance(): Promise<Scheduler> {
+    if (!Scheduler.instance) {
+      Scheduler.instance = new Scheduler()
+      await Scheduler.instance.initialize()
+    }
+    return Scheduler.instance
   }
 
   public async initialize(): Promise<void> {
+    // If already initialized, return immediately
     if (this.initialized) return
 
+    // If currently initializing, wait for that to complete
+    if (this.initializing && this.initPromise) {
+      return this.initPromise
+    }
+
+    // Start initialization
+    this.initializing = true
+    this.initPromise = this._initialize()
+    
+    try {
+      await this.initPromise
+      this.initialized = true
+    } finally {
+      this.initializing = false
+    }
+  }
+
+  private async _initialize(): Promise<void> {
     try {
       console.log('🔧 Initializing Scheduler...')
       
@@ -77,9 +105,6 @@ export class Scheduler {
         await this.saveState()
         console.log('⏰ Set next run time for active scheduler')
       }
-      
-      this.initialized = true
-      console.log('✅ Scheduler initialization complete')
     } catch (error) {
       console.error('❌ Failed to initialize Scheduler:', error)
       this.addLog(`Failed to initialize: ${error instanceof Error ? error.message : String(error)}`, 'error')
@@ -259,25 +284,13 @@ export class Scheduler {
   }
 }
 
-let schedulerInstance: Scheduler | null = null
-
 export async function getScheduler(options: { fresh?: boolean } = {}): Promise<Scheduler> {
   if (options.fresh) {
-    const freshScheduler = new Scheduler()
-    await freshScheduler.initialize()
-    return freshScheduler
+    // For testing purposes only - not recommended for production use
+    Scheduler['instance'] = null
   }
-
-  if (!schedulerInstance) {
-    schedulerInstance = new Scheduler()
-    await schedulerInstance.initialize()
-  }
-
-  return schedulerInstance
+  return Scheduler.getInstance()
 }
 
-// Initialize scheduler but don't export the promise
-const initScheduler = getScheduler()
-
 // Export a function to get the initialized scheduler
-export const getInitializedScheduler = () => initScheduler
+export const getInitializedScheduler = () => getScheduler()
