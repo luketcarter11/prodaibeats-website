@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { useCart } from '../../src/context/CartContext'
 import { motion } from 'framer-motion'
 import { FaMusic, FaTrash } from 'react-icons/fa'
+import PaymentMethods from '../components/PaymentMethods'
 
 // Use environment variable for CDN base URL
 const CDN = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
@@ -159,23 +160,7 @@ export default function CartPage() {
             </Link>
             
             <div className="mt-6 pt-6 border-t border-white/10">
-              <h3 className="text-white font-medium mb-4">
-                Accepted Payment Methods
-              </h3>
-              <div className="flex items-center space-x-3">
-                <svg className="w-8 h-6 text-gray-400" viewBox="0 0 48 48" fill="currentColor">
-                  <path d="M44 11v26a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V11a3 3 0 0 1 3-3h34a3 3 0 0 1 3 3zm-6 16h-8a2 2 0 0 0 0 4h8a2 2 0 0 0 0-4zm0-8H10a2 2 0 0 0 0 4h28a2 2 0 0 0 0-4z"/>
-                </svg>
-                <svg className="w-8 h-6 text-gray-400" viewBox="0 0 48 48" fill="currentColor">
-                  <path d="M45 11a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v26a4 4 0 0 0 4 4h34a4 4 0 0 0 4-4V11zm-22 2c3 0 6 1.4 7.5 3.6l-3.5 1.7a4.8 4.8 0 0 0-4-1.8 5 5 0 0 0 0 10c1.6 0 3.2-.7 4-1.9l3.5 1.8a10 10 0 1 1-7.5-13.4zm18 5h-6v2h6v3h-4c-1.7 0-3 1.4-3 3v3c0 1.7 1.3 3 3 3h7v-2h-7v-3h4c1.7 0 3-1.3 3-3v-3c0-1.6-1.3-3-3-3z"/>
-                </svg>
-                <svg className="w-8 h-6 text-gray-400" viewBox="0 0 48 48" fill="currentColor">
-                  <path d="M32.7 24A10 10 0 0 1 17 35H7a4 4 0 0 1-4-4V11a4 4 0 0 1 4-4h10a10 10 0 0 1 15.7 11c.8.6 1.5 1.2 2 2 .6.8 1 1.7 1.3 2.7.3 1 .2 2 0 3-.1 1-.5 1.9-1 2.7-.6.8-1.3 1.5-2.1 2a7 7 0 0 1-2.7 1.1c-1 .2-2 .1-3-.2-.9-.2-1.8-.6-2.5-1.2zm-10.5-8.3h6.2c1.5 0 2.6 1 2.6 2.5a2.5 2.5 0 0 1-2.6 2.5h-6.2v-5zm0 8.3h7c1.5 0 2.7 1.1 2.7 2.6 0 1.5-1.2 2.6-2.6 2.6h-7v-5.2z"/>
-                </svg>
-                <svg className="w-8 h-6 text-gray-400" viewBox="0 0 48 48" fill="currentColor">
-                  <path d="M44 11a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v26a4 4 0 0 0 4 4h32a4 4 0 0 0 4-4V11zm-24.5 3A10 10 0 0 1 29 25c0 5.5-4.5 10-10 10-5.5 0-10-4.5-10-10 0-5.5 4.5-10 10-10h.5z"/>
-                </svg>
-              </div>
+              <PaymentMethods />
             </div>
           </div>
         </div>
