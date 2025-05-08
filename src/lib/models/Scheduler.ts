@@ -40,6 +40,7 @@ export const DEFAULT_STATE: SchedulerState = {
 
 export class Scheduler {
   private state: SchedulerState = DEFAULT_STATE
+  private initialized: boolean = false
   public initializationPromise: Promise<void>
 
   constructor() {
@@ -48,6 +49,8 @@ export class Scheduler {
   }
 
   public async initialize(): Promise<void> {
+    if (this.initialized) return
+
     try {
       console.log('🔧 Initializing Scheduler...')
       
@@ -75,10 +78,12 @@ export class Scheduler {
         console.log('⏰ Set next run time for active scheduler')
       }
       
+      this.initialized = true
       console.log('✅ Scheduler initialization complete')
     } catch (error) {
       console.error('❌ Failed to initialize Scheduler:', error)
       this.addLog(`Failed to initialize: ${error instanceof Error ? error.message : String(error)}`, 'error')
+      throw error
     }
   }
 
@@ -99,6 +104,7 @@ export class Scheduler {
     } catch (error) {
       console.error('❌ Unexpected error in loadState:', error)
       this.addLog(`Unexpected error loading state: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error')
+      throw error
     }
   }
 
