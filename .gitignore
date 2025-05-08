@@ -56,3 +56,7 @@ scheduler.log
 # OS files
 Thumbs.db
 tracks/list.json
+
+# Stripe CLI
+stripe
+stripe.tar.gz
