@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import fs from 'fs';
@@ -83,17 +83,24 @@ async function validateDiscountCode(code: string): Promise<{
 }
 
 // Handle POST requests
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  if (req.method !== 'POST') {
+    return NextResponse.json(
+      { error: 'Method not allowed' },
+      { status: 405, headers: { 'Allow': 'POST' } }
+    );
+  }
+
   try {
-    // Validate request method
-    if (req.method !== 'POST') {
+    const body = await req.json();
+    
+    if (!body) {
       return NextResponse.json(
-        { error: 'Method not allowed' },
-        { status: 405 }
+        { error: 'Invalid request body' },
+        { status: 400 }
       );
     }
 
-    const body = await req.json();
     const { cart, email, discountCode, userId } = body;
     const headersList = headers();
     
@@ -192,6 +199,18 @@ export async function POST(req: Request) {
     );
   } catch (error: any) {
     console.error('Checkout error:', error);
+    
+    // Handle JSON parsing errors specifically
+    if (error instanceof SyntaxError) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Invalid JSON input' 
+        },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { 
         success: false, 
@@ -202,35 +221,35 @@ export async function POST(req: Request) {
   }
 }
 
-// Handle GET requests
-export async function GET() {
+// Handle all other HTTP methods
+export function GET() {
+  return methodNotAllowed();
+}
+
+export function PUT() {
+  return methodNotAllowed();
+}
+
+export function DELETE() {
+  return methodNotAllowed();
+}
+
+export function PATCH() {
+  return methodNotAllowed();
+}
+
+// Helper function for method not allowed response
+function methodNotAllowed() {
   return NextResponse.json(
     { 
       success: false, 
-      error: 'Method not allowed. Please use POST for checkout.' 
+      error: 'Method not allowed. Only POST requests are accepted.' 
     },
-    { status: 405 }
-  );
-}
-
-// Handle other HTTP methods
-export async function PUT() {
-  return NextResponse.json(
-    { success: false, error: 'Method not allowed' },
-    { status: 405 }
-  );
-}
-
-export async function DELETE() {
-  return NextResponse.json(
-    { success: false, error: 'Method not allowed' },
-    { status: 405 }
-  );
-}
-
-export async function PATCH() {
-  return NextResponse.json(
-    { success: false, error: 'Method not allowed' },
-    { status: 405 }
+    { 
+      status: 405,
+      headers: {
+        'Allow': 'POST'
+      }
+    }
   );
 } 
