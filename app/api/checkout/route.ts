@@ -82,22 +82,47 @@ async function validateDiscountCode(code: string): Promise<{
   } : null;
 }
 
+// Define the runtime configuration for edge compatibility
+export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
+
 // Handle POST requests
 export async function POST(req: NextRequest) {
+  // Ensure we're dealing with a POST request
   if (req.method !== 'POST') {
-    return NextResponse.json(
-      { error: 'Method not allowed' },
-      { status: 405, headers: { 'Allow': 'POST' } }
+    return new NextResponse(
+      JSON.stringify({ error: 'Method not allowed' }),
+      { 
+        status: 405,
+        headers: {
+          'Allow': 'POST',
+          'Content-Type': 'application/json',
+        }
+      }
     );
   }
 
   try {
-    const body = await req.json();
-    
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Invalid JSON input' }),
+        { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
     if (!body) {
-      return NextResponse.json(
-        { error: 'Invalid request body' },
-        { status: 400 }
+      return new NextResponse(
+        JSON.stringify({ error: 'Invalid request body' }),
+        { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
       );
     }
 
@@ -106,16 +131,22 @@ export async function POST(req: NextRequest) {
     
     // Validate required fields
     if (!cart || !Array.isArray(cart) || cart.length === 0) {
-      return NextResponse.json(
-        { error: 'Invalid cart data' },
-        { status: 400 }
+      return new NextResponse(
+        JSON.stringify({ error: 'Invalid cart data' }),
+        { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
       );
     }
 
     if (!email) {
-      return NextResponse.json(
-        { error: 'Email is required' },
-        { status: 400 }
+      return new NextResponse(
+        JSON.stringify({ error: 'Email is required' }),
+        { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
       );
     }
     
@@ -193,37 +224,44 @@ export async function POST(req: NextRequest) {
     // Store all orders in parallel
     await Promise.all(orderPromises);
 
-    return NextResponse.json(
-      { success: true, url: session.url },
-      { status: 200 }
+    return new NextResponse(
+      JSON.stringify({ success: true, url: session.url }),
+      { 
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      }
     );
   } catch (error: any) {
     console.error('Checkout error:', error);
     
-    // Handle JSON parsing errors specifically
-    if (error instanceof SyntaxError) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Invalid JSON input' 
-        },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(
-      { 
+    return new NextResponse(
+      JSON.stringify({ 
         success: false, 
-        error: error.message || 'An error occurred during checkout' 
-      },
-      { status: 500 }
+        error: error.message || 'An error occurred during checkout'
+      }),
+      { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
     );
   }
 }
 
 // Handle all other HTTP methods
-export function GET() {
-  return methodNotAllowed();
+export async function GET(req: NextRequest) {
+  return new NextResponse(
+    JSON.stringify({ 
+      success: false, 
+      error: 'Method not allowed. Only POST requests are accepted.'
+    }),
+    { 
+      status: 405,
+      headers: {
+        'Allow': 'POST',
+        'Content-Type': 'application/json'
+      }
+    }
+  );
 }
 
 export function PUT() {
