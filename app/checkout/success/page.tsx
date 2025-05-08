@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useCart } from '@/context/CartContext'
 import { FaCheckCircle, FaSpinner } from 'react-icons/fa'
 
-export default function SuccessPage() {
+// Separate component that uses useSearchParams
+function SuccessContent() {
   const searchParams = useSearchParams()
   const { clearCart } = useCart()
   const [isLoading, setIsLoading] = useState(true)
@@ -80,5 +81,23 @@ export default function SuccessPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Main page component with Suspense boundary
+export default function SuccessPage() {
+  return (
+    <Suspense 
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="flex items-center space-x-4">
+            <FaSpinner className="animate-spin h-8 w-8 text-purple-500" />
+            <span className="text-white">Loading...</span>
+          </div>
+        </div>
+      }
+    >
+      <SuccessContent />
+    </Suspense>
   )
 } 
