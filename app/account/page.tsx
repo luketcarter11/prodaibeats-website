@@ -19,7 +19,7 @@ interface License {
   id: string
   beat_id: string
   beat_name: string
-  license_type: 'Basic' | 'Premium' | 'Exclusive'
+  license_type: 'Non-Exclusive' | 'Non-Exclusive Plus' | 'Exclusive' | 'Exclusive Plus' | 'Exclusive Pro'
   purchased_date: string
   expires?: string
   status: 'active' | 'expired' | 'pending'
@@ -149,74 +149,8 @@ export default function AccountPage() {
           }
         }
         
-        // Load sample license data
-        console.log('Loading sample license data');
-        setLicenses([
-          {
-            id: 'lic_123456',
-            beat_id: 'beat_1',
-            beat_name: 'Midnight Dreams',
-            license_type: 'Premium',
-            purchased_date: '2023-12-15',
-            expires: '2024-12-15',
-            status: 'active',
-            price: 79.99,
-            download_url: '/downloads/beat_1_stems.zip',
-            producer: 'Producer X',
-            image_url: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
-          },
-          {
-            id: 'lic_789012',
-            beat_id: 'beat_2',
-            beat_name: 'Summer Vibes',
-            license_type: 'Basic',
-            purchased_date: '2023-10-05',
-            expires: '2024-10-05',
-            status: 'active',
-            price: 29.99,
-            download_url: '/downloads/beat_2.mp3',
-            producer: 'Beat Maker Pro',
-            image_url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
-          },
-          {
-            id: 'lic_345678',
-            beat_id: 'beat_3',
-            beat_name: 'Urban Nights',
-            license_type: 'Exclusive',
-            purchased_date: '2023-08-20',
-            status: 'active',
-            price: 249.99,
-            download_url: '/downloads/beat_3_exclusive.zip',
-            producer: 'Urban Beats',
-            image_url: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
-          },
-          {
-            id: 'lic_901234',
-            beat_id: 'beat_4',
-            beat_name: 'Retro Wave',
-            license_type: 'Basic',
-            purchased_date: '2023-05-10',
-            expires: '2024-05-10',
-            status: 'expired',
-            price: 19.99,
-            download_url: '/downloads/beat_4.mp3',
-            producer: 'Retro Studios',
-            image_url: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
-          },
-          {
-            id: 'lic_567890',
-            beat_id: 'beat_5',
-            beat_name: 'Chill Flow',
-            license_type: 'Premium',
-            purchased_date: '2024-02-28',
-            expires: '2025-02-28',
-            status: 'pending',
-            price: 59.99,
-            download_url: '/downloads/beat_5_stems.zip',
-            producer: 'Chill House',
-            image_url: 'https://images.unsplash.com/photo-1571330735066-03aaa9429d89?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
-          }
-        ]);
+        // Initialize empty licenses array - real licenses will be fetched from the database later
+        setLicenses([]);
         setIsLoading(false);
         
       } catch (err) {
@@ -1083,7 +1017,18 @@ export default function AccountPage() {
           <section className="border border-white/10 rounded-lg p-6 bg-white/5">
             <h2 className="text-xl font-semibold mb-4">Licenses & Orders</h2>
             {licenses.length === 0 ? (
-              <p className="text-sm text-gray-400">You haven't purchased any licenses yet. Your beats will appear here after checkout.</p>
+              <div className="text-center py-8">
+                <div className="mb-4 text-gray-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 10c0 5-4 9-9 9s-9-4-9-9 4-9 9-9 9 4 9 9z" />
+                  </svg>
+                </div>
+                <p className="text-gray-300 font-medium mb-2">No licenses purchased yet</p>
+                <p className="text-sm text-gray-500 mb-5 max-w-md mx-auto">When you purchase beats with a license, they will appear here for easy access and download.</p>
+                <Link href="/beats" className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors inline-block">
+                  Browse Beats
+                </Link>
+              </div>
             ) : (
               <div className="space-y-6">
                 <div className="space-y-4">
