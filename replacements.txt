@@ -1,0 +1,1 @@
+regex:sk_test_51RMIDwR8tbgGz3myL8FmNPzLPtChX9ef5y6HAE7FiY85UYmz76fhzNKRSTOkoJjsBT3PD4JTZKZQqrV9phtBxK7a00IU8esQPB==>your_stripe_secret_key_here 
