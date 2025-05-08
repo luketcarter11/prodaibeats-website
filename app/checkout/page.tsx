@@ -6,51 +6,119 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCart } from '@/context/CartContext'
 import { FaArrowLeft, FaSpinner, FaExclamationCircle } from 'react-icons/fa'
+import { supabase } from '@/lib/supabaseClient'
 
 // Use environment variable for CDN base URL
 const CDN = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
 
 type ErrorMessage = {
   message: string;
-  type: 'error' | 'warning';
+  field?: string;
 };
 
 export default function CheckoutPage() {
   const { cart, cartTotal, isLoading } = useCart()
   const [email, setEmail] = useState('')
+  const [discountCode, setDiscountCode] = useState('')
+  const [appliedDiscount, setAppliedDiscount] = useState<{
+    code: string;
+    amount: number;
+    type: 'percentage' | 'fixed';
+  } | null>(null)
   const [isRedirecting, setIsRedirecting] = useState(false)
+  const [isApplyingDiscount, setIsApplyingDiscount] = useState(false)
   const [error, setError] = useState<ErrorMessage | null>(null)
   const router = useRouter()
   
+  const handleApplyDiscount = async () => {
+    if (!discountCode.trim()) return
+
+    setIsApplyingDiscount(true)
+    setError(null)
+
+    try {
+      const { data: codes, error } = await supabase
+        .from('discount_codes')
+        .select('*')
+        .eq('code', discountCode.trim())
+        .eq('isActive', true)
+        .single()
+
+      if (error) throw error
+
+      if (!codes) {
+        setError({ message: 'Invalid discount code', field: 'discountCode' })
+        return
+      }
+
+      const code = codes
+      const now = new Date()
+      const expirationDate = new Date(code.expiration)
+
+      if (expirationDate < now) {
+        setError({ message: 'This discount code has expired', field: 'discountCode' })
+        return
+      }
+
+      if (code.maxUses && code.currentUses >= code.maxUses) {
+        setError({ message: 'This discount code has reached its usage limit', field: 'discountCode' })
+        return
+      }
+
+      setAppliedDiscount({
+        code: code.code,
+        amount: code.amount,
+        type: code.type
+      })
+      setError(null)
+    } catch (err: any) {
+      setError({ message: err.message, field: 'discountCode' })
+    } finally {
+      setIsApplyingDiscount(false)
+    }
+  }
+
+  const calculateDiscountedTotal = () => {
+    if (!appliedDiscount) return cartTotal
+
+    if (appliedDiscount.type === 'percentage') {
+      const discount = (cartTotal * appliedDiscount.amount) / 100
+      return cartTotal - discount
+    } else {
+      return Math.max(0, cartTotal - appliedDiscount.amount)
+    }
+  }
+
   const handleCheckout = async () => {
     try {
-      setIsRedirecting(true);
-      setError(null);
+      setIsRedirecting(true)
+      setError(null)
 
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cart, email }),
-      });
+        body: JSON.stringify({
+          cart,
+          email,
+          discountCode: appliedDiscount?.code
+        }),
+      })
 
-      const data = await response.json();
+      const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create checkout session');
+        throw new Error(data.error || 'Failed to create checkout session')
       }
 
       if (data.url) {
-        window.location.href = data.url;
+        window.location.href = data.url
       }
     } catch (err: any) {
-      console.error('Checkout error:', err);
-      setError({
-        message: err.message || 'Failed to start checkout process',
-        type: 'error'
-      });
-      setIsRedirecting(false);
+      console.error('Checkout error:', err)
+      setError({ message: err.message })
+      setIsRedirecting(false)
     }
-  };
+  }
 
   // Show loading state while cart is being initialized
   if (isLoading) {
@@ -127,19 +195,57 @@ export default function CheckoutPage() {
             </div>
           </div>
           
+          {/* Discount Code Section */}
+          <div className="mt-6 mb-4">
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                value={discountCode}
+                onChange={(e) => setDiscountCode(e.target.value)}
+                placeholder="Enter discount code"
+                className="flex-1 px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+              <button
+                onClick={handleApplyDiscount}
+                disabled={isApplyingDiscount || !discountCode.trim()}
+                className="bg-purple-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 flex items-center"
+              >
+                {isApplyingDiscount ? (
+                  <>
+                    <FaSpinner className="animate-spin mr-2" />
+                    Applying...
+                  </>
+                ) : (
+                  'Apply'
+                )}
+              </button>
+            </div>
+            {appliedDiscount && (
+              <div className="mt-2 text-green-400">
+                Discount applied: {appliedDiscount.type === 'percentage' ? `${appliedDiscount.amount}%` : `$${appliedDiscount.amount}`} off
+              </div>
+            )}
+          </div>
+          
           <div className="border-t border-white/10 pt-4">
             <dl>
               <div className="flex justify-between text-white mb-2">
                 <dt>Subtotal</dt>
                 <dd>${cartTotal.toFixed(2)}</dd>
               </div>
-              <div className="flex justify-between text-gray-400 mb-2">
-                <dt>Processing Fee</dt>
-                <dd>$0.00</dd>
-              </div>
+              {appliedDiscount && (
+                <div className="flex justify-between text-green-400 mb-2">
+                  <dt>Discount</dt>
+                  <dd>
+                    -{appliedDiscount.type === 'percentage'
+                      ? `$${((cartTotal * appliedDiscount.amount) / 100).toFixed(2)}`
+                      : `$${appliedDiscount.amount.toFixed(2)}`}
+                  </dd>
+                </div>
+              )}
               <div className="flex justify-between text-white font-bold text-xl mt-4 pt-4 border-t border-white/10">
                 <dt>Total</dt>
-                <dd>${cartTotal.toFixed(2)}</dd>
+                <dd>${calculateDiscountedTotal().toFixed(2)}</dd>
               </div>
             </dl>
           </div>
@@ -155,12 +261,12 @@ export default function CheckoutPage() {
           {error && (
             <div 
               className={`mb-6 p-4 rounded-lg flex items-start ${
-                error.type === 'error' ? 'bg-red-900/50 border-red-500' : 'bg-yellow-900/50 border-yellow-500'
+                error.field === 'discountCode' ? 'bg-red-900/50 border-red-500' : 'bg-yellow-900/50 border-yellow-500'
               } border`}
               role="alert"
             >
               <FaExclamationCircle 
-                className={`mt-1 mr-3 ${error.type === 'error' ? 'text-red-500' : 'text-yellow-500'}`}
+                className={`mt-1 mr-3 ${error.field === 'discountCode' ? 'text-red-500' : 'text-yellow-500'}`}
                 aria-hidden="true"
               />
               <p className="text-white flex-1">{error.message}</p>

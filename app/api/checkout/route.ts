@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
+import { supabase } from '@/lib/supabaseClient';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-04-30.basil',
+  apiVersion: '2025-04-30.basil'
 });
 
 interface CartItem {
@@ -17,7 +18,7 @@ interface CartItem {
 
 export async function POST(req: Request) {
   try {
-    const { cart, email } = await req.json();
+    const { cart, email, discountCode } = await req.json();
     const headersList = headers();
     
     // Get the host from the headers
@@ -30,6 +31,32 @@ export async function POST(req: Request) {
         { error: 'Cart is empty' },
         { status: 400 }
       );
+    }
+
+    // Validate and get discount if provided
+    let couponId: string | undefined;
+    if (discountCode) {
+      const { data: code, error } = await supabase
+        .from('discount_codes')
+        .select('*')
+        .eq('code', discountCode)
+        .eq('isActive', true)
+        .single();
+
+      if (!error && code) {
+        const now = new Date();
+        const expirationDate = new Date(code.expiration);
+
+        if (expirationDate > now && (!code.maxUses || code.currentUses < code.maxUses)) {
+          couponId = `COUPON_${code.code}`;
+
+          // Increment usage count
+          await supabase
+            .from('discount_codes')
+            .update({ currentUses: code.currentUses + 1 })
+            .eq('id', code.id);
+        }
+      }
     }
 
     const line_items = cart.map((item: CartItem) => ({
@@ -52,12 +79,14 @@ export async function POST(req: Request) {
       customer_email: email,
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/cart`,
+      discounts: couponId ? [{ coupon: couponId }] : undefined,
       metadata: {
         items: JSON.stringify(cart.map((item: CartItem) => ({
           id: item.id,
           title: item.title,
-          licenseType: item.licenseType,
+          licenseType: item.licenseType
         }))),
+        discountCode: discountCode || ''
       },
     });
 
