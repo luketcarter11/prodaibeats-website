@@ -78,6 +78,24 @@ interface LineItem {
   quantity: number;
 }
 
+async function getOrCreateCustomer(email: string): Promise<string> {
+  try {
+    // Check if customer exists
+    const customers = await stripe.customers.list({ email });
+    
+    if (customers.data.length > 0) {
+      return customers.data[0].id;
+    }
+
+    // Create new customer if none exists
+    const customer = await stripe.customers.create({ email });
+    return customer.id;
+  } catch (error) {
+    console.error('Error getting/creating customer:', error);
+    throw error;
+  }
+}
+
 async function storeOrder(orderDetails: {
   user_id: string;
   track_id: string;
@@ -291,7 +309,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { cart, email, discountCode, userId } = body;
+    const { cart, email, discountCode } = body;
     const headersList = headers();
     
     if (!cart?.length || !Array.isArray(cart)) {
@@ -314,12 +332,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Get or create customer using email
+    const customerId = await getOrCreateCustomer(email);
+
     const host = headersList.get('host') || '';
     const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${host}`;
 
     // Get coupon if provided
-    let appliedCoupon: Coupon | null = null;
+    let appliedCoupon = null;
     if (discountCode) {
       appliedCoupon = await getValidCoupon(discountCode);
       console.log('Applied coupon:', appliedCoupon); // Debug log
@@ -330,19 +351,19 @@ export async function POST(req: NextRequest) {
     console.log('Line items:', lineItems); // Debug log
 
     // Calculate totals for metadata
-    const totalBeforeDiscount = cart.reduce((sum, item) => sum + (item.price * 100), 0);
-    const totalAfterDiscount = lineItems.reduce((sum, item) => sum + item.price_data.unit_amount, 0);
+    const totalBeforeDiscount = cart.reduce((sum: number, item: CartItem) => sum + (item.price * 100), 0);
+    const totalAfterDiscount = lineItems.reduce((sum: number, item: any) => sum + item.price_data.unit_amount, 0);
 
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
+      customer: customerId, // Use the customer ID
       line_items: lineItems,
       mode: 'payment',
-      customer_email: email,
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/cart`,
       metadata: {
-        userId: userId || 'guest',
+        userId: customerId, // Use customer ID as user ID
         items: JSON.stringify(cart.map((item: CartItem) => ({
           id: item.id,
           title: item.title,
@@ -355,7 +376,8 @@ export async function POST(req: NextRequest) {
         discountType: appliedCoupon ? appliedCoupon.type : 'none',
         orderDate: new Date().toISOString(),
         totalBeforeDiscount: (totalBeforeDiscount / 100).toString(),
-        totalAfterDiscount: (totalAfterDiscount / 100).toString()
+        totalAfterDiscount: (totalAfterDiscount / 100).toString(),
+        customerEmail: email // Store email in metadata
       }
     });
 
@@ -368,7 +390,7 @@ export async function POST(req: NextRequest) {
         : item.price;
 
       return storeOrder({
-        user_id: userId || 'guest',
+        user_id: customerId, // Use customer ID as user ID
         track_id: item.id,
         track_name: item.title,
         license: item.licenseType,

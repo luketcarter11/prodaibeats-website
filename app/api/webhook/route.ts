@@ -20,7 +20,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 // Define the orders directory path
 const ORDERS_DIR = path.join(process.cwd(), 'data', 'orders');
 
-async function updateOrderStatus(sessionId: string, status: 'completed' | 'failed') {
+async function updateOrderStatus(sessionId: string, status: 'completed' | 'failed', customerId?: string) {
   try {
     // Read all files in the orders directory
     const files = fs.readdirSync(ORDERS_DIR);
@@ -41,6 +41,11 @@ async function updateOrderStatus(sessionId: string, status: 'completed' | 'faile
     const orderData = JSON.parse(fs.readFileSync(orderPath, 'utf-8'));
     orderData.status = status;
     
+    // Update user_id if customer ID is provided
+    if (customerId) {
+      orderData.user_id = customerId;
+    }
+    
     // Write the updated order back to file
     fs.writeFileSync(orderPath, JSON.stringify(orderData, null, 2));
   } catch (error: any) {
@@ -50,7 +55,9 @@ async function updateOrderStatus(sessionId: string, status: 'completed' | 'faile
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
-  await updateOrderStatus(session.id, 'completed');
+  // Get customer ID from the session
+  const customerId = session.customer;
+  await updateOrderStatus(session.id, 'completed', customerId?.toString());
   
   // Update discount code usage if one was used
   const discountCode = session.metadata?.discountCode;
@@ -64,7 +71,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 }
 
 async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
-  await updateOrderStatus(session.id, 'failed');
+  // Get customer ID from the session
+  const customerId = session.customer;
+  await updateOrderStatus(session.id, 'failed', customerId?.toString());
   
   // If we previously incremented the usage count, we should decrement it
   const discountCode = session.metadata?.discountCode;
