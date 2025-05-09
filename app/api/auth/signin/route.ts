@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '../../../../lib/supabaseClient';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 export async function POST(request: Request) {
   try {
@@ -14,8 +16,52 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
     
-    // Sign in user
-    const { data, error } = await supabase.auth.signInWithPassword({
+    // Create a response that we can update with cookies
+    const response = new NextResponse(
+      JSON.stringify({ 
+        success: false, 
+        message: 'Processing authentication' 
+      }),
+      { 
+        status: 200, 
+        headers: { 'Content-Type': 'application/json' } 
+      }
+    );
+    
+    // Create a Supabase client using cookies for authenticated requests
+    const cookieStore = cookies();
+    const serverSupabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set(name: string, value: string, options: any) {
+            // This is for the server-side request-response lifecycle
+            response.cookies.set({ 
+              name, 
+              value, 
+              ...options, 
+              // Explicitly set SameSite policy
+              sameSite: options?.sameSite || 'lax'
+            });
+          },
+          remove(name: string, options: any) {
+            response.cookies.delete({ 
+              name, 
+              ...options, 
+              // Explicitly set SameSite policy
+              sameSite: options?.sameSite || 'lax' 
+            });
+          },
+        },
+      }
+    );
+    
+    // Sign in user with the server-side client that can manage cookies
+    const { data, error } = await serverSupabase.auth.signInWithPassword({
       email,
       password
     });
@@ -42,12 +88,37 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
     
-    // Login successful
-    return NextResponse.json({
+    // Create response data
+    const responseBody = {
       success: true,
-      session: data.session,
-      user: data.user
+      user: {
+        id: data.user.id,
+        email: data.user.email,
+        // Don't send sensitive data to the client
+      },
+      message: 'Successfully signed in'
+    };
+    
+    // Create a new response with all the cookies from the previous response
+    const successResponse = NextResponse.json(responseBody);
+    
+    // Copy all cookies from the previous response
+    response.cookies.getAll().forEach(cookie => {
+      successResponse.cookies.set({
+        name: cookie.name,
+        value: cookie.value,
+        // Make sure to pass all the cookie options
+        path: cookie.path || '/',
+        maxAge: cookie.maxAge,
+        domain: cookie.domain,
+        secure: cookie.secure,
+        httpOnly: cookie.httpOnly,
+        sameSite: cookie.sameSite || 'lax'
+      });
     });
+    
+    console.log('Login successful, cookies set');
+    return successResponse;
   } catch (err: any) {
     console.error('Unexpected login error:', err);
     return NextResponse.json({

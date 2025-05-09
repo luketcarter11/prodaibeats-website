@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { supabase, withApiKey } from '../../../lib/supabaseClient'
-import { useRouter } from 'next/navigation'
+import { supabase } from '../../../lib/supabaseClient'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 export default function SignInPage() {
   const [formData, setFormData] = useState({
@@ -13,16 +13,34 @@ export default function SignInPage() {
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [debugInfo, setDebugInfo] = useState<any>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectUrl = searchParams.get('redirectUrl') || '/account'
+
+  // Check if we're already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession()
+      if (data.session) {
+        console.log('User already has an active session, redirecting...')
+        router.push(redirectUrl)
+      }
+    }
+    
+    checkSession()
+  }, [redirectUrl, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
-    console.log('Sign in attempt:', formData.email)
+    setDebugInfo(null)
+    
+    console.log('Sign in attempt for:', formData.email)
     
     try {
-      // Call our server-side API route instead of Supabase directly
+      // Call our server-side API route for authentication
       const response = await fetch('/api/auth/signin', {
         method: 'POST',
         headers: {
@@ -32,24 +50,53 @@ export default function SignInPage() {
           email: formData.email,
           password: formData.password,
         }),
+        credentials: 'include', // Important for cookie handling
       });
       
-      const result = await response.json();
       console.log('Login response status:', response.status);
+      const result = await response.json();
       
       if (!response.ok || !result.success) {
+        console.error('Login failed:', result);
         setError(result.message || 'An error occurred during sign in');
+        // Try to get additional debug info
+        try {
+          const debugResponse = await fetch('/api/auth/debug');
+          const debugData = await debugResponse.json();
+          setDebugInfo(debugData);
+          console.log('Debug data:', debugData);
+        } catch (debugErr) {
+          console.error('Could not fetch debug info:', debugErr);
+        }
         setLoading(false);
         return;
       }
       
-      console.log('Login successful, redirecting to account page');
-      // Navigate to account page
-      router.push('/account');
-    } catch (err) {
+      console.log('Login successful, checking session...');
+      
+      // Verify we have a valid session before redirecting
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session) {
+        console.log('Session verified, redirecting to:', redirectUrl);
+        router.push(redirectUrl);
+      } else {
+        // If we don't have a session yet, we need to refresh it
+        console.log('No session found after login, refreshing...');
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError || !refreshData.session) {
+          console.error('Session refresh failed:', refreshError);
+          setError('Your login was successful, but session creation failed. Please try again.');
+          setLoading(false);
+          return;
+        }
+        
+        console.log('Session refreshed, redirecting to:', redirectUrl);
+        router.push(redirectUrl);
+      }
+    } catch (err: any) {
       console.error('Unexpected error during login:', err);
       setError('An unexpected error occurred. Please try again.');
-    } finally {
       setLoading(false);
     }
   }
@@ -135,6 +182,13 @@ export default function SignInPage() {
               </Link>
             </p>
           </div>
+          
+          {process.env.NODE_ENV !== 'production' && debugInfo && (
+            <div className="mt-8 p-4 bg-gray-900 rounded text-xs text-gray-400 overflow-auto max-h-40">
+              <p>Debug Info:</p>
+              <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+            </div>
+          )}
         </motion.div>
       </div>
     </main>
