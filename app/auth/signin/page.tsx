@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { supabase } from '../../../lib/supabaseClient'
+import { supabase, withApiKey } from '../../../lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 
 export default function SignInPage() {
@@ -22,18 +22,19 @@ export default function SignInPage() {
     console.log('Sign in attempt:', formData.email)
     
     try {
-      // Get Supabase client with explicit headers
-      const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-      
-      // Log API key existence (not the actual key) for debugging
+      // Log API key availability
+      const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       console.log('API key available:', !!apiKey)
       
-      // Set auth parameters with credentials
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password
+      // Use the withApiKey helper to ensure API key is included
+      const authResult = await withApiKey(async () => {
+        return await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password
+        })
       })
       
+      const { data, error } = authResult
       console.log('Supabase response:', { data, error })
       
       if (error) {

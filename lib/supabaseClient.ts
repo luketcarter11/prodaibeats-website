@@ -147,6 +147,45 @@ if (isUsingServiceRoleKey && typeof window === 'undefined' && process.env.NODE_E
   }, 5000);
 }
 
+// Helper function to execute an async function with explicit API key headers
+export async function withApiKey<T>(fn: () => Promise<T>): Promise<T> {
+  // Create direct headers object with API key for auth calls
+  const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  
+  if (!apiKey) {
+    console.error('Missing API key for authentication');
+  }
+  
+  const authHeaders = {
+    apikey: apiKey,
+    'Content-Type': 'application/json'
+  };
+  
+  // Save original fetch
+  const originalFetch = global.fetch;
+  
+  // Override fetch to include API key in all requests during execution
+  global.fetch = async (url, options = {}) => {
+    const newOptions = {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        ...authHeaders
+      }
+    };
+    
+    return await originalFetch(url, newOptions);
+  };
+  
+  try {
+    // Execute the function with enhanced fetch
+    return await fn();
+  } finally {
+    // Restore original fetch
+    global.fetch = originalFetch;
+  }
+}
+
 // Helper function to directly get a fresh client with explicit API key
 export const getSupabaseClient = () => {
   return createClient(supabaseUrl, supabaseAnonKey, commonOptions);

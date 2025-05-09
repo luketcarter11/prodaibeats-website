@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
-import { supabase } from '../../lib/supabaseClient'
+import { supabase, withApiKey } from '../../lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 
 interface LoginPopupProps {
@@ -47,38 +47,48 @@ export default function LoginPopup({ isOpen, onClose }: LoginPopupProps) {
     setError(null)
     console.log('Login attempt with:', formData.email)
     
-    // Log API key existence (not the actual key) for debugging
+    // Log API key availability
     const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     console.log('API key available:', !!apiKey)
     
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: formData.email,
-      password: formData.password,
-    })
-    
-    console.log('Supabase response:', { data, error })
-    setLoading(false)
-    
-    if (error) {
-      console.error('Login error details:', error)
+    try {
+      // Use the withApiKey helper to ensure API key is included
+      const authResult = await withApiKey(async () => {
+        return await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        })
+      })
       
-      if (error.message === 'Invalid login credentials') {
-        setError('Invalid email or password. Please try again.')
-      } else if (error.message.includes('API key')) {
-        setError('Authentication error. Please try again or contact support.')
-        console.error('API key error detected')
-      } else {
-        setError(error.message)
+      const { data, error } = authResult
+      console.log('Supabase response:', { data, error })
+      setLoading(false)
+      
+      if (error) {
+        console.error('Login error details:', error)
+        
+        if (error.message === 'Invalid login credentials') {
+          setError('Invalid email or password. Please try again.')
+        } else if (error.message.includes('API key')) {
+          setError('Authentication error. Please try again or contact support.')
+          console.error('API key error detected')
+        } else {
+          setError(error.message)
+        }
+        return
       }
-      return
+      
+      console.log('Login successful, user:', data.user)
+      // Close popup and redirect to account page
+      onClose()
+      // Use direct navigation for more reliability
+      console.log('Navigating directly to account page')
+      window.location.href = '/account'
+    } catch (error) {
+      console.error('Unexpected error:', error)
+      setError('An unexpected error occurred')
+      setLoading(false)
     }
-    
-    console.log('Login successful, user:', data.user)
-    // Close popup and redirect to account page
-    onClose()
-    // Use direct navigation for more reliability
-    console.log('Navigating directly to account page')
-    window.location.href = '/account'
   }
 
   return (

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { supabase } from '../../../lib/supabaseClient'
+import { supabase, withApiKey } from '../../../lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 
 export default function SignUpPage() {
@@ -29,37 +29,44 @@ export default function SignUpPage() {
     
     setLoading(true)
     
-    // Log API key existence (not the actual key) for debugging
+    // Log API key availability
     const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     console.log('API key available:', !!apiKey)
     
-    const { data, error } = await supabase.auth.signUp({
-      email: formData.email,
-      password: formData.password,
-      options: {
-        data: { name: formData.name },
-      },
-    })
-    
-    setLoading(false)
-    
-    if (error) {
-      console.error('Signup error details:', error)
+    try {
+      // Use the withApiKey helper to ensure API key is included
+      const authResult = await withApiKey(async () => {
+        return await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: { name: formData.name },
+          },
+        })
+      })
       
-      if (error.message.includes('API key')) {
-        setError('Authentication error. Please try again or contact support.')
-        console.error('API key error detected')
+      const { data, error } = authResult
+      
+      if (error) {
+        console.error('Signup error details:', error)
+        
+        if (error.message.includes('API key')) {
+          setError('Authentication error. Please try again or contact support.')
+          console.error('API key error detected')
+        } else {
+          setError(error.message)
+        }
+      } else if (data?.user && !data.user.identities?.[0]?.identity_data?.email_confirmed_at) {
+        setSuccess('Account created! Please check your email to confirm your account.')
+        setFormData({ name: '', email: '', password: '', confirmPassword: '' })
       } else {
-        setError(error.message)
+        router.push('/account')
       }
-      return
-    }
-    
-    if (data?.user && !data.user.identities?.[0]?.identity_data?.email_confirmed_at) {
-      setSuccess('Account created! Please check your email to confirm your account.')
-      setFormData({ name: '', email: '', password: '', confirmPassword: '' })
-    } else {
-      router.push('/account')
+    } catch (error) {
+      console.error('Unexpected error:', error)
+      setError('An unexpected error occurred')
+    } finally {
+      setLoading(false)
     }
   }
 
