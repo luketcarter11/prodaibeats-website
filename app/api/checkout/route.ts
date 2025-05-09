@@ -164,55 +164,53 @@ async function getValidCoupon(code: string): Promise<Coupon | null> {
 
 async function getStripeCoupon(coupon: Coupon): Promise<string | null> {
   try {
-    // If we have a Stripe promotion ID stored, use it directly
-    if (coupon.stripe_coupon_id && coupon.stripe_coupon_id.startsWith('promo_')) {
-      return coupon.stripe_coupon_id;
+    // First, try to find an existing coupon in Stripe
+    const existingCoupons = await stripe.coupons.list({
+      limit: 100
+    });
+
+    const existingCoupon = existingCoupons.data.find(c => 
+      c.metadata?.couponId === coupon.id || 
+      c.name === coupon.code
+    );
+
+    if (existingCoupon) {
+      return existingCoupon.id;
     }
 
-    // For legacy coupons or if no Stripe ID exists, create a new promotion
-    const promotionId = `promo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    const promotion = await stripe.promotionCodes.create({
-      coupon: await createStripeCoupon(coupon),
-      code: coupon.code,
-      active: true,
+    // Create a new Stripe coupon
+    const stripeCoupon = await stripe.coupons.create({
+      name: coupon.code,
+      duration: 'once',
+      ...(coupon.type === 'percentage' 
+        ? { percent_off: coupon.amount }
+        : { amount_off: Math.round(coupon.amount * 100) }), // Convert to cents for fixed amounts
+      max_redemptions: coupon.max_uses,
+      ...(coupon.valid_until && { redeem_by: Math.floor(new Date(coupon.valid_until).getTime() / 1000) }),
       metadata: {
         couponId: coupon.id,
         type: coupon.type,
-        amount: coupon.amount.toString()
+        amount: coupon.amount.toString(),
+        source: 'ProdAI Beats'
       }
     });
 
-    // Update coupon in Supabase with the promotion ID
+    // Store the Stripe coupon ID in our database
     try {
       const supabase = getSupabase();
       await supabase
         .from('coupons')
-        .update({ stripe_coupon_id: promotion.id })
+        .update({ stripe_coupon_id: stripeCoupon.id })
         .eq('id', coupon.id);
     } catch (error) {
-      console.error('Failed to update Stripe promotion ID in database:', error);
+      console.error('Failed to update Stripe coupon ID in database:', error);
     }
 
-    return promotion.id;
+    return stripeCoupon.id;
   } catch (error) {
-    console.error('Error getting/creating Stripe promotion:', error);
+    console.error('Error getting/creating Stripe coupon:', error);
     return null;
   }
-}
-
-async function createStripeCoupon(coupon: Coupon): Promise<string> {
-  const stripeCoupon = await stripe.coupons.create({
-    name: coupon.description || `${coupon.amount}${coupon.type === 'percentage' ? '% off' : '$ off'}`,
-    duration: 'once',
-    ...(coupon.type === 'percentage' 
-      ? { percent_off: coupon.amount }
-      : { amount_off: Math.round(coupon.amount * 100) }), // Convert to cents for fixed amounts
-    max_redemptions: coupon.max_uses,
-    ...(coupon.valid_until && { redeem_by: Math.floor(new Date(coupon.valid_until).getTime() / 1000) })
-  });
-
-  return stripeCoupon.id;
 }
 
 async function incrementCouponUsage(couponId: string): Promise<void> {
@@ -339,63 +337,69 @@ export async function POST(req: NextRequest) {
     const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${host}`;
 
-    // Get coupon if provided
+    // Get coupon if provided and sync with Stripe
     let appliedCoupon = null;
+    let stripeCouponId = null;
     if (discountCode) {
       appliedCoupon = await getValidCoupon(discountCode);
-      console.log('Applied coupon:', appliedCoupon); // Debug log
+      if (appliedCoupon) {
+        stripeCouponId = await getStripeCoupon(appliedCoupon);
+        console.log('Stripe coupon ID:', stripeCouponId); // Debug log
+      }
     }
 
-    // Calculate line items with discounts applied directly
-    const lineItems = await calculateDiscountedLineItems(cart, appliedCoupon);
-    console.log('Line items:', lineItems); // Debug log
+    // Calculate line items (without applying discount since Stripe will handle it)
+    const lineItems = cart.map((item: CartItem) => ({
+      price_data: {
+        currency: 'usd',
+        product_data: {
+          name: item.title,
+          description: `${item.licenseType} License${item.artist ? ` - ${item.artist}` : ''}`,
+          images: item.coverUrl ? [item.coverUrl] : undefined,
+        },
+        unit_amount: Math.round(item.price * 100), // Convert to cents
+      },
+      quantity: 1,
+    }));
 
-    // Calculate totals for metadata
+    // Calculate totals for metadata (before discount)
     const totalBeforeDiscount = cart.reduce((sum: number, item: CartItem) => sum + (item.price * 100), 0);
-    const totalAfterDiscount = lineItems.reduce((sum: number, item: any) => sum + item.price_data.unit_amount, 0);
 
-    // Create checkout session
+    // Create checkout session with proper discount application
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      customer: customerId, // Use the customer ID
+      customer: customerId,
       line_items: lineItems,
       mode: 'payment',
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/cart`,
+      ...(stripeCouponId && { discounts: [{ coupon: stripeCouponId }] }),
       metadata: {
-        userId: customerId, // Use customer ID as user ID
+        userId: customerId,
         items: JSON.stringify(cart.map((item: CartItem) => ({
           id: item.id,
           title: item.title,
           licenseType: item.licenseType,
-          originalPrice: item.price,
-          finalPrice: item.price * (appliedCoupon ? (1 - appliedCoupon.amount / 100) : 1)
+          originalPrice: item.price
         }))),
-        discountCode: appliedCoupon ? appliedCoupon.id : '',
+        discountCode: appliedCoupon ? appliedCoupon.code : '',
+        discountId: appliedCoupon ? appliedCoupon.id : '',
         discountAmount: appliedCoupon ? appliedCoupon.amount.toString() : '0',
         discountType: appliedCoupon ? appliedCoupon.type : 'none',
         orderDate: new Date().toISOString(),
         totalBeforeDiscount: (totalBeforeDiscount / 100).toString(),
-        totalAfterDiscount: (totalAfterDiscount / 100).toString(),
-        customerEmail: email // Store email in metadata
+        customerEmail: email
       }
     });
 
-    // Store order details
+    // Store order details (we'll get the final amount from the webhook)
     const orderPromises = cart.map((item: CartItem) => {
-      const finalPrice = appliedCoupon 
-        ? (appliedCoupon.type === 'percentage'
-          ? item.price * (1 - appliedCoupon.amount / 100)
-          : item.price - (appliedCoupon.amount / cart.length))
-        : item.price;
-
       return storeOrder({
-        user_id: customerId, // Use customer ID as user ID
+        user_id: customerId,
         track_id: item.id,
         track_name: item.title,
         license: item.licenseType,
-        total_amount: Math.max(0.01, finalPrice), // Ensure minimum price of $0.01
-        discount: item.price - finalPrice,
+        total_amount: item.price, // Store original price, webhook will update with final amount
         stripe_session_id: session.id
       }).catch(error => {
         console.error('Failed to store order:', error);
@@ -404,6 +408,11 @@ export async function POST(req: NextRequest) {
     });
 
     await Promise.all(orderPromises);
+
+    // Increment coupon usage after successful session creation
+    if (appliedCoupon) {
+      await incrementCouponUsage(appliedCoupon.id);
+    }
 
     return new NextResponse(
       JSON.stringify({ success: true, url: session.url }),
