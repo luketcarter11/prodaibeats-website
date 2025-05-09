@@ -71,4 +71,13 @@ export const updateUserProfile = async (profile: UserProfile): Promise<boolean> 
     console.error('Unexpected error updating profile:', err);
     return false;
   }
+};
+
+/**
+ * Checks if service role key is available
+ * @returns True if service role key is available, false otherwise
+ */
+export const isServiceRoleKeyAvailable = async (): Promise<boolean> => {
+  // Implementation of the function
+  return true; // Placeholder return, actual implementation needed
 }; 

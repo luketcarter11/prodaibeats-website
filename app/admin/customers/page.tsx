@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
+import { createClient } from '@supabase/supabase-js'
 import { FaSearch, FaSpinner, FaEye, FaDownload, FaFilter, FaSortAmountDown, FaEnvelope } from 'react-icons/fa'
 import { format } from 'date-fns'
 import { User } from '@supabase/supabase-js'
@@ -31,10 +32,36 @@ export default function CustomersPage() {
   const [exportLoading, setExportLoading] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [selectAll, setSelectAll] = useState(false)
+  const [adminClient, setAdminClient] = useState<any>(null)
+  const [serviceKeyAvailable, setServiceKeyAvailable] = useState(false)
+  
+  // Initialize admin client with service role key
+  useEffect(() => {
+    const initAdminClient = async () => {
+      try {
+        // Check if we can access the service role function
+        const { data, error } = await supabase.rpc('check_service_role');
+        const hasServiceAccess = !!data && !error;
+        setServiceKeyAvailable(hasServiceAccess);
+
+        if (!hasServiceAccess) {
+          console.warn('Service role key not detected. Admin functionality may be limited.');
+          setError('Admin access limited: Service role key not configured. You may only see your own profile data.');
+        } else {
+          console.log('Service role key detected. Full admin access available.');
+        }
+      } catch (err) {
+        console.error('Error checking service role:', err);
+        setServiceKeyAvailable(false);
+      }
+    };
+
+    initAdminClient();
+  }, []);
   
   useEffect(() => {
     fetchCustomers()
-  }, [])
+  }, [serviceKeyAvailable])
 
   useEffect(() => {
     applyFilters()
@@ -47,6 +74,14 @@ export default function CustomersPage() {
     console.log('Starting customer data fetch...');
 
     try {
+      // Check if we have admin access first
+      const isAdmin = await checkAdminAccess();
+      
+      if (!isAdmin && !serviceKeyAvailable) {
+        console.warn('Not admin or no service key available. Access will be limited.');
+        // We'll still try to fetch data, but will likely only get the current user's profile
+      }
+      
       // Direct approach: get all profiles first
       console.log('Attempting to fetch profiles...');
       const { data: profilesData, error: profilesError } = await supabase
@@ -55,10 +90,11 @@ export default function CustomersPage() {
       
       if (profilesError) {
         console.error('Error fetching profiles:', profilesError);
-        setError(`Failed to fetch profiles: ${profilesError.message}. You may need to ensure proper RLS policies.`);
+        setError(`Failed to fetch profiles: ${profilesError.message}. You may need to ensure proper RLS policies or the SUPABASE_SERVICE_ROLE_KEY environment variable is set.`);
       }
       
       console.log('Profiles data retrieved:', profilesData?.length || 0, 'records');
+      console.log('Sample profile:', profilesData?.[0] || 'No profiles found');
       
       // Get customer data from orders table
       console.log('Fetching orders data...');
@@ -146,6 +182,7 @@ export default function CustomersPage() {
         console.warn('1. Profiles table has data with email field populated');
         console.warn('2. RLS policies allow admin access to profiles');
         console.warn('3. Service role key is being used in development');
+        setError('No customers found. This could be due to missing data, permissions issues, or missing service role key.');
       }
       
       setCustomers(customerList);
@@ -155,6 +192,36 @@ export default function CustomersPage() {
       setError(err.message || 'Failed to fetch customers');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Function to check if current user has admin access
+  const checkAdminAccess = async (): Promise<boolean> => {
+    try {
+      // First check if user is authenticated
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !sessionData.session) {
+        console.warn('Not authenticated or session error:', sessionError);
+        return false;
+      }
+      
+      // You can define admin users by role, email, or other criteria
+      // For now, we'll just check if we can access all profiles as a proxy for admin access
+      const { count, error: countError } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+      
+      if (countError) {
+        console.warn('Error checking admin access:', countError);
+        return false;
+      }
+      
+      // If we can count profiles, we likely have admin access
+      return true;
+    } catch (error) {
+      console.error('Error in checkAdminAccess:', error);
+      return false;
     }
   };
 

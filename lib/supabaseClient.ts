@@ -8,6 +8,9 @@ console.log('✅ Supabase URL available:', !!process.env.NEXT_PUBLIC_SUPABASE_UR
 console.log('✅ Supabase Anon Key available:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 console.log('✅ Supabase Service Key available:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
 
+// Flag to track if we're using the service role key
+let isUsingServiceRoleKey = false
+
 let supabase: SupabaseClient
 
 if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
@@ -20,6 +23,7 @@ if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANO
         persistSession: false
       }
     })
+    isUsingServiceRoleKey = true
     console.log('🔑 Using Supabase service role key (admin mode)')
   } else {
     // Use regular anon key for client-side requests
@@ -47,4 +51,42 @@ if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANO
   } as unknown as SupabaseClient
 }
 
-export { supabase }
+// Create our function to check for service role key
+// This relies on attempting an admin-only operation and seeing if it succeeds
+const checkServiceRoleAccess = async (): Promise<boolean> => {
+  try {
+    // Try to access all auth users - this only works with service role key
+    const { data, error } = await supabase.auth.admin.listUsers({ perPage: 1 });
+    if (error) {
+      console.log('Service role check failed:', error.message);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.log('Service role check exception:', error);
+    return false;
+  }
+}
+
+// Create an RPC function that can report whether we're using the service role key
+// We'll create this after we deploy the SQL function to Supabase
+const createCheckServiceRoleFunction = async () => {
+  try {
+    // Create an SQL function in Supabase to check for service role key
+    const { error } = await supabase.rpc('create_service_role_check_function');
+    if (error) {
+      console.error('Error creating service role check function:', error);
+    } else {
+      console.log('Service role check function created successfully');
+    }
+  } catch (error) {
+    console.error('Exception creating service role check function:', error);
+  }
+};
+
+// If we're using the service role key, attempt to create the function
+if (isUsingServiceRoleKey) {
+  createCheckServiceRoleFunction();
+}
+
+export { supabase, isUsingServiceRoleKey, checkServiceRoleAccess }

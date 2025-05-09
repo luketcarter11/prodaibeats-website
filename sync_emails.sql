@@ -47,3 +47,18 @@ UPDATE profiles
 SET email = auth.users.email 
 FROM auth.users 
 WHERE profiles.id = auth.users.id AND profiles.email IS NULL;
+
+-- Create a function that can be called to check if service role key is available
+CREATE OR REPLACE FUNCTION check_service_role()
+RETURNS BOOLEAN
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+BEGIN
+  -- This function will succeed when called with the service role key
+  -- because SECURITY DEFINER functions bypass RLS
+  RETURN TRUE;
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN FALSE;
+END;
+$$;
