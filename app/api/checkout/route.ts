@@ -65,6 +65,19 @@ interface Coupon {
   stripe_coupon_id?: string;
 }
 
+interface LineItem {
+  price_data: {
+    currency: string;
+    product_data: {
+      name: string;
+      description: string;
+      images?: string[];
+    };
+    unit_amount: number;
+  };
+  quantity: number;
+}
+
 async function storeOrder(orderDetails: {
   user_id: string;
   track_id: string;
@@ -193,6 +206,42 @@ async function incrementCouponUsage(couponId: string): Promise<void> {
   }
 }
 
+async function calculateDiscountedLineItems(
+  cart: CartItem[], 
+  appliedCoupon: Coupon | null
+): Promise<LineItem[]> {
+  return cart.map((item: CartItem) => {
+    let finalPrice = item.price;
+    
+    if (appliedCoupon) {
+      if (appliedCoupon.type === 'percentage') {
+        finalPrice = item.price * (1 - appliedCoupon.amount / 100);
+      } else {
+        // For fixed amount, distribute evenly across items
+        finalPrice = Math.max(0, item.price - (appliedCoupon.amount / cart.length));
+      }
+    }
+
+    // Ensure minimum price of $0.01 (1 cent)
+    finalPrice = Math.max(0.01, finalPrice);
+
+    return {
+      price_data: {
+        currency: 'usd',
+        product_data: {
+          name: item.title,
+          description: `${item.licenseType} License${item.artist ? ` - ${item.artist}` : ''}${
+            appliedCoupon ? ` (${appliedCoupon.amount}% off applied)` : ''
+          }`,
+          images: item.coverUrl ? [item.coverUrl] : undefined,
+        },
+        unit_amount: Math.round(finalPrice * 100), // Convert to cents
+      },
+      quantity: 1,
+    };
+  });
+}
+
 export async function POST(req: NextRequest) {
   // Verify Stripe key is available
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -269,39 +318,23 @@ export async function POST(req: NextRequest) {
     const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${host}`;
 
-    // Handle discount code
-    let stripePromotionId: string | undefined;
+    // Get coupon if provided
     let appliedCoupon: Coupon | null = null;
-
     if (discountCode) {
       appliedCoupon = await getValidCoupon(discountCode);
-      if (appliedCoupon) {
-        const promotionId = await getStripeCoupon(appliedCoupon);
-        if (promotionId) {
-          stripePromotionId = promotionId;
-        }
-      }
+      console.log('Applied coupon:', appliedCoupon); // Debug log
     }
 
-    // Create line items for Stripe
-    const lineItems = cart.map((item: CartItem) => ({
-      price_data: {
-        currency: 'usd',
-        product_data: {
-          name: item.title,
-          description: `${item.licenseType} License${item.artist ? ` - ${item.artist}` : ''}`,
-          images: item.coverUrl ? [item.coverUrl] : undefined,
-        },
-        unit_amount: Math.round(item.price * 100), // Convert to cents
-      },
-      quantity: 1,
-    }));
+    // Calculate line items with discounts applied directly
+    const lineItems = await calculateDiscountedLineItems(cart, appliedCoupon);
+    console.log('Line items:', lineItems); // Debug log
 
-    // Calculate total for metadata
-    const total = lineItems.reduce((sum, item) => sum + item.price_data.unit_amount, 0);
+    // Calculate totals for metadata
+    const totalBeforeDiscount = cart.reduce((sum, item) => sum + (item.price * 100), 0);
+    const totalAfterDiscount = lineItems.reduce((sum, item) => sum + item.price_data.unit_amount, 0);
 
-    // Create checkout session configuration
-    const sessionConfig: Stripe.Checkout.SessionCreateParams = {
+    // Create checkout session
+    const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
@@ -314,52 +347,46 @@ export async function POST(req: NextRequest) {
           id: item.id,
           title: item.title,
           licenseType: item.licenseType,
-          price: item.price
+          originalPrice: item.price,
+          finalPrice: item.price * (appliedCoupon ? (1 - appliedCoupon.amount / 100) : 1)
         }))),
         discountCode: discountCode || '',
         discountAmount: appliedCoupon ? appliedCoupon.amount.toString() : '0',
         discountType: appliedCoupon ? appliedCoupon.type : 'none',
         orderDate: new Date().toISOString(),
-        totalBeforeDiscount: (total / 100).toString()
+        totalBeforeDiscount: (totalBeforeDiscount / 100).toString(),
+        totalAfterDiscount: (totalAfterDiscount / 100).toString()
       }
-    };
-
-    // Add promotion code if valid
-    if (stripePromotionId) {
-      sessionConfig.discounts = [{
-        promotion_code: stripePromotionId
-      }];
-    }
-
-    // Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create(sessionConfig);
+    });
 
     // Increment coupon usage if successfully applied
-    if (appliedCoupon && stripePromotionId) {
+    if (appliedCoupon) {
       await incrementCouponUsage(appliedCoupon.id).catch(error => {
         console.error('Failed to increment coupon usage:', error);
       });
     }
 
-    // Store order details for each item in cart
-    const orderPromises = cart.map((item: CartItem) => 
-      storeOrder({
+    // Store order details
+    const orderPromises = cart.map((item: CartItem) => {
+      const finalPrice = appliedCoupon 
+        ? (appliedCoupon.type === 'percentage'
+          ? item.price * (1 - appliedCoupon.amount / 100)
+          : item.price - (appliedCoupon.amount / cart.length))
+        : item.price;
+
+      return storeOrder({
         user_id: userId || 'guest',
         track_id: item.id,
         track_name: item.title,
         license: item.licenseType,
-        total_amount: item.price,
-        discount: appliedCoupon ? (
-          appliedCoupon.type === 'percentage' 
-            ? (item.price * appliedCoupon.amount / 100)
-            : appliedCoupon.amount / cart.length // Distribute fixed discount equally
-        ) : 0,
+        total_amount: Math.max(0.01, finalPrice), // Ensure minimum price of $0.01
+        discount: item.price - finalPrice,
         stripe_session_id: session.id
       }).catch(error => {
         console.error('Failed to store order:', error);
         return null;
-      })
-    );
+      });
+    });
 
     await Promise.all(orderPromises);
 
