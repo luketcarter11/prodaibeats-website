@@ -53,9 +53,9 @@ const commonOptions = {
 // Client-side initialization (browser)
 if (typeof window !== 'undefined') {
   try {
-    // Explicitly use global headers to ensure API key is included
+    // IMPORTANT: Always use anon key for client-side operations
     supabase = createClient(supabaseUrl, supabaseAnonKey, commonOptions)
-    console.log('✅ Supabase client initialized for browser')
+    console.log('✅ Supabase client initialized for browser using anon key')
   } catch (error) {
     console.error('❌ Error initializing Supabase client:', error)
     throw error // Re-throw to make the error visible
@@ -194,7 +194,22 @@ export async function withApiKey<T>(fn: () => Promise<T>): Promise<T> {
 
 // Helper function to directly get a fresh client with explicit API key
 export const getSupabaseClient = () => {
+  // Always use anon key for client facing operations
   return createClient(supabaseUrl, supabaseAnonKey, commonOptions);
 }
+
+// Create a function specifically for auth signups that ensures the anon key is used
+export const signUpWithSupabase = async (email: string, password: string, options?: any) => {
+  // Always use anon key for authentication
+  const authClient = createClient(supabaseUrl, supabaseAnonKey, commonOptions);
+  
+  return await withApiKey(async () => {
+    return await authClient.auth.signUp({
+      email,
+      password,
+      options
+    });
+  });
+};
 
 export { supabase, isUsingServiceRoleKey, checkServiceRoleAccess, getServiceRoleKey }

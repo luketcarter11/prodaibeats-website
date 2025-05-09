@@ -14,6 +14,7 @@ export default function DebugSignupPage() {
   const [error, setError] = useState<string | null>(null)
   const [directSignupResult, setDirectSignupResult] = useState<any>(null)
   const [apiSignupResult, setApiSignupResult] = useState<any>(null)
+  const [anonKeyResult, setAnonKeyResult] = useState<any>(null)
   
   // Check RLS and database setup
   const checkSetup = async () => {
@@ -102,6 +103,29 @@ export default function DebugSignupPage() {
     }
   }
   
+  // Test anon key configuration
+  const testAnonKey = async () => {
+    setLoading(true)
+    setError(null)
+    setAnonKeyResult(null)
+    
+    try {
+      const response = await fetch('/api/test-anon-key')
+      const data = await response.json()
+      setAnonKeyResult(data)
+      console.log('Anon key test results:', data)
+      
+      if (!response.ok || !data.success) {
+        setError(data.message || 'Anon key test failed')
+      }
+    } catch (err: any) {
+      console.error('Anon key test error:', err)
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+  
   // Run the setup check on mount
   useEffect(() => {
     checkSetup()
@@ -128,7 +152,36 @@ export default function DebugSignupPage() {
       )}
       
       <div className="mb-8 p-4 bg-zinc-800 rounded-lg">
-        <h2 className="text-xl font-semibold mb-4">1. Test Account Details</h2>
+        <h2 className="text-xl font-semibold mb-4">1. Test Anon Key Configuration</h2>
+        <p className="mb-4 text-gray-400">Verify that your Supabase anon key is properly configured</p>
+        
+        <button
+          onClick={testAnonKey}
+          disabled={loading}
+          className="px-4 py-2 bg-amber-600 text-white rounded-lg disabled:opacity-50 mb-4"
+        >
+          {loading ? 'Testing...' : 'Test Anon Key'}
+        </button>
+        
+        {anonKeyResult && (
+          <div className="mt-4">
+            <h3 className="text-lg font-semibold mb-2">
+              Anon Key Test: 
+              <span className={anonKeyResult.success ? 'text-green-400 ml-2' : 'text-red-400 ml-2'}>
+                {anonKeyResult.success ? 'Success' : 'Failed'}
+              </span>
+            </h3>
+            <div className="bg-black/50 p-4 rounded-lg overflow-auto max-h-96">
+              <pre className="text-sm text-green-300 whitespace-pre-wrap break-all">
+                {formatJson(anonKeyResult)}
+              </pre>
+            </div>
+          </div>
+        )}
+      </div>
+      
+      <div className="mb-8 p-4 bg-zinc-800 rounded-lg">
+        <h2 className="text-xl font-semibold mb-4">2. Test Account Details</h2>
         <div className="grid grid-cols-1 gap-4 mb-4">
           <div>
             <label className="block text-sm text-gray-400 mb-1">Email:</label>
@@ -163,7 +216,7 @@ export default function DebugSignupPage() {
       </div>
       
       <div className="mb-8 p-4 bg-zinc-800 rounded-lg">
-        <h2 className="text-xl font-semibold mb-4">2. System Check</h2>
+        <h2 className="text-xl font-semibold mb-4">3. System Check</h2>
         <p className="mb-4 text-gray-400">Check RLS policies and database setup</p>
         
         <button
@@ -205,7 +258,7 @@ export default function DebugSignupPage() {
       </div>
       
       <div className="mb-8 p-4 bg-zinc-800 rounded-lg">
-        <h2 className="text-xl font-semibold mb-4">3. Test Signup Methods</h2>
+        <h2 className="text-xl font-semibold mb-4">4. Test Signup Methods</h2>
         
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 p-4 bg-zinc-700 rounded-lg">
