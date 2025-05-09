@@ -190,11 +190,14 @@ export default function AccountPage() {
     try {
       console.log("Attempting profile update for user:", userId)
       
+      // IMPORTANT: Always use the auth.uid() from Supabase Auth
+      // This ensures the ID matches what RLS policies expect
+      
       // Step 1: First try direct upsert to profiles table
       const { data: upsertData, error: upsertError } = await supabase
         .from('profiles')
         .upsert({
-          id: userId,
+          id: userId, // Always use this ID from auth.getUser()
           full_name: profile.full_name,
           display_name: profile.display_name,
           email: profile.email,

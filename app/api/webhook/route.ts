@@ -4,6 +4,7 @@ import { headers } from 'next/headers';
 import fs from 'fs';
 import path from 'path';
 import { discountService } from '@/services/discountService';
+import { createClient } from '@supabase/supabase-js';
 
 // Edge and Streaming flags
 export const runtime = 'nodejs'; // Keep as nodejs for file system operations
@@ -20,6 +21,24 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 // Define the orders directory path
 const ORDERS_DIR = path.join(process.cwd(), 'data', 'orders');
 
+// Initialize Supabase client
+const getSupabaseAdmin = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.error('Missing Supabase admin credentials');
+    throw new Error('Supabase admin credentials are not defined');
+  }
+  
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+};
+
 async function updateOrderStatus(sessionId: string, status: 'completed' | 'failed', customerId?: string) {
   try {
     // Read all files in the orders directory
@@ -33,7 +52,7 @@ async function updateOrderStatus(sessionId: string, status: 'completed' | 'faile
 
     if (!orderFile) {
       console.error(`No order found for session ID: ${sessionId}`);
-      return;
+      return null;
     }
 
     // Update the order status
@@ -48,9 +67,41 @@ async function updateOrderStatus(sessionId: string, status: 'completed' | 'faile
     
     // Write the updated order back to file
     fs.writeFileSync(orderPath, JSON.stringify(orderData, null, 2));
+    
+    return orderData;
   } catch (error: any) {
     console.error('Error updating order status:', error);
     throw new Error(`Failed to update order status: ${error.message}`);
+  }
+}
+
+async function saveOrderToSupabase(orderData: any) {
+  try {
+    const supabase = getSupabaseAdmin();
+    
+    // Include created_at and updated_at timestamps
+    const now = new Date().toISOString();
+    const orderWithTimestamps = {
+      ...orderData,
+      created_at: orderData.created_at || now,
+      updated_at: now
+    };
+    
+    // Insert order to Supabase
+    const { data, error } = await supabase
+      .from('orders')
+      .insert(orderWithTimestamps);
+      
+    if (error) {
+      console.error('Error saving order to Supabase:', error);
+      throw error;
+    }
+    
+    console.log(`Successfully saved order ${orderData.id} to Supabase`);
+    return data;
+  } catch (error) {
+    console.error('Error in saveOrderToSupabase:', error);
+    throw error;
   }
 }
 
@@ -62,9 +113,103 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       console.error('No customer ID found in session:', session.id);
       return;
     }
-
-    // Update order status
-    await updateOrderStatus(session.id, 'completed', customerId.toString());
+    
+    console.log(`Processing completed checkout for session ${session.id}`);
+    
+    // Important: Stripe customer IDs (cus_xxx) are not the same as Supabase user IDs (auth.uid)
+    // We need to find the associated Supabase user ID for this customer
+    let userId = null;
+    let supabaseUserId = null;
+    
+    // Get customer email from the session
+    const customerEmail = session.customer_details?.email;
+    
+    if (customerEmail) {
+      try {
+        // Try to find the Supabase user ID by email
+        const supabase = getSupabaseAdmin();
+        const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
+        
+        if (!userError && userData && userData.users) {
+          // Find user with matching email
+          const matchingUser = userData.users.find(user => 
+            user.email?.toLowerCase() === customerEmail.toLowerCase()
+          );
+          
+          if (matchingUser) {
+            supabaseUserId = matchingUser.id;
+            console.log(`Found Supabase user ID ${supabaseUserId} for customer email ${customerEmail}`);
+          }
+        }
+        
+        if (!supabaseUserId) {
+          console.log(`No Supabase user found for email ${customerEmail}`);
+        }
+      } catch (error) {
+        console.error('Error finding Supabase user by email:', error);
+      }
+    }
+    
+    // Use the Supabase user ID if found, otherwise fall back to Stripe customer ID
+    userId = supabaseUserId || customerId.toString();
+    
+    // Update order status in file system and get order data
+    const orderData = await updateOrderStatus(session.id, 'completed', customerId.toString());
+    
+    if (!orderData) {
+      console.error(`No order data found for session ID: ${session.id}`);
+      
+      // Try to retrieve order details from stripe session metadata
+      const sessionWithExpanded = await stripe.checkout.sessions.retrieve(
+        session.id,
+        { expand: ['line_items', 'line_items.data.price.product'] }
+      );
+      
+      if (sessionWithExpanded.line_items?.data?.length) {
+        // Create a new order record if we can't find an existing one
+        const lineItem = sessionWithExpanded.line_items.data[0];
+        const productName = typeof lineItem.price?.product === 'object' 
+          ? ('name' in lineItem.price.product ? lineItem.price.product.name : 'Unknown Product')
+          : 'Unknown Product';
+          
+        const newOrderData = {
+          id: `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          user_id: userId,
+          customer_email: customerEmail,
+          track_id: lineItem.id,
+          track_name: productName,
+          license: session.metadata?.license || 'Standard',
+          total_amount: session.amount_total ? session.amount_total / 100 : 0,
+          stripe_session_id: session.id,
+          order_date: new Date().toISOString(),
+          status: 'completed',
+          currency: session.currency?.toUpperCase() || 'USD'
+        };
+        
+        // Save reconstructed order to Supabase
+        await saveOrderToSupabase(newOrderData);
+        console.log(`Created new order for session ${session.id} with user ID ${userId}`);
+      } else {
+        console.error('Unable to reconstruct order data from session');
+      }
+    } else {
+      // Update user_id to use Supabase user ID if available
+      orderData.user_id = userId;
+      
+      // Add customer email to the order data if available
+      if (customerEmail) {
+        orderData.customer_email = customerEmail;
+      }
+      
+      // Add currency to order data if available
+      if (session.currency) {
+        orderData.currency = session.currency.toUpperCase();
+      }
+      
+      // Save order to Supabase
+      await saveOrderToSupabase(orderData);
+      console.log(`Updated order for session ${session.id} with user ID ${userId}`);
+    }
     
     // Get the discount code from metadata
     const discountId = session.metadata?.discountId;
@@ -80,6 +225,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         // Don't throw error here as we want to continue processing the webhook
       }
     }
+    
+    console.log(`Successfully processed completed checkout for session ${session.id}`);
   } catch (error) {
     console.error('Error handling checkout completed webhook:', error);
     throw error; // Re-throw to trigger webhook retry
