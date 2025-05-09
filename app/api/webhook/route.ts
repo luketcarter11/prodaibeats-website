@@ -55,34 +55,66 @@ async function updateOrderStatus(sessionId: string, status: 'completed' | 'faile
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
-  // Get customer ID from the session
-  const customerId = session.customer;
-  await updateOrderStatus(session.id, 'completed', customerId?.toString());
-  
-  // Update discount code usage if one was used
-  const discountCode = session.metadata?.discountCode;
-  if (discountCode) {
-    try {
-      await discountService.incrementUsageCount(discountCode);
-    } catch (error) {
-      console.error('Failed to increment discount code usage:', error);
+  try {
+    // Get customer ID from the session
+    const customerId = session.customer;
+    if (!customerId) {
+      console.error('No customer ID found in session:', session.id);
+      return;
     }
+
+    // Update order status
+    await updateOrderStatus(session.id, 'completed', customerId.toString());
+    
+    // Get the discount code from metadata
+    const discountId = session.metadata?.discountId;
+    if (discountId) {
+      try {
+        // Increment usage count in our database
+        await discountService.incrementUsageCount(discountId);
+        
+        // Log the successful usage
+        console.log(`Successfully incremented usage count for discount code ${session.metadata?.discountCode}`);
+      } catch (error) {
+        console.error('Failed to increment discount code usage:', error);
+        // Don't throw error here as we want to continue processing the webhook
+      }
+    }
+  } catch (error) {
+    console.error('Error handling checkout completed webhook:', error);
+    throw error; // Re-throw to trigger webhook retry
   }
 }
 
 async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
-  // Get customer ID from the session
-  const customerId = session.customer;
-  await updateOrderStatus(session.id, 'failed', customerId?.toString());
-  
-  // If we previously incremented the usage count, we should decrement it
-  const discountCode = session.metadata?.discountCode;
-  if (discountCode) {
-    try {
-      await discountService.decrementUsageCount(discountCode);
-    } catch (error) {
-      console.error('Failed to decrement discount code usage:', error);
+  try {
+    // Get customer ID from the session
+    const customerId = session.customer;
+    if (!customerId) {
+      console.error('No customer ID found in session:', session.id);
+      return;
     }
+
+    // Update order status
+    await updateOrderStatus(session.id, 'failed', customerId.toString());
+    
+    // Get the discount code from metadata
+    const discountId = session.metadata?.discountId;
+    if (discountId) {
+      try {
+        // Decrement usage count in our database since the checkout failed
+        await discountService.decrementUsageCount(discountId);
+        
+        // Log the successful decrement
+        console.log(`Successfully decremented usage count for discount code ${session.metadata?.discountCode}`);
+      } catch (error) {
+        console.error('Failed to decrement discount code usage:', error);
+        // Don't throw error here as we want to continue processing the webhook
+      }
+    }
+  } catch (error) {
+    console.error('Error handling checkout expired webhook:', error);
+    throw error; // Re-throw to trigger webhook retry
   }
 }
 

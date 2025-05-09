@@ -78,17 +78,43 @@ interface LineItem {
   quantity: number;
 }
 
-async function getOrCreateCustomer(email: string): Promise<string> {
+async function getOrCreateCustomer(email: string, promoCodeId?: string): Promise<string> {
   try {
     // Check if customer exists
     const customers = await stripe.customers.list({ email });
     
     if (customers.data.length > 0) {
-      return customers.data[0].id;
+      const customer = customers.data[0];
+      
+      // If we have a promotion code, apply it to the existing customer
+      if (promoCodeId) {
+        // Apply promotion code through a new checkout session instead
+        const tempSession = await stripe.checkout.sessions.create({
+          customer: customer.id,
+          payment_method_types: ['card'],
+          line_items: [],
+          mode: 'setup',
+          discounts: [{ promotion_code: promoCodeId }]
+        });
+      }
+      
+      return customer.id;
     }
 
-    // Create new customer if none exists
+    // Create new customer
     const customer = await stripe.customers.create({ email });
+
+    // If we have a promotion code, apply it through a session
+    if (promoCodeId) {
+      const tempSession = await stripe.checkout.sessions.create({
+        customer: customer.id,
+        payment_method_types: ['card'],
+        line_items: [],
+        mode: 'setup',
+        discounts: [{ promotion_code: promoCodeId }]
+      });
+    }
+
     return customer.id;
   } catch (error) {
     console.error('Error getting/creating customer:', error);
@@ -165,52 +191,53 @@ async function getValidCoupon(code: string): Promise<Coupon | null> {
 async function getStripePromoCode(coupon: Coupon): Promise<string | null> {
   try {
     // First check if we already have a promotion code stored
-    if (coupon.stripe_coupon_id && coupon.stripe_coupon_id.startsWith('promo_')) {
+    if (coupon.stripe_coupon_id) {
       try {
-        const promoCode = await stripe.promotionCodes.retrieve(coupon.stripe_coupon_id);
-        if (promoCode.active) {
-          return promoCode.id;
+        // If it's a promotion code, retrieve it directly
+        if (coupon.stripe_coupon_id.startsWith('promo_')) {
+          const promoCode = await stripe.promotionCodes.retrieve(coupon.stripe_coupon_id);
+          if (promoCode.active && promoCode.coupon.valid) {
+            return promoCode.id;
+          }
+        } else {
+          // If it's a coupon ID, check if it's valid
+          const stripeCoupon = await stripe.coupons.retrieve(coupon.stripe_coupon_id);
+          if (stripeCoupon.valid) {
+            // Create a new promotion code for this coupon
+            const promoCode = await stripe.promotionCodes.create({
+              coupon: stripeCoupon.id,
+              code: coupon.code,
+              metadata: {
+                couponId: coupon.id,
+                type: coupon.type,
+                amount: coupon.amount.toString(),
+                source: 'ProdAI Beats'
+              }
+            });
+            
+            // Update our database with the new promotion code ID
+            const supabase = getSupabase();
+            await supabase
+              .from('coupons')
+              .update({ stripe_coupon_id: promoCode.id })
+              .eq('id', coupon.id);
+              
+            return promoCode.id;
+          }
         }
       } catch (error) {
-        console.error('Stored promotion code not found or inactive:', error);
+        console.error('Error retrieving existing promotion code:', error);
       }
     }
 
-    // Look for existing promotion code
-    const promotionCodes = await stripe.promotionCodes.list({
-      active: true,
-      limit: 100,
-    });
-
-    const existingPromoCode = promotionCodes.data.find(p => 
-      p.code === coupon.code || 
-      p.metadata?.couponId === coupon.id
-    );
-
-    if (existingPromoCode) {
-      // Update our database with the promotion code ID if needed
-      if (coupon.stripe_coupon_id !== existingPromoCode.id) {
-        try {
-          const supabase = getSupabase();
-          await supabase
-            .from('coupons')
-            .update({ stripe_coupon_id: existingPromoCode.id })
-            .eq('id', coupon.id);
-        } catch (error) {
-          console.error('Failed to update promotion code ID in database:', error);
-        }
-      }
-      return existingPromoCode.id;
-    }
-
-    // Create a new Stripe coupon first
+    // Create a new Stripe coupon
     const stripeCoupon = await stripe.coupons.create({
       name: coupon.code,
       duration: 'once',
       ...(coupon.type === 'percentage' 
         ? { percent_off: coupon.amount }
         : { amount_off: Math.round(coupon.amount * 100) }), // Convert to cents for fixed amounts
-      max_redemptions: coupon.max_uses,
+      max_redemptions: coupon.max_uses ?? undefined,
       ...(coupon.valid_until && { redeem_by: Math.floor(new Date(coupon.valid_until).getTime() / 1000) }),
       metadata: {
         couponId: coupon.id,
@@ -224,7 +251,6 @@ async function getStripePromoCode(coupon: Coupon): Promise<string | null> {
     const promoCode = await stripe.promotionCodes.create({
       coupon: stripeCoupon.id,
       code: coupon.code,
-      active: true,
       metadata: {
         couponId: coupon.id,
         type: coupon.type,
@@ -297,30 +323,6 @@ async function calculateDiscountedLineItems(
 }
 
 export async function POST(req: NextRequest) {
-  // Verify Stripe key is available
-  if (!process.env.STRIPE_SECRET_KEY) {
-    return new NextResponse(
-      JSON.stringify({ error: 'Stripe configuration missing' }),
-      { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
-  }
-
-  if (req.method !== 'POST') {
-    return new NextResponse(
-      JSON.stringify({ error: 'Method not allowed' }),
-      { 
-        status: 405,
-        headers: {
-          'Allow': 'POST',
-          'Content-Type': 'application/json',
-        }
-      }
-    );
-  }
-
   try {
     let body;
     try {
@@ -328,16 +330,6 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       return new NextResponse(
         JSON.stringify({ error: 'Invalid JSON input' }),
-        { 
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
-    if (!body) {
-      return new NextResponse(
-        JSON.stringify({ error: 'Invalid request body' }),
         { 
           status: 400,
           headers: { 'Content-Type': 'application/json' }
@@ -368,25 +360,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Get coupon if provided and sync with Stripe
+    let appliedCoupon: Coupon | null = null;
+    let stripePromoCodeId: string | undefined = undefined;
+    
+    if (discountCode) {
+      appliedCoupon = await getValidCoupon(discountCode);
+      if (appliedCoupon) {
+        const promoId = await getStripePromoCode(appliedCoupon);
+        if (promoId) {
+          stripePromoCodeId = promoId;
+          console.log('Stripe promotion code ID:', stripePromoCodeId);
+        }
+      }
+    }
+
     // Get or create customer using email
     const customerId = await getOrCreateCustomer(email);
+    if (!customerId) {
+      throw new Error('Failed to create or retrieve customer');
+    }
 
     const host = headersList.get('host') || '';
     const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${host}`;
 
-    // Get coupon if provided and sync with Stripe
-    let appliedCoupon = null;
-    let stripePromoCodeId = null;
-    if (discountCode) {
-      appliedCoupon = await getValidCoupon(discountCode);
-      if (appliedCoupon) {
-        stripePromoCodeId = await getStripePromoCode(appliedCoupon);
-        console.log('Stripe promotion code ID:', stripePromoCodeId); // Debug log
-      }
-    }
-
-    // Calculate line items (without applying discount since Stripe will handle it)
+    // Calculate line items with proper metadata
     const lineItems = cart.map((item: CartItem) => ({
       price_data: {
         currency: 'usd',
@@ -394,24 +393,28 @@ export async function POST(req: NextRequest) {
           name: item.title,
           description: `${item.licenseType} License${item.artist ? ` - ${item.artist}` : ''}`,
           images: item.coverUrl ? [item.coverUrl] : undefined,
+          metadata: {
+            itemId: item.id,
+            licenseType: item.licenseType,
+            originalPrice: item.price.toString()
+          }
         },
         unit_amount: Math.round(item.price * 100), // Convert to cents
       },
       quantity: 1,
     }));
 
-    // Calculate totals for metadata (before discount)
+    // Calculate totals for metadata
     const totalBeforeDiscount = cart.reduce((sum: number, item: CartItem) => sum + (item.price * 100), 0);
 
-    // Create checkout session with proper promotion code application
-    const session = await stripe.checkout.sessions.create({
+    // Create checkout session with proper promotion code handling
+    const sessionConfig: Stripe.Checkout.SessionCreateParams = {
       payment_method_types: ['card'],
       customer: customerId,
       line_items: lineItems,
       mode: 'payment',
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/cart`,
-      ...(stripePromoCodeId && { discounts: [{ promotion_code: stripePromoCodeId }] }),
       metadata: {
         userId: customerId,
         items: JSON.stringify(cart.map((item: CartItem) => ({
@@ -420,58 +423,27 @@ export async function POST(req: NextRequest) {
           licenseType: item.licenseType,
           originalPrice: item.price
         }))),
-        discountCode: appliedCoupon ? appliedCoupon.code : '',
-        discountId: appliedCoupon ? appliedCoupon.id : '',
-        discountAmount: appliedCoupon ? appliedCoupon.amount.toString() : '0',
-        discountType: appliedCoupon ? appliedCoupon.type : 'none',
-        orderDate: new Date().toISOString(),
-        totalBeforeDiscount: (totalBeforeDiscount / 100).toString(),
-        customerEmail: email,
-        promoCodeId: stripePromoCodeId || ''
+        totalBeforeDiscount: totalBeforeDiscount.toString(),
+        discountCode: appliedCoupon?.code || '',
+        discountId: appliedCoupon?.id || '',
+        discountType: appliedCoupon?.type || '',
+        discountAmount: appliedCoupon?.amount?.toString() || ''
       }
-    });
+    };
 
-    // Store order details (we'll get the final amount from the webhook)
-    const orderPromises = cart.map((item: CartItem) => {
-      return storeOrder({
-        user_id: customerId,
-        track_id: item.id,
-        track_name: item.title,
-        license: item.licenseType,
-        total_amount: item.price, // Store original price, webhook will update with final amount
-        stripe_session_id: session.id
-      }).catch(error => {
-        console.error('Failed to store order:', error);
-        return null;
-      });
-    });
-
-    await Promise.all(orderPromises);
-
-    // Increment coupon usage after successful session creation
-    if (appliedCoupon) {
-      await incrementCouponUsage(appliedCoupon.id);
+    // Add promotion code if available
+    if (stripePromoCodeId) {
+      sessionConfig.discounts = [{ promotion_code: stripePromoCodeId }];
     }
 
-    return new NextResponse(
-      JSON.stringify({ success: true, url: session.url }),
-      { 
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
+    const session = await stripe.checkout.sessions.create(sessionConfig);
+
+    return NextResponse.json({ sessionId: session.id });
   } catch (error: any) {
     console.error('Checkout error:', error);
-    
-    return new NextResponse(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message || 'An error occurred during checkout'
-      }),
-      { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      }
+    return NextResponse.json(
+      { error: error.message || 'Failed to create checkout session' },
+      { status: 500 }
     );
   }
 }
