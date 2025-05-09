@@ -75,18 +75,23 @@ const createCheckServiceRoleFunction = async () => {
     // Create an SQL function in Supabase to check for service role key
     const { error } = await supabase.rpc('create_service_role_check_function');
     if (error) {
-      console.error('Error creating service role check function:', error);
+      // Silently fail since this function might not exist yet
+      console.log('Note: Service role check function not created yet. Run the SQL script first.');
     } else {
       console.log('Service role check function created successfully');
     }
   } catch (error) {
-    console.error('Exception creating service role check function:', error);
+    // Silently fail since this is an optional feature
+    console.log('Note: Service role check function not available. Run the SQL script first.');
   }
 };
 
 // If we're using the service role key, attempt to create the function
 if (isUsingServiceRoleKey) {
-  createCheckServiceRoleFunction();
+  // Wait a bit before trying to create the function to avoid startup errors
+  setTimeout(() => {
+    createCheckServiceRoleFunction();
+  }, 5000);
 }
 
 export { supabase, isUsingServiceRoleKey, checkServiceRoleAccess }

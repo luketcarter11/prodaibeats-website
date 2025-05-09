@@ -1,27 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { supabase } from '../../../lib/supabaseClient'
 import { FaSearch, FaSpinner, FaEye, FaFilter } from 'react-icons/fa'
 import { format } from 'date-fns'
-
-interface Order {
-  id: string
-  user_id: string
-  order_date: string
-  total_amount: number
-  discount: number | null
-  license: string
-  track_name: string
-  track_id: string | null
-  license_file: string | null
-  customer_email: string | null
-  stripe_session_id: string | null
-  created_at: string
-  updated_at: string
-  currency: string
-  status: 'pending' | 'completed' | 'failed'
-}
+import { Order, getAllOrders } from '../../../lib/getOrders'
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
@@ -47,15 +30,7 @@ export default function OrdersPage() {
     setError(null)
 
     try {
-      const { data: ordersData, error: ordersError } = await supabase
-        .from('orders')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (ordersError) {
-        throw ordersError
-      }
-
+      const ordersData = await getAllOrders()
       setOrders(ordersData || [])
       setFilteredOrders(ordersData || [])
     } catch (err: any) {
@@ -137,6 +112,27 @@ export default function OrdersPage() {
         return 'bg-red-900/50 text-red-400'
       default:
         return 'bg-gray-900/50 text-gray-400'
+    }
+  }
+
+  // ... formatted date helper that handles undefined
+  const formatDateSafe = (dateString?: string) => {
+    if (!dateString) return 'N/A';
+    try {
+      return format(new Date(dateString), 'MMM d, yyyy');
+    } catch (e) {
+      console.error('Error formatting date:', e);
+      return 'Invalid date';
+    }
+  }
+
+  const formatDateTimeSafe = (dateString?: string) => {
+    if (!dateString) return 'N/A';
+    try {
+      return format(new Date(dateString), 'PPpp');
+    } catch (e) {
+      console.error('Error formatting date:', e);
+      return 'Invalid date';
     }
   }
 
@@ -255,7 +251,7 @@ export default function OrdersPage() {
                   <tr key={order.id} className="border-b border-white/5">
                     <td className="py-4 text-white">{order.id.slice(0, 8)}...</td>
                     <td className="py-4 text-white">
-                      {format(new Date(order.order_date), 'MMM d, yyyy')}
+                      {formatDateSafe(order.order_date)}
                     </td>
                     <td className="py-4 text-white">{order.customer_email || 'Unknown'}</td>
                     <td className="py-4 text-white">
@@ -314,7 +310,7 @@ export default function OrdersPage() {
                 <div>
                   <h4 className="text-sm font-medium text-gray-400 mb-1">Order Date</h4>
                   <p className="text-white">
-                    {format(new Date(selectedOrder.order_date), 'PPpp')}
+                    {formatDateTimeSafe(selectedOrder.order_date)}
                   </p>
                 </div>
                 <div>
@@ -336,7 +332,7 @@ export default function OrdersPage() {
                 <div>
                   <h4 className="text-sm font-medium text-gray-400 mb-1">Created At</h4>
                   <p className="text-white">
-                    {format(new Date(selectedOrder.created_at), 'PPpp')}
+                    {formatDateTimeSafe(selectedOrder.created_at)}
                   </p>
                 </div>
               </div>

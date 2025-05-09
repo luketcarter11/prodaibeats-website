@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getUserOrders, Order } from '../lib/getOrders';
+import { format } from 'date-fns';
 
 interface OrdersListProps {
   userId: string;
@@ -33,6 +34,22 @@ const OrdersList: React.FC<OrdersListProps> = ({ userId }) => {
     }
   }, [userId]);
 
+  const formatCurrency = (amount: number, currency: string = 'USD') => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+    }).format(amount);
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'N/A';
+    try {
+      return format(new Date(dateString), 'MMM d, yyyy');
+    } catch (e) {
+      return 'Invalid date';
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="p-6 rounded-lg bg-[#111111] text-white">
@@ -61,7 +78,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ userId }) => {
 
   return (
     <div className="p-6 rounded-lg bg-[#111111] text-white">
-      <h2 className="text-xl font-semibold mb-6">Licenses & Orders</h2>
+      <h2 className="text-xl font-semibold mb-6">Your Orders</h2>
       
       {orders.length === 0 ? (
         <div className="text-center py-12">
@@ -70,8 +87,8 @@ const OrdersList: React.FC<OrdersListProps> = ({ userId }) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
-          <p className="text-lg text-gray-400 mb-2">No licenses purchased yet</p>
-          <p className="text-gray-600 mb-8">When you purchase beats with a license, they will appear here for easy access and download.</p>
+          <p className="text-lg text-gray-400 mb-2">No orders yet</p>
+          <p className="text-gray-600 mb-8">When you purchase beats or tracks, they will appear here.</p>
           <Link
             href="/beats"
             className="inline-block bg-purple-600 text-white px-6 py-2 rounded-lg text-sm"
@@ -104,20 +121,22 @@ const OrdersList: React.FC<OrdersListProps> = ({ userId }) => {
                 </div>
                 <div>
                   <p>Purchase Date:</p>
-                  <p className="text-white">
-                    {new Date(order.order_date).toLocaleDateString()}
-                  </p>
+                  <p className="text-white">{formatDate(order.order_date)}</p>
                 </div>
                 <div>
                   <p>Amount Paid:</p>
                   <p className="text-white">
-                    ${order.total_amount.toFixed(2)}
+                    {formatCurrency(order.total_amount, order.currency)}
                     {order.discount && order.discount > 0 && (
                       <span className="text-green-400 ml-2">
-                        (-${order.discount.toFixed(2)})
+                        (-{formatCurrency(order.discount, order.currency)})
                       </span>
                     )}
                   </p>
+                </div>
+                <div>
+                  <p>Order ID:</p>
+                  <p className="text-white">{order.id.slice(0, 8)}...</p>
                 </div>
               </div>
 

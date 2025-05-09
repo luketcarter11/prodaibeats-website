@@ -8,12 +8,24 @@ export interface Order {
   discount?: number;
   order_date: string;
   status: 'pending' | 'completed' | 'failed';
-  stripe_session_id: string;
+  stripe_session_id?: string;
+  customer_email?: string;
+  created_at?: string;
+  updated_at?: string;
+  currency?: string;
+  license_file?: string;
 }
+
+// Set this to false to use the real endpoint
+const USE_TEST_ENDPOINT = false;
 
 export async function getUserOrders(userId: string): Promise<Order[]> {
   try {
-    const response = await fetch(`/api/orders?userId=${userId}`);
+    const endpoint = USE_TEST_ENDPOINT 
+      ? `/api/test-orders?userId=${userId}`
+      : `/api/orders?userId=${userId}`;
+      
+    const response = await fetch(endpoint);
     if (!response.ok) {
       throw new Error('Failed to fetch orders');
     }
@@ -21,6 +33,24 @@ export async function getUserOrders(userId: string): Promise<Order[]> {
     return orders;
   } catch (error) {
     console.error('Error fetching orders:', error);
+    return [];
+  }
+}
+
+export async function getAllOrders(): Promise<Order[]> {
+  try {
+    const endpoint = USE_TEST_ENDPOINT 
+      ? `/api/test-orders?admin=true`
+      : `/api/orders?admin=true`;
+      
+    const response = await fetch(endpoint);
+    if (!response.ok) {
+      throw new Error('Failed to fetch orders');
+    }
+    const orders: Order[] = await response.json();
+    return orders;
+  } catch (error) {
+    console.error('Error fetching all orders:', error);
     return [];
   }
 } 

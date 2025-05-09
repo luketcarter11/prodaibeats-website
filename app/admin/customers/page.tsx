@@ -46,13 +46,14 @@ export default function CustomersPage() {
 
         if (!hasServiceAccess) {
           console.warn('Service role key not detected. Admin functionality may be limited.');
-          setError('Admin access limited: Service role key not configured. You may only see your own profile data.');
+          // We won't show an error yet, as we'll still try to load data with regular permissions
         } else {
           console.log('Service role key detected. Full admin access available.');
         }
       } catch (err) {
         console.error('Error checking service role:', err);
         setServiceKeyAvailable(false);
+        // Don't set an error message here either
       }
     };
 
