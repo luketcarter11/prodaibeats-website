@@ -36,6 +36,7 @@
     "@stripe/stripe-js": "^7.3.0",
     "@supabase/supabase-js": "^2.49.4",
     "@types/pdfkit": "^0.13.9",
+    "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.7.2",
     "lucide-react": "^0.488.0",

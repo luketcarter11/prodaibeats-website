@@ -65,9 +65,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user?.id) {
       const userProfile = await fetchUserProfile(user.id)
       if (userProfile) {
+        // Use email from profile if available, fall back to auth.user email
         setProfile({
           ...userProfile,
-          email: user.email
+          email: userProfile.email || user.email
         })
       }
     }
@@ -106,7 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (userProfile) {
             setProfile({
               ...userProfile,
-              email: currentUser.email
+              // Use email from profile if available, fall back to auth.user email
+              email: userProfile.email || currentUser.email
             })
           }
         }
@@ -125,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 if (userProfile) {
                   setProfile({
                     ...userProfile,
-                    email: newUser.email
+                    email: userProfile.email || newUser.email
                   })
                 } else {
                   setProfile(null)

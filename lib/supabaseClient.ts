@@ -2,14 +2,29 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-url.supabase.co'
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || undefined
 
 console.log('✅ Supabase URL available:', !!process.env.NEXT_PUBLIC_SUPABASE_URL)
 console.log('✅ Supabase Anon Key available:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+console.log('✅ Supabase Service Key available:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
 
 let supabase: SupabaseClient
 
 if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-  supabase = createClient(supabaseUrl, supabaseAnonKey)
+  // Use service role key for admin functions when available
+  if (supabaseServiceKey && process.env.NODE_ENV === 'development') {
+    // Only use service role key in development for safety
+    supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+    console.log('🔑 Using Supabase service role key (admin mode)')
+  } else {
+    // Use regular anon key for client-side requests
+    supabase = createClient(supabaseUrl, supabaseAnonKey)
+  }
 } else if (typeof window !== 'undefined') {
   supabase = createClient(supabaseUrl, supabaseAnonKey)
 } else {

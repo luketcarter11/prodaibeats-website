@@ -46,8 +46,8 @@ const AdminDashboard = () => {
           </div>
           <p className="text-gray-400 mb-4">View and manage orders and customer information.</p>
           <div className="space-y-2">
-            <Link href="/admin/orders" className="block text-purple-400 hover:text-purple-300">View Orders (Coming Soon)</Link>
-            <Link href="/admin/customers" className="block text-purple-400 hover:text-purple-300">Customer List (Coming Soon)</Link>
+            <Link href="/admin/orders" className="block text-purple-400 hover:text-purple-300">View Orders</Link>
+            <Link href="/admin/customers" className="block text-purple-400 hover:text-purple-300">Customer List</Link>
           </div>
         </div>
 

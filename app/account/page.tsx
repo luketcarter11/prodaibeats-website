@@ -135,7 +135,7 @@ export default function AccountPage() {
             setProfile({
               full_name: profileData.full_name || '',
               display_name: profileData.display_name || '',
-              email: data.user.email || '',
+              email: profileData.email || data.user.email || '',
               billing_address: profileData.billing_address || '',
               country: profileData.country || '',
               phone: profileData.phone || '',
@@ -197,6 +197,7 @@ export default function AccountPage() {
           id: userId,
           full_name: profile.full_name,
           display_name: profile.display_name,
+          email: profile.email,
           billing_address: profile.billing_address,
           country: profile.country,
           phone: profile.phone,
