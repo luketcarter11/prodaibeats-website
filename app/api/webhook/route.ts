@@ -5,6 +5,10 @@ import fs from 'fs';
 import path from 'path';
 import { discountService } from '@/services/discountService';
 
+// Edge and Streaming flags
+export const runtime = 'nodejs'; // Keep as nodejs for file system operations
+export const dynamic = 'force-dynamic';
+
 if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
   throw new Error('Stripe credentials are not defined');
 }
@@ -72,10 +76,6 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
     }
   }
 }
-
-// Modern Next.js App Router configuration
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
   try {

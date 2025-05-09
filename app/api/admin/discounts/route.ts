@@ -4,6 +4,11 @@ import Stripe from 'stripe';
 import { DiscountCode, DiscountCreateRequest, DiscountUpdateRequest } from '@/types/discount';
 import { Database } from '@/types/supabase';
 
+// Edge and Streaming flags
+export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
+
+// Initialize Stripe
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('STRIPE_SECRET_KEY is not defined');
 }
@@ -12,10 +17,22 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2025-04-30.basil'
 });
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Initialize Supabase with runtime check
+const getSupabase = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Missing Supabase credentials');
+  }
+
+  return createClient<Database>(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    }
+  });
+};
 
 async function syncWithStripe(discount: DiscountCode): Promise<string | null> {
   try {
@@ -49,6 +66,7 @@ async function syncWithStripe(discount: DiscountCode): Promise<string | null> {
 
 export async function POST(req: NextRequest) {
   try {
+    const supabase = getSupabase();
     const data: DiscountCreateRequest = await req.json();
 
     // Validate required fields
@@ -111,6 +129,7 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
+    const supabase = getSupabase();
     const { id, ...data }: DiscountUpdateRequest & { id: string } = await req.json();
 
     if (!id) {
@@ -173,6 +192,7 @@ export async function PUT(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
+    const supabase = getSupabase();
     const { searchParams } = new URL(req.url);
     const code = searchParams.get('code');
 
@@ -200,6 +220,7 @@ export async function GET(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const supabase = getSupabase();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 

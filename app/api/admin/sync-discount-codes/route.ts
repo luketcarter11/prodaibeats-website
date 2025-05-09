@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabaseClient'
+import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
 import { Database } from '@/types/supabase'
 
+// Edge and Streaming flags
+export const runtime = 'edge'
+export const dynamic = 'force-dynamic'
+
+// Initialize Stripe
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('STRIPE_SECRET_KEY is not defined')
 }
@@ -11,10 +16,28 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2025-04-30.basil'
 })
 
+// Initialize Supabase with runtime check
+const getSupabase = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Missing Supabase credentials')
+  }
+
+  return createClient<Database>(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    }
+  })
+}
+
 type DiscountCode = Database['public']['Tables']['discount_codes']['Row']
 
 export async function POST() {
   try {
+    const supabase = getSupabase()
     console.log('Starting discount code sync with Stripe...')
 
     // Get all active discount codes from Supabase
