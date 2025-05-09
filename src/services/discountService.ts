@@ -137,6 +137,17 @@ export const discountService = {
     return true
   },
 
+  async decrementUsageCount(id: string): Promise<boolean> {
+    const { error } = await supabase.rpc('decrement_discount_code_usage', { code_id: id })
+
+    if (error) {
+      console.error('Error decrementing usage count:', error)
+      return false
+    }
+
+    return true
+  },
+
   calculateDiscountedAmount(total: number, discountCode: DiscountCode): number {
     if (discountCode.type === 'percentage') {
       const discount = (total * discountCode.amount) / 100

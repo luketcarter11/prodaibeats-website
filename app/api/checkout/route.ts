@@ -350,7 +350,7 @@ export async function POST(req: NextRequest) {
           originalPrice: item.price,
           finalPrice: item.price * (appliedCoupon ? (1 - appliedCoupon.amount / 100) : 1)
         }))),
-        discountCode: discountCode || '',
+        discountCode: appliedCoupon ? appliedCoupon.id : '',
         discountAmount: appliedCoupon ? appliedCoupon.amount.toString() : '0',
         discountType: appliedCoupon ? appliedCoupon.type : 'none',
         orderDate: new Date().toISOString(),
@@ -358,13 +358,6 @@ export async function POST(req: NextRequest) {
         totalAfterDiscount: (totalAfterDiscount / 100).toString()
       }
     });
-
-    // Increment coupon usage if successfully applied
-    if (appliedCoupon) {
-      await incrementCouponUsage(appliedCoupon.id).catch(error => {
-        console.error('Failed to increment coupon usage:', error);
-      });
-    }
 
     // Store order details
     const orderPromises = cart.map((item: CartItem) => {

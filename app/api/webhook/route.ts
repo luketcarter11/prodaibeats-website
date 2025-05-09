@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import fs from 'fs';
 import path from 'path';
+import { discountService } from '@/services/discountService';
 
 if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
   throw new Error('Stripe credentials are not defined');
@@ -44,6 +45,34 @@ async function updateOrderStatus(sessionId: string, status: 'completed' | 'faile
   }
 }
 
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+  await updateOrderStatus(session.id, 'completed');
+  
+  // Update discount code usage if one was used
+  const discountCode = session.metadata?.discountCode;
+  if (discountCode) {
+    try {
+      await discountService.incrementUsageCount(discountCode);
+    } catch (error) {
+      console.error('Failed to increment discount code usage:', error);
+    }
+  }
+}
+
+async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
+  await updateOrderStatus(session.id, 'failed');
+  
+  // If we previously incremented the usage count, we should decrement it
+  const discountCode = session.metadata?.discountCode;
+  if (discountCode) {
+    try {
+      await discountService.decrementUsageCount(discountCode);
+    } catch (error) {
+      console.error('Failed to decrement discount code usage:', error);
+    }
+  }
+}
+
 // Modern Next.js App Router configuration
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -80,12 +109,12 @@ export async function POST(req: Request) {
     switch (event.type) {
       case 'checkout.session.completed':
         const session = event.data.object as Stripe.Checkout.Session;
-        await updateOrderStatus(session.id, 'completed');
+        await handleCheckoutCompleted(session);
         break;
       
       case 'checkout.session.expired':
         const expiredSession = event.data.object as Stripe.Checkout.Session;
-        await updateOrderStatus(expiredSession.id, 'failed');
+        await handleCheckoutExpired(expiredSession);
         break;
       
       default:
