@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase, getSupabaseClient } from '../../../lib/supabaseClient';
+import { supabase, getSupabaseClient, withApiKey } from '../../../lib/supabaseClient';
 
 // Define interfaces for our test results
 interface TestResult {
@@ -50,6 +50,20 @@ export async function GET(request: Request) {
       authTest.error = e.message;
     }
     
+    // Test auth with withApiKey helper
+    const authWithApiKeyTest: TestResult = { success: false, error: null };
+    try {
+      // Try to access auth API with withApiKey helper
+      const result = await withApiKey(async () => {
+        return await supabase.auth.getSession();
+      });
+      
+      authWithApiKeyTest.success = !result.error;
+      authWithApiKeyTest.error = result.error ? result.error.message : null;
+    } catch (e: any) {
+      authWithApiKeyTest.error = e.message;
+    }
+    
     // Create fresh client and test it
     const freshClientTest: TestResult = { success: false, error: null };
     try {
@@ -66,10 +80,12 @@ export async function GET(request: Request) {
       environment: envCheck,
       connectionTest,
       authTest,
+      authWithApiKeyTest,
       freshClientTest,
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {
+    console.error('Debug auth error:', error);
     return NextResponse.json({
       status: 'error',
       message: error.message,

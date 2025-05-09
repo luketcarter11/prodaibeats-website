@@ -174,6 +174,12 @@ export async function withApiKey<T>(fn: () => Promise<T>): Promise<T> {
       }
     };
     
+    // Add logging in development to debug auth issues
+    if (process.env.NODE_ENV !== 'production' && url.toString().includes('auth')) {
+      console.log(`Enhanced auth request to ${url.toString().split('?')[0]}`);
+      console.log('API key included:', !!apiKey);
+    }
+    
     return await originalFetch(url, newOptions);
   };
   

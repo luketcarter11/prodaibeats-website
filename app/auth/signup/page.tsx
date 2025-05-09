@@ -29,44 +29,41 @@ export default function SignUpPage() {
     
     setLoading(true)
     
-    // Log API key availability
-    const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    console.log('API key available:', !!apiKey)
-    
     try {
-      // Use the withApiKey helper to ensure API key is included
-      const authResult = await withApiKey(async () => {
-        return await supabase.auth.signUp({
+      // Call our server-side API route instead of Supabase directly
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           email: formData.email,
           password: formData.password,
-          options: {
-            data: { name: formData.name },
-          },
-        })
-      })
+          name: formData.name,
+        }),
+      });
       
-      const { data, error } = authResult
+      const result = await response.json();
+      console.log('Signup response:', result);
       
-      if (error) {
-        console.error('Signup error details:', error)
-        
-        if (error.message.includes('API key')) {
-          setError('Authentication error. Please try again or contact support.')
-          console.error('API key error detected')
-        } else {
-          setError(error.message)
-        }
-      } else if (data?.user && !data.user.identities?.[0]?.identity_data?.email_confirmed_at) {
-        setSuccess('Account created! Please check your email to confirm your account.')
-        setFormData({ name: '', email: '', password: '', confirmPassword: '' })
+      if (!response.ok || !result.success) {
+        setError(result.message || 'An error occurred during signup');
+        setLoading(false);
+        return;
+      }
+      
+      if (result.requiresEmailConfirmation) {
+        setSuccess(result.message);
+        setFormData({ name: '', email: '', password: '', confirmPassword: '' });
       } else {
-        router.push('/account')
+        console.log('User created and confirmed, redirecting to account page');
+        router.push('/account');
       }
     } catch (error) {
-      console.error('Unexpected error:', error)
-      setError('An unexpected error occurred')
+      console.error('Unexpected error:', error);
+      setError('An unexpected error occurred');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 

@@ -47,38 +47,29 @@ export default function LoginPopup({ isOpen, onClose }: LoginPopupProps) {
     setError(null)
     console.log('Login attempt with:', formData.email)
     
-    // Log API key availability
-    const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    console.log('API key available:', !!apiKey)
-    
     try {
-      // Use the withApiKey helper to ensure API key is included
-      const authResult = await withApiKey(async () => {
-        return await supabase.auth.signInWithPassword({
+      // Call our server-side API route instead of Supabase directly
+      const response = await fetch('/api/auth/signin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           email: formData.email,
           password: formData.password,
-        })
-      })
+        }),
+      });
       
-      const { data, error } = authResult
-      console.log('Supabase response:', { data, error })
+      const result = await response.json();
+      console.log('Login response status:', response.status);
       setLoading(false)
       
-      if (error) {
-        console.error('Login error details:', error)
-        
-        if (error.message === 'Invalid login credentials') {
-          setError('Invalid email or password. Please try again.')
-        } else if (error.message.includes('API key')) {
-          setError('Authentication error. Please try again or contact support.')
-          console.error('API key error detected')
-        } else {
-          setError(error.message)
-        }
-        return
+      if (!response.ok || !result.success) {
+        setError(result.message || 'An error occurred during sign in');
+        return;
       }
       
-      console.log('Login successful, user:', data.user)
+      console.log('Login successful, redirecting to account page')
       // Close popup and redirect to account page
       onClose()
       // Use direct navigation for more reliability
