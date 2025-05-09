@@ -31,6 +31,8 @@ export default function SignUpPage() {
     
     try {
       // Call our server-side API route instead of Supabase directly
+      console.log('Submitting signup form:', { email: formData.email, name: formData.name });
+      
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: {
@@ -44,15 +46,20 @@ export default function SignUpPage() {
       });
       
       const result = await response.json();
+      console.log('Signup response status:', response.status);
       console.log('Signup response:', result);
       
       if (!response.ok || !result.success) {
-        setError(result.message || 'An error occurred during signup');
+        const errorMessage = result.message || 'An error occurred during signup';
+        console.error('Signup error:', errorMessage);
+        console.error('Error details:', result.error);
+        setError(errorMessage);
         setLoading(false);
         return;
       }
       
       if (result.requiresEmailConfirmation) {
+        console.log('Email confirmation required');
         setSuccess(result.message);
         setFormData({ name: '', email: '', password: '', confirmPassword: '' });
       } else {
@@ -60,8 +67,8 @@ export default function SignUpPage() {
         router.push('/account');
       }
     } catch (error) {
-      console.error('Unexpected error:', error);
-      setError('An unexpected error occurred');
+      console.error('Unexpected error during signup:', error);
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
