@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { FaPlus, FaEdit, FaTrash, FaSpinner } from 'react-icons/fa'
-import { discountService, DiscountCode, CreateDiscountCode } from '@/services/discountService'
+import { discountService } from '@/services/discountService'
+import type { DiscountCode, DiscountCreateRequest } from '@/types/discount'
 
 export default function DiscountCodesPage() {
   const [discountCodes, setDiscountCodes] = useState<DiscountCode[]>([])
@@ -11,7 +12,7 @@ export default function DiscountCodesPage() {
   const [error, setError] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [selectedCode, setSelectedCode] = useState<DiscountCode | null>(null)
-  const [formData, setFormData] = useState<CreateDiscountCode>({
+  const [formData, setFormData] = useState<DiscountCreateRequest>({
     code: '',
     amount: 0,
     type: 'percentage',

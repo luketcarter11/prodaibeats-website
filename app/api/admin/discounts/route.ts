@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import { DiscountCode, DiscountCreateRequest, DiscountUpdateRequest } from '@/types/discount';
+import { Database } from '@/types/supabase';
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('STRIPE_SECRET_KEY is not defined');
@@ -75,8 +76,8 @@ export async function POST(req: NextRequest) {
     // Create discount code object
     const newDiscount: Partial<DiscountCode> = {
       ...data,
-      current_uses: 0,
-      is_active: true,
+      used_count: 0,
+      active: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };

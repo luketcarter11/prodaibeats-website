@@ -1,19 +1,10 @@
 import { supabase } from '@/lib/supabaseClient'
-import { Database } from '@/types/supabase'
+import { DiscountCode, DiscountCreateRequest, DiscountUpdateRequest, DiscountValidationResult } from '@/types/discount'
 
-export type DiscountCode = Database['public']['Tables']['discount_codes']['Row']
-export type CreateDiscountCode = Database['public']['Tables']['discount_codes']['Insert']
-export type UpdateDiscountCode = Database['public']['Tables']['discount_codes']['Update']
-
-export interface DiscountValidationResult {
-  isValid: boolean
-  code?: DiscountCode
-  error?: string
-  discountAmount?: number
-}
+export type { DiscountCode, DiscountCreateRequest, DiscountUpdateRequest, DiscountValidationResult }
 
 export const discountService = {
-  async createDiscountCode(data: CreateDiscountCode): Promise<DiscountCode | null> {
+  async createDiscountCode(data: DiscountCreateRequest): Promise<DiscountCode | null> {
     const { data: discountCode, error } = await supabase
       .from('discount_codes')
       .insert([data])
@@ -28,7 +19,7 @@ export const discountService = {
     return discountCode
   },
 
-  async updateDiscountCode(id: string, data: UpdateDiscountCode): Promise<DiscountCode | null> {
+  async updateDiscountCode(id: string, data: DiscountUpdateRequest): Promise<DiscountCode | null> {
     const { data: discountCode, error } = await supabase
       .from('discount_codes')
       .update(data)
