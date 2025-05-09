@@ -1,7 +1,16 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-url.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
+// Remove placeholder fallbacks that might cause issues in production
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+
+// Validate required environment variables
+if (!supabaseUrl || !supabaseAnonKey) {
+  if (typeof window !== 'undefined') {
+    console.error('❌ Required Supabase environment variables are missing!')
+    console.error('Make sure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set in your .env file')
+  }
+}
 
 // Initialize variables
 let supabase: SupabaseClient
@@ -21,25 +30,54 @@ const supabaseServiceKey = getServiceRoleKey()
 
 // Debug logging (only in development)
 if (process.env.NODE_ENV !== 'production') {
-  console.log('✅ Supabase URL available:', !!process.env.NEXT_PUBLIC_SUPABASE_URL)
-  console.log('✅ Supabase Anon Key available:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+  console.log('✅ Supabase URL available:', !!supabaseUrl)
+  console.log('✅ Supabase Anon Key available:', !!supabaseAnonKey)
   console.log('✅ Supabase Service Key available:', !!supabaseServiceKey)
+}
+
+// Common options to ensure API key is properly included
+const commonOptions = {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  },
+  global: {
+    headers: {
+      'apikey': supabaseAnonKey,
+      'X-Client-Info': 'prodai-beats'
+    }
+  }
 }
 
 // Client-side initialization (browser)
 if (typeof window !== 'undefined') {
-  supabase = createClient(supabaseUrl, supabaseAnonKey)
+  try {
+    // Explicitly use global headers to ensure API key is included
+    supabase = createClient(supabaseUrl, supabaseAnonKey, commonOptions)
+    console.log('✅ Supabase client initialized for browser')
+  } catch (error) {
+    console.error('❌ Error initializing Supabase client:', error)
+    throw error // Re-throw to make the error visible
+  }
 }
 // Server-side initialization
 else {
-  if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+  if (supabaseUrl && supabaseAnonKey) {
     // Try to use service role key for admin functions when available
     if (supabaseServiceKey) {
       try {
         supabase = createClient(supabaseUrl, supabaseServiceKey, {
+          ...commonOptions,
           auth: {
             autoRefreshToken: false,
             persistSession: false
+          },
+          global: {
+            headers: {
+              'apikey': supabaseServiceKey,
+              'X-Client-Info': 'prodai-beats-server'
+            }
           }
         })
         isUsingServiceRoleKey = true
@@ -50,33 +88,19 @@ else {
       } catch (error) {
         console.error('❌ Error initializing with service role key:', error)
         // Fallback to anon key
-        supabase = createClient(supabaseUrl, supabaseAnonKey)
+        supabase = createClient(supabaseUrl, supabaseAnonKey, commonOptions)
       }
     } else {
       // Use regular anon key for client-side requests
-      supabase = createClient(supabaseUrl, supabaseAnonKey)
+      supabase = createClient(supabaseUrl, supabaseAnonKey, commonOptions)
       
       if (process.env.NODE_ENV !== 'production') {
         console.log('🔑 Using Supabase anon key (regular mode) - admin features will be limited')
       }
     }
   } else {
-    // Fallback mock for server build environments
-    supabase = {
-      auth: {
-        signUp: () => Promise.resolve({ error: new Error('Supabase not configured') }),
-        signIn: () => Promise.resolve({ error: new Error('Supabase not configured') }),
-        signOut: () => Promise.resolve({ error: new Error('Supabase not configured') }),
-        user: () => null,
-        session: () => null,
-      },
-      from: () => ({
-        select: () => ({ data: null, error: new Error('Supabase not configured') }),
-        insert: () => ({ data: null, error: new Error('Supabase not configured') }),
-        update: () => ({ data: null, error: new Error('Supabase not configured') }),
-        delete: () => ({ data: null, error: new Error('Supabase not configured') }),
-      }),
-    } as unknown as SupabaseClient
+    // Throw an error for missing config instead of creating a mock
+    throw new Error('Supabase URL and Anon Key must be provided in environment variables')
   }
 }
 
@@ -121,6 +145,11 @@ if (isUsingServiceRoleKey && typeof window === 'undefined' && process.env.NODE_E
   setTimeout(() => {
     createCheckServiceRoleFunction();
   }, 5000);
+}
+
+// Helper function to directly get a fresh client with explicit API key
+export const getSupabaseClient = () => {
+  return createClient(supabaseUrl, supabaseAnonKey, commonOptions);
 }
 
 export { supabase, isUsingServiceRoleKey, checkServiceRoleAccess, getServiceRoleKey }

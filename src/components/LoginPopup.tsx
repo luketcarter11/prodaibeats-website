@@ -46,17 +46,33 @@ export default function LoginPopup({ isOpen, onClose }: LoginPopupProps) {
     setLoading(true)
     setError(null)
     console.log('Login attempt with:', formData.email)
+    
+    // Log API key existence (not the actual key) for debugging
+    const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    console.log('API key available:', !!apiKey)
+    
     const { data, error } = await supabase.auth.signInWithPassword({
       email: formData.email,
       password: formData.password,
     })
+    
     console.log('Supabase response:', { data, error })
     setLoading(false)
+    
     if (error) {
-      setError(error.message)
-      console.error('Login error:', error.message)
+      console.error('Login error details:', error)
+      
+      if (error.message === 'Invalid login credentials') {
+        setError('Invalid email or password. Please try again.')
+      } else if (error.message.includes('API key')) {
+        setError('Authentication error. Please try again or contact support.')
+        console.error('API key error detected')
+      } else {
+        setError(error.message)
+      }
       return
     }
+    
     console.log('Login successful, user:', data.user)
     // Close popup and redirect to account page
     onClose()

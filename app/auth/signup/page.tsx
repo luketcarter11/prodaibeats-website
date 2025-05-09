@@ -26,7 +26,13 @@ export default function SignUpPage() {
       setError('Passwords do not match.')
       return
     }
+    
     setLoading(true)
+    
+    // Log API key existence (not the actual key) for debugging
+    const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    console.log('API key available:', !!apiKey)
+    
     const { data, error } = await supabase.auth.signUp({
       email: formData.email,
       password: formData.password,
@@ -34,11 +40,21 @@ export default function SignUpPage() {
         data: { name: formData.name },
       },
     })
+    
     setLoading(false)
+    
     if (error) {
-      setError(error.message)
+      console.error('Signup error details:', error)
+      
+      if (error.message.includes('API key')) {
+        setError('Authentication error. Please try again or contact support.')
+        console.error('API key error detected')
+      } else {
+        setError(error.message)
+      }
       return
     }
+    
     if (data?.user && !data.user.identities?.[0]?.identity_data?.email_confirmed_at) {
       setSuccess('Account created! Please check your email to confirm your account.')
       setFormData({ name: '', email: '', password: '', confirmPassword: '' })
