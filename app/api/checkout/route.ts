@@ -162,23 +162,48 @@ async function getValidCoupon(code: string): Promise<Coupon | null> {
   }
 }
 
-async function getStripeCoupon(coupon: Coupon): Promise<string | null> {
+async function getStripePromoCode(coupon: Coupon): Promise<string | null> {
   try {
-    // First, try to find an existing coupon in Stripe
-    const existingCoupons = await stripe.coupons.list({
-      limit: 100
-    });
-
-    const existingCoupon = existingCoupons.data.find(c => 
-      c.metadata?.couponId === coupon.id || 
-      c.name === coupon.code
-    );
-
-    if (existingCoupon) {
-      return existingCoupon.id;
+    // First check if we already have a promotion code stored
+    if (coupon.stripe_coupon_id && coupon.stripe_coupon_id.startsWith('promo_')) {
+      try {
+        const promoCode = await stripe.promotionCodes.retrieve(coupon.stripe_coupon_id);
+        if (promoCode.active) {
+          return promoCode.id;
+        }
+      } catch (error) {
+        console.error('Stored promotion code not found or inactive:', error);
+      }
     }
 
-    // Create a new Stripe coupon
+    // Look for existing promotion code
+    const promotionCodes = await stripe.promotionCodes.list({
+      active: true,
+      limit: 100,
+    });
+
+    const existingPromoCode = promotionCodes.data.find(p => 
+      p.code === coupon.code || 
+      p.metadata?.couponId === coupon.id
+    );
+
+    if (existingPromoCode) {
+      // Update our database with the promotion code ID if needed
+      if (coupon.stripe_coupon_id !== existingPromoCode.id) {
+        try {
+          const supabase = getSupabase();
+          await supabase
+            .from('coupons')
+            .update({ stripe_coupon_id: existingPromoCode.id })
+            .eq('id', coupon.id);
+        } catch (error) {
+          console.error('Failed to update promotion code ID in database:', error);
+        }
+      }
+      return existingPromoCode.id;
+    }
+
+    // Create a new Stripe coupon first
     const stripeCoupon = await stripe.coupons.create({
       name: coupon.code,
       duration: 'once',
@@ -195,20 +220,33 @@ async function getStripeCoupon(coupon: Coupon): Promise<string | null> {
       }
     });
 
-    // Store the Stripe coupon ID in our database
+    // Create a promotion code linked to the coupon
+    const promoCode = await stripe.promotionCodes.create({
+      coupon: stripeCoupon.id,
+      code: coupon.code,
+      active: true,
+      metadata: {
+        couponId: coupon.id,
+        type: coupon.type,
+        amount: coupon.amount.toString(),
+        source: 'ProdAI Beats'
+      }
+    });
+
+    // Store the promotion code ID in our database
     try {
       const supabase = getSupabase();
       await supabase
         .from('coupons')
-        .update({ stripe_coupon_id: stripeCoupon.id })
+        .update({ stripe_coupon_id: promoCode.id })
         .eq('id', coupon.id);
     } catch (error) {
-      console.error('Failed to update Stripe coupon ID in database:', error);
+      console.error('Failed to update promotion code ID in database:', error);
     }
 
-    return stripeCoupon.id;
+    return promoCode.id;
   } catch (error) {
-    console.error('Error getting/creating Stripe coupon:', error);
+    console.error('Error getting/creating Stripe promotion code:', error);
     return null;
   }
 }
@@ -339,12 +377,12 @@ export async function POST(req: NextRequest) {
 
     // Get coupon if provided and sync with Stripe
     let appliedCoupon = null;
-    let stripeCouponId = null;
+    let stripePromoCodeId = null;
     if (discountCode) {
       appliedCoupon = await getValidCoupon(discountCode);
       if (appliedCoupon) {
-        stripeCouponId = await getStripeCoupon(appliedCoupon);
-        console.log('Stripe coupon ID:', stripeCouponId); // Debug log
+        stripePromoCodeId = await getStripePromoCode(appliedCoupon);
+        console.log('Stripe promotion code ID:', stripePromoCodeId); // Debug log
       }
     }
 
@@ -365,7 +403,7 @@ export async function POST(req: NextRequest) {
     // Calculate totals for metadata (before discount)
     const totalBeforeDiscount = cart.reduce((sum: number, item: CartItem) => sum + (item.price * 100), 0);
 
-    // Create checkout session with proper discount application
+    // Create checkout session with proper promotion code application
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       customer: customerId,
@@ -373,7 +411,7 @@ export async function POST(req: NextRequest) {
       mode: 'payment',
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/cart`,
-      ...(stripeCouponId && { discounts: [{ coupon: stripeCouponId }] }),
+      ...(stripePromoCodeId && { discounts: [{ promotion_code: stripePromoCodeId }] }),
       metadata: {
         userId: customerId,
         items: JSON.stringify(cart.map((item: CartItem) => ({
@@ -388,7 +426,8 @@ export async function POST(req: NextRequest) {
         discountType: appliedCoupon ? appliedCoupon.type : 'none',
         orderDate: new Date().toISOString(),
         totalBeforeDiscount: (totalBeforeDiscount / 100).toString(),
-        customerEmail: email
+        customerEmail: email,
+        promoCodeId: stripePromoCodeId || ''
       }
     });
 
