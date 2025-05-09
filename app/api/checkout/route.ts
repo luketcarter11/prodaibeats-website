@@ -15,13 +15,19 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 // Initialize Supabase with runtime check
 const getSupabase = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Missing Supabase credentials');
+  if (!supabaseUrl || supabaseUrl === 'https://placeholder-url.supabase.co') {
+    console.error('Supabase URL is not defined or is a placeholder');
+    throw new Error('Supabase URL configuration issue');
+  }
+  
+  if (!supabaseKey) {
+    console.error('Supabase key is not defined');
+    throw new Error('Supabase key configuration issue');
   }
 
-  return createClient(supabaseUrl, supabaseServiceKey, {
+  return createClient(supabaseUrl, supabaseKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -157,27 +163,49 @@ async function storeOrder(orderDetails: {
 
 async function getValidCoupon(code: string): Promise<Coupon | null> {
   try {
+    console.log(`Looking for discount code: "${code}"`);
     const supabase = getSupabase();
-    const { data: coupon, error } = await supabase
-      .from('coupons')
+    
+    // Search in discount_codes table using case-insensitive search
+    const { data, error } = await supabase
+      .from('discount_codes')
       .select('*')
-      .eq('code', code)
-      .single();
-
-    if (error || !coupon) {
+      .filter('code', 'ilike', code.trim())
+      .eq('active', true)
+      .limit(1);
+    
+    console.log(`Query found ${data?.length || 0} discount codes`);
+    
+    if (error || !data || data.length === 0) {
+      console.error('Error or no discount found:', error || 'No matching discount code');
       return null;
     }
 
+    const discountCode = data[0];
+    console.log(`Found discount code:`, discountCode);
+
+    // Create a coupon object from the discount_codes record
+    const coupon: Coupon = {
+      id: discountCode.id,
+      code: discountCode.code,
+      type: discountCode.type,
+      amount: discountCode.amount,
+      valid_from: discountCode.created_at,
+      valid_until: discountCode.expires_at,
+      max_uses: discountCode.usage_limit,
+      current_uses: discountCode.used_count,
+      stripe_coupon_id: discountCode.stripe_coupon_id
+    };
+
     // Check if coupon is valid
     const now = new Date();
-    const validFrom = new Date(coupon.valid_from);
     const validUntil = coupon.valid_until ? new Date(coupon.valid_until) : null;
 
     if (
-      now < validFrom ||
       (validUntil && now > validUntil) ||
       (coupon.max_uses && coupon.current_uses >= coupon.max_uses)
     ) {
+      console.log('Discount code is expired or used up');
       return null;
     }
 
@@ -197,6 +225,7 @@ async function getStripePromoCode(coupon: Coupon): Promise<string | null> {
         if (coupon.stripe_coupon_id.startsWith('promo_')) {
           const promoCode = await stripe.promotionCodes.retrieve(coupon.stripe_coupon_id);
           if (promoCode.active && promoCode.coupon.valid) {
+            console.log('Using existing Stripe promotion code:', promoCode.id);
             return promoCode.id;
           }
         } else {
@@ -218,10 +247,11 @@ async function getStripePromoCode(coupon: Coupon): Promise<string | null> {
             // Update our database with the new promotion code ID
             const supabase = getSupabase();
             await supabase
-              .from('coupons')
+              .from('discount_codes')
               .update({ stripe_coupon_id: promoCode.id })
               .eq('id', coupon.id);
               
+            console.log('Created new Stripe promotion code from existing coupon:', promoCode.id);
             return promoCode.id;
           }
         }
@@ -230,6 +260,7 @@ async function getStripePromoCode(coupon: Coupon): Promise<string | null> {
       }
     }
 
+    console.log('Creating new Stripe coupon for:', coupon.code);
     // Create a new Stripe coupon
     const stripeCoupon = await stripe.coupons.create({
       name: coupon.code,
@@ -247,6 +278,8 @@ async function getStripePromoCode(coupon: Coupon): Promise<string | null> {
       }
     });
 
+    console.log('Created Stripe coupon:', stripeCoupon.id);
+
     // Create a promotion code linked to the coupon
     const promoCode = await stripe.promotionCodes.create({
       coupon: stripeCoupon.id,
@@ -259,13 +292,17 @@ async function getStripePromoCode(coupon: Coupon): Promise<string | null> {
       }
     });
 
+    console.log('Created Stripe promotion code:', promoCode.id);
+
     // Store the promotion code ID in our database
     try {
       const supabase = getSupabase();
       await supabase
-        .from('coupons')
+        .from('discount_codes')
         .update({ stripe_coupon_id: promoCode.id })
         .eq('id', coupon.id);
+      
+      console.log('Updated discount code with Stripe promotion code ID');
     } catch (error) {
       console.error('Failed to update promotion code ID in database:', error);
     }
@@ -280,7 +317,33 @@ async function getStripePromoCode(coupon: Coupon): Promise<string | null> {
 async function incrementCouponUsage(couponId: string): Promise<void> {
   try {
     const supabase = getSupabase();
-    await supabase.rpc('increment_coupon_usage', { coupon_id: couponId });
+    
+    // First get the current usage count
+    const { data, error: fetchError } = await supabase
+      .from('discount_codes')
+      .select('used_count')
+      .eq('id', couponId)
+      .single();
+    
+    if (fetchError || !data) {
+      throw new Error(`Could not fetch current usage count: ${fetchError?.message || 'No data found'}`);
+    }
+    
+    // Increment the count
+    const currentCount = data.used_count || 0;
+    const newCount = currentCount + 1;
+    
+    // Update with the new count
+    const { error: updateError } = await supabase
+      .from('discount_codes')
+      .update({ used_count: newCount })
+      .eq('id', couponId);
+    
+    if (updateError) {
+      throw updateError;
+    }
+    
+    console.log(`Incremented usage count for discount code ${couponId} from ${currentCount} to ${newCount}`);
   } catch (error) {
     console.error('Failed to increment coupon usage:', error);
   }
@@ -361,40 +424,54 @@ export async function POST(req: NextRequest) {
     }
 
     // Calculate total before any discounts
-    const totalBeforeDiscount = cart.reduce((sum: number, item: CartItem) => sum + (item.price * 100), 0);
+    const totalBeforeDiscount = cart.reduce((sum: number, item: CartItem) => sum + (item.price * 100), 0) / 100;
+    console.log(`Cart total before discount: $${totalBeforeDiscount.toFixed(2)}`);
 
     // Get coupon if provided and sync with Stripe
     let appliedCoupon: Coupon | null = null;
     let stripePromoCodeId: string | undefined = undefined;
+    let discountAmount = 0;
+    let finalAmount = totalBeforeDiscount;
     
     if (discountCode) {
+      console.log(`Processing discount code: ${discountCode}`);
       appliedCoupon = await getValidCoupon(discountCode);
+      
       if (appliedCoupon) {
+        console.log(`Valid discount found: ${appliedCoupon.code} (${appliedCoupon.type}, ${appliedCoupon.amount})`);
+        
         // Calculate the final amount after discount
-        let finalAmount = totalBeforeDiscount;
         if (appliedCoupon.type === 'percentage') {
-          finalAmount = totalBeforeDiscount * (1 - appliedCoupon.amount / 100);
+          discountAmount = totalBeforeDiscount * (appliedCoupon.amount / 100);
+          finalAmount = totalBeforeDiscount - discountAmount;
         } else {
-          finalAmount = Math.max(0, totalBeforeDiscount - (appliedCoupon.amount * 100));
+          discountAmount = appliedCoupon.amount;
+          finalAmount = Math.max(0, totalBeforeDiscount - discountAmount);
         }
+        
+        console.log(`Discount amount: $${discountAmount.toFixed(2)}, Final amount: $${finalAmount.toFixed(2)}`);
 
-        // Ensure minimum amount of $0.50 (50 cents) for Stripe
-        if (finalAmount < 50) {
+        // Ensure minimum amount of $0.50 for Stripe
+        if (finalAmount < 0.50) {
           return NextResponse.json(
             { error: 'Total amount after discount must be at least $0.50' },
             { status: 400 }
           );
         }
 
+        // Create or retrieve a Stripe promotion code
         const promoId = await getStripePromoCode(appliedCoupon);
         if (promoId) {
           stripePromoCodeId = promoId;
-          console.log('Stripe promotion code ID:', stripePromoCodeId);
+          console.log('Will apply Stripe promotion code ID:', stripePromoCodeId);
         }
+      } else {
+        console.log(`No valid discount found for code: ${discountCode}`);
       }
     }
 
     // Get or create customer using email
+    console.log(`Getting or creating customer for email: ${email}`);
     const customerId = await getOrCreateCustomer(email);
     if (!customerId) {
       throw new Error('Failed to create or retrieve customer');
@@ -463,9 +540,18 @@ export async function POST(req: NextRequest) {
     // Add promotion code if available
     if (stripePromoCodeId) {
       sessionConfig.discounts = [{ promotion_code: stripePromoCodeId }];
+      console.log(`Adding discount to Stripe session: ${stripePromoCodeId}`);
     }
 
+    console.log('Creating Stripe checkout session...');
     const session = await stripe.checkout.sessions.create(sessionConfig);
+    console.log(`Stripe checkout session created: ${session.id}`);
+    
+    // Increment the discount code usage
+    if (appliedCoupon && appliedCoupon.id) {
+      console.log(`Incrementing usage count for discount code: ${appliedCoupon.id}`);
+      await incrementCouponUsage(appliedCoupon.id);
+    }
 
     return NextResponse.json({ 
       sessionId: session.id,
