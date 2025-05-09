@@ -37,7 +37,14 @@ export default function CheckoutPage() {
   const router = useRouter()
 
   // Calculate discounted total whenever appliedDiscount changes
+  // (only when not already set by the API response)
   useEffect(() => {
+    // Skip recalculation if already handled directly in the discount application code
+    if (appliedDiscount && discountedTotal !== cartTotal) {
+      // We've already set the discounted total from the API
+      return;
+    }
+    
     if (appliedDiscount) {
       const newTotal = appliedDiscount.type === 'percentage'
         ? cartTotal * (1 - appliedDiscount.amount / 100)
@@ -46,7 +53,7 @@ export default function CheckoutPage() {
     } else {
       setDiscountedTotal(cartTotal);
     }
-  }, [appliedDiscount, cartTotal]);
+  }, [appliedDiscount, cartTotal, discountedTotal]);
 
   const handleApplyDiscount = async () => {
     if (!discountCode.trim() || isApplyingDiscount) return;
@@ -56,6 +63,7 @@ export default function CheckoutPage() {
     setError(null);
 
     try {
+      console.log('Applying discount code:', discountCode);
       const response = await fetch('/api/validate-discount', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -63,25 +71,33 @@ export default function CheckoutPage() {
       });
 
       const data = await response.json();
+      console.log('Discount validation response:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to apply discount code');
       }
 
       if (data.isValid) {
-        const finalAmount = data.code.type === 'percentage' 
-          ? cartTotal * (1 - data.code.amount / 100)
-          : cartTotal - data.code.amount;
-        
-        if (finalAmount < 0.50) {
+        // Use the finalAmount directly from the API if available
+        if (data.finalAmount !== undefined && data.finalAmount < 0.50) {
           setDiscountError('The total amount after discount must be at least $0.50');
           setAppliedDiscount(null);
+          setDiscountedTotal(cartTotal);
         } else {
+          // Apply the discount
           setAppliedDiscount({
             code: data.code.code,
             amount: data.code.amount,
             type: data.code.type
           });
+          
+          // Set the discounted total directly from API if available
+          if (data.finalAmount !== undefined) {
+            setDiscountedTotal(data.finalAmount);
+          }
+          
+          // Display confirmation message
+          console.log(`Discount of ${data.discountAmount?.toFixed(2) || 'unknown'} applied. New total: ${data.finalAmount?.toFixed(2) || 'calculated locally'}`);
         }
       } else {
         setDiscountError(data.error || 'Invalid discount code');
@@ -255,9 +271,18 @@ export default function CheckoutPage() {
                 )}
               </button>
             </div>
+            
+            {discountError && (
+              <div className="mt-2 text-red-400 text-sm">
+                {discountError}
+              </div>
+            )}
+            
             {appliedDiscount && (
-              <div className="mt-2 text-green-400">
-                Discount applied: {appliedDiscount.type === 'percentage' ? `${appliedDiscount.amount}%` : `$${appliedDiscount.amount}`} off
+              <div className="mt-2 flex items-center">
+                <span className="bg-green-900/50 text-green-400 px-3 py-1 rounded-full text-sm font-medium">
+                  Discount applied: {appliedDiscount.type === 'percentage' ? `${appliedDiscount.amount}%` : `$${appliedDiscount.amount}`} off
+                </span>
               </div>
             )}
           </div>
@@ -270,8 +295,8 @@ export default function CheckoutPage() {
               </div>
               {appliedDiscount && (
                 <div className="flex justify-between text-green-400 mb-2">
-                  <dt>Discount</dt>
-                  <dd>-${displayDiscountAmount.toFixed(2)}</dd>
+                  <dt>Discount ({appliedDiscount.type === 'percentage' ? `${appliedDiscount.amount}%` : `$${appliedDiscount.amount}`})</dt>
+                  <dd>-${(cartTotal - discountedTotal).toFixed(2)}</dd>
                 </div>
               )}
               <div className="flex justify-between text-white font-bold text-xl mt-4 pt-4 border-t border-white/10">
