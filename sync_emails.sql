@@ -36,3 +36,14 @@ WHERE
   profiles.id IS NULL
 ON CONFLICT (id) DO UPDATE
 SET email = EXCLUDED.email;
+
+-- Add RLS policy for admin to access all profiles
+CREATE POLICY "Allow admin access to all profiles" ON public.profiles
+FOR ALL
+USING (true);
+
+-- Update existing emails in profiles table
+UPDATE profiles 
+SET email = auth.users.email 
+FROM auth.users 
+WHERE profiles.id = auth.users.id AND profiles.email IS NULL;

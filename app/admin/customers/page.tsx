@@ -44,75 +44,47 @@ export default function CustomersPage() {
     setIsLoading(true)
     setError(null)
 
+    console.log('Starting customer data fetch...');
+
     try {
-      // Fetch profiles for registered users
+      // Direct approach: get all profiles first
+      console.log('Attempting to fetch profiles...');
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
       
       if (profilesError) {
-        console.error('Error fetching profiles:', profilesError)
+        console.error('Error fetching profiles:', profilesError);
+        setError(`Failed to fetch profiles: ${profilesError.message}. You may need to ensure proper RLS policies.`);
       }
       
-      // Get auth users data if possible
-      let authUsers: User[] = []
-      try {
-        // Try to get auth users directly (requires service role key)
-        const { data: authData } = await supabase.auth.admin.listUsers()
-        if (authData?.users) {
-          authUsers = authData.users
-          console.log('Successfully retrieved auth users')
-        }
-      } catch (authError) {
-        console.log('Unable to access auth.admin.listUsers, will use profiles data only')
-      }
+      console.log('Profiles data retrieved:', profilesData?.length || 0, 'records');
       
       // Get customer data from orders table
+      console.log('Fetching orders data...');
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .select('user_id, customer_email, total_amount, order_date')
         .order('order_date', { ascending: false })
 
-      if (orderError) throw orderError
-
-      // Process to get unique customers with aggregated data
-      const customerMap = new Map<string, Customer>()
-      
-      // First add all registered users from profiles and auth data
-      const profiles = profilesData || []
-      
-      // Log debugging information
-      console.log(`Retrieved ${profiles.length} profiles`)
-      console.log(`Retrieved ${authUsers.length} auth users`)
-      console.log(`Retrieved ${orderData.length} orders`)
-      
-      // If we have auth users data and profiles, use both
-      if (authUsers.length > 0) {
-        // If we have auth users data, use that as primary source and enhance with profiles
-        authUsers.forEach(user => {
-          if (!user.email) return
-          
-          // Find corresponding profile if exists
-          const profile = profiles.find(p => p.id === user.id)
-          
-          customerMap.set(user.email, {
-            id: user.id,
-            email: user.email,
-            first_name: profile?.full_name?.split(' ')[0] || user.user_metadata?.full_name?.split(' ')[0] || '',
-            last_name: profile?.full_name?.split(' ').slice(1).join(' ') || user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
-            created_at: user.created_at,
-            order_count: 0,
-            user_status: 'registered'
-          })
-        })
+      if (orderError) {
+        console.error('Error fetching orders:', orderError);
+        throw orderError;
       }
       
-      // Always process profiles data as well
+      console.log('Orders data retrieved:', orderData?.length || 0, 'records');
+
+      // Process profiles directly into customers
+      const customerMap = new Map<string, Customer>();
+      
+      // First add all registered users from profiles
+      const profiles = profilesData || [];
+      
+      // Process profiles first
       profiles.forEach(profile => {
-        // Check if profile has email (from trigger)
+        // Use email from profile directly since we've added this field
         if (profile.email) {
-          // Skip if already added from auth users
-          if (customerMap.has(profile.email)) return
+          console.log(`Processing profile with email: ${profile.email}`);
           
           customerMap.set(profile.email, {
             id: profile.id,
@@ -122,52 +94,34 @@ export default function CustomersPage() {
             created_at: profile.created_at,
             order_count: 0,
             user_status: 'registered'
-          })
-          return
+          });
+        } else {
+          console.log(`Profile ${profile.id} has no email`);
         }
-        
-        // Fallback to orders for email if profile doesn't have it
-        const userOrders = orderData.filter(order => order.user_id === profile.id)
-        const userEmail = userOrders.length > 0 ? userOrders[0].customer_email : null
-        
-        if (!userEmail) {
-          console.log(`Profile ${profile.id} doesn't have an email and no matching orders found`)
-          return // Skip profiles without email
-        }
-        
-        customerMap.set(userEmail, {
-          id: profile.id,
-          email: userEmail,
-          first_name: profile.full_name?.split(' ')[0] || '',
-          last_name: profile.full_name?.split(' ').slice(1).join(' ') || '',
-          created_at: profile.created_at,
-          order_count: 0,
-          user_status: 'registered'
-        })
-      })
+      });
       
       // Then add/update with order data
       orderData.forEach(order => {
-        if (!order.customer_email) return
+        if (!order.customer_email) return;
         
-        const email = order.customer_email
-        const existingCustomer = customerMap.get(email)
-        const orderDate = new Date(order.order_date)
-        const orderAmount = order.total_amount || 0
+        const email = order.customer_email;
+        const existingCustomer = customerMap.get(email);
+        const orderDate = new Date(order.order_date);
+        const orderAmount = order.total_amount || 0;
         
         if (existingCustomer) {
           // Update existing customer
-          existingCustomer.order_count += 1
-          existingCustomer.total_spent = (existingCustomer.total_spent || 0) + orderAmount
-          existingCustomer.user_status = 'both'
+          existingCustomer.order_count += 1;
+          existingCustomer.total_spent = (existingCustomer.total_spent || 0) + orderAmount;
+          existingCustomer.user_status = 'both';
           
           // Update last purchase date if this order is more recent
           const existingDate = existingCustomer.last_purchase_date 
             ? new Date(existingCustomer.last_purchase_date) 
-            : new Date(0)
+            : new Date(0);
             
           if (orderDate > existingDate) {
-            existingCustomer.last_purchase_date = order.order_date
+            existingCustomer.last_purchase_date = order.order_date;
           }
         } else {
           // Create new customer from order data
@@ -179,21 +133,38 @@ export default function CustomersPage() {
             total_spent: orderAmount,
             order_count: 1,
             user_status: 'customer'
-          })
+          });
         }
-      })
+      });
       
-      const customerList = Array.from(customerMap.values())
-      console.log(`Final customer count: ${customerList.length}`)
-      setCustomers(customerList)
-      setFilteredCustomers(customerList)
+      const customerList = Array.from(customerMap.values());
+      console.log(`Final customer count: ${customerList.length}`);
+      
+      // Debug: If no customers, log why
+      if (customerList.length === 0) {
+        console.warn('No customers found. Check that:');
+        console.warn('1. Profiles table has data with email field populated');
+        console.warn('2. RLS policies allow admin access to profiles');
+        console.warn('3. Service role key is being used in development');
+      }
+      
+      setCustomers(customerList);
+      setFilteredCustomers(customerList);
     } catch (err: any) {
-      console.error('Error fetching customers:', err)
-      setError(err.message || 'Failed to fetch customers')
+      console.error('Error in fetchCustomers:', err);
+      setError(err.message || 'Failed to fetch customers');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
+
+  // Add this comment to help with setup:
+  /* Required Supabase RLS policy for admin access:
+    CREATE POLICY "Allow admin access to all profiles" ON public.profiles
+    FOR ALL
+    TO authenticated
+    USING (true); 
+  */
 
   const applyFilters = () => {
     let result = [...customers]

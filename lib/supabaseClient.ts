@@ -12,8 +12,8 @@ let supabase: SupabaseClient
 
 if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
   // Use service role key for admin functions when available
-  if (supabaseServiceKey && process.env.NODE_ENV === 'development') {
-    // Only use service role key in development for safety
+  if (supabaseServiceKey) {
+    // Use service role key for admin operations - note this grants full DB access
     supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
@@ -24,6 +24,7 @@ if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANO
   } else {
     // Use regular anon key for client-side requests
     supabase = createClient(supabaseUrl, supabaseAnonKey)
+    console.log('🔑 Using Supabase anon key (regular mode) - admin features will be limited')
   }
 } else if (typeof window !== 'undefined') {
   supabase = createClient(supabaseUrl, supabaseAnonKey)
