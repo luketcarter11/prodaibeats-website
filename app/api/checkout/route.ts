@@ -360,6 +360,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Calculate total before any discounts
+    const totalBeforeDiscount = cart.reduce((sum: number, item: CartItem) => sum + (item.price * 100), 0);
+
     // Get coupon if provided and sync with Stripe
     let appliedCoupon: Coupon | null = null;
     let stripePromoCodeId: string | undefined = undefined;
@@ -367,6 +370,22 @@ export async function POST(req: NextRequest) {
     if (discountCode) {
       appliedCoupon = await getValidCoupon(discountCode);
       if (appliedCoupon) {
+        // Calculate the final amount after discount
+        let finalAmount = totalBeforeDiscount;
+        if (appliedCoupon.type === 'percentage') {
+          finalAmount = totalBeforeDiscount * (1 - appliedCoupon.amount / 100);
+        } else {
+          finalAmount = Math.max(0, totalBeforeDiscount - (appliedCoupon.amount * 100));
+        }
+
+        // Ensure minimum amount of $0.50 (50 cents) for Stripe
+        if (finalAmount < 50) {
+          return NextResponse.json(
+            { error: 'Total amount after discount must be at least $0.50' },
+            { status: 400 }
+          );
+        }
+
         const promoId = await getStripePromoCode(appliedCoupon);
         if (promoId) {
           stripePromoCodeId = promoId;
@@ -385,27 +404,37 @@ export async function POST(req: NextRequest) {
     const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${host}`;
 
-    // Calculate line items with proper metadata
-    const lineItems = cart.map((item: CartItem) => ({
-      price_data: {
-        currency: 'usd',
-        product_data: {
-          name: item.title,
-          description: `${item.licenseType} License${item.artist ? ` - ${item.artist}` : ''}`,
-          images: item.coverUrl ? [item.coverUrl] : undefined,
-          metadata: {
-            itemId: item.id,
-            licenseType: item.licenseType,
-            originalPrice: item.price.toString()
-          }
-        },
-        unit_amount: Math.round(item.price * 100), // Convert to cents
-      },
-      quantity: 1,
-    }));
+    // Calculate line items with proper metadata and minimum prices
+    const lineItems = cart.map((item: CartItem) => {
+      let finalPrice = item.price * 100; // Convert to cents
+      
+      if (appliedCoupon) {
+        if (appliedCoupon.type === 'percentage') {
+          finalPrice = Math.max(50, finalPrice * (1 - appliedCoupon.amount / 100));
+        } else {
+          // For fixed amount, distribute evenly across items
+          finalPrice = Math.max(50, finalPrice - (appliedCoupon.amount * 100 / cart.length));
+        }
+      }
 
-    // Calculate totals for metadata
-    const totalBeforeDiscount = cart.reduce((sum: number, item: CartItem) => sum + (item.price * 100), 0);
+      return {
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: item.title,
+            description: `${item.licenseType} License${item.artist ? ` - ${item.artist}` : ''}`,
+            images: item.coverUrl ? [item.coverUrl] : undefined,
+            metadata: {
+              itemId: item.id,
+              licenseType: item.licenseType,
+              originalPrice: item.price.toString()
+            }
+          },
+          unit_amount: Math.round(finalPrice), // Already in cents
+        },
+        quantity: 1,
+      };
+    });
 
     // Create checkout session with proper promotion code handling
     const sessionConfig: Stripe.Checkout.SessionCreateParams = {
@@ -438,7 +467,10 @@ export async function POST(req: NextRequest) {
 
     const session = await stripe.checkout.sessions.create(sessionConfig);
 
-    return NextResponse.json({ sessionId: session.id });
+    return NextResponse.json({ 
+      sessionId: session.id,
+      sessionUrl: session.url 
+    });
   } catch (error: any) {
     console.error('Checkout error:', error);
     return NextResponse.json(

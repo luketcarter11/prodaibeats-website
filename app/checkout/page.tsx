@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -8,6 +8,7 @@ import { useCart } from '@/context/CartContext'
 import { FaArrowLeft, FaSpinner, FaExclamationCircle } from 'react-icons/fa'
 import { supabase } from '@/lib/supabaseClient'
 import { discountService, DiscountCode } from '@/services/discountService'
+import { getStripe } from '../../lib/stripe'
 
 // Use environment variable for CDN base URL
 const CDN = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
@@ -32,58 +33,76 @@ export default function CheckoutPage() {
   const [isApplyingDiscount, setIsApplyingDiscount] = useState(false)
   const [error, setError] = useState<ErrorMessage | null>(null)
   const [discountError, setDiscountError] = useState<string | null>(null)
-  const [isValidatingCode, setIsValidatingCode] = useState(false)
-  const [validDiscount, setValidDiscount] = useState<string | null>(null)
   const [discountedTotal, setDiscountedTotal] = useState(cartTotal)
   const router = useRouter()
-  
+
+  // Calculate discounted total whenever appliedDiscount changes
+  useEffect(() => {
+    if (appliedDiscount) {
+      const newTotal = appliedDiscount.type === 'percentage'
+        ? cartTotal * (1 - appliedDiscount.amount / 100)
+        : cartTotal - appliedDiscount.amount;
+      setDiscountedTotal(Math.max(0.50, newTotal));
+    } else {
+      setDiscountedTotal(cartTotal);
+    }
+  }, [appliedDiscount, cartTotal]);
+
   const handleApplyDiscount = async () => {
-    if (!discountCode.trim()) return;
-    
-    setError(null);
+    if (!discountCode.trim() || isApplyingDiscount) return;
+
     setIsApplyingDiscount(true);
+    setDiscountError(null);
+    setError(null);
 
     try {
-      const result = await discountService.validateDiscountCode(discountCode, cartTotal);
-      
-      if (!result.isValid) {
-        setError({ message: result.error || 'Invalid discount code', field: 'discountCode' });
-        setAppliedDiscount(null);
-        setDiscountedTotal(cartTotal);
-        return;
-      }
-
-      if (result.code) {
-        const discountAmount = result.code.type === 'percentage'
-          ? (cartTotal * result.code.amount) / 100
-          : result.code.amount;
-
-        setAppliedDiscount({
-          code: result.code.code,
-          amount: result.code.amount,
-          type: result.code.type
-        });
-        setDiscountedTotal(Math.max(0, cartTotal - discountAmount));
-        setError(null);
-      }
-    } catch (err: any) {
-      console.error('Error applying discount:', err);
-      setError({
-        message: err.message || 'Failed to apply discount code',
-        field: 'discountCode'
+      const response = await fetch('/api/validate-discount', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: discountCode, total: cartTotal })
       });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to apply discount code');
+      }
+
+      if (data.isValid) {
+        const finalAmount = data.code.type === 'percentage' 
+          ? cartTotal * (1 - data.code.amount / 100)
+          : cartTotal - data.code.amount;
+        
+        if (finalAmount < 0.50) {
+          setDiscountError('The total amount after discount must be at least $0.50');
+          setAppliedDiscount(null);
+        } else {
+          setAppliedDiscount({
+            code: data.code.code,
+            amount: data.code.amount,
+            type: data.code.type
+          });
+        }
+      } else {
+        setDiscountError(data.error || 'Invalid discount code');
+        setAppliedDiscount(null);
+      }
+    } catch (error: any) {
+      console.error('Error applying discount:', error);
+      setDiscountError(error.message || 'Failed to apply discount code');
       setAppliedDiscount(null);
-      setDiscountedTotal(cartTotal);
     } finally {
       setIsApplyingDiscount(false);
     }
   };
 
   const handleCheckout = async () => {
-    try {
-      setIsRedirecting(true)
-      setError(null)
+    if (isRedirecting || !email) return;
+    
+    setIsRedirecting(true);
+    setError(null);
 
+    try {
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -91,24 +110,43 @@ export default function CheckoutPage() {
           cart,
           email,
           discountCode: appliedDiscount?.code
-        }),
-      })
+        })
+      });
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create checkout session')
+        throw new Error(data.error || 'Failed to create checkout session');
       }
 
-      if (data.url) {
-        window.location.href = data.url
+      // If we have a direct URL, use it
+      if (data.sessionUrl) {
+        window.location.href = data.sessionUrl;
+        return;
       }
-    } catch (err: any) {
-      console.error('Checkout error:', err)
-      setError({ message: err.message })
-      setIsRedirecting(false)
+
+      // Otherwise, use Stripe's redirect
+      const stripe = await getStripe();
+      if (!stripe) {
+        throw new Error('Failed to load Stripe');
+      }
+
+      const { error } = await stripe.redirectToCheckout({
+        sessionId: data.sessionId
+      });
+
+      if (error) {
+        throw error;
+      }
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      setError({ 
+        message: error.message || 'Failed to process checkout',
+        field: 'checkout'
+      });
+      setIsRedirecting(false);
     }
-  }
+  };
 
   // Show loading state while cart is being initialized
   if (isLoading) {
@@ -119,7 +157,7 @@ export default function CheckoutPage() {
           <span className="text-white">Loading cart...</span>
         </div>
       </div>
-    )
+    );
   }
 
   // Redirect to beats page if cart is empty
@@ -310,6 +348,12 @@ export default function CheckoutPage() {
           </p>
         </section>
       </div>
+
+      {error && error.field === 'checkout' && (
+        <div className="mt-4 p-4 bg-red-900/50 border border-red-500 rounded-lg">
+          <p className="text-white text-sm">{error.message}</p>
+        </div>
+      )}
     </div>
   )
 } 

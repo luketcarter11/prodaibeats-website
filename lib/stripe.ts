@@ -1,10 +1,15 @@
-import { loadStripe, Stripe as StripeJS } from '@stripe/stripe-js';
+import { loadStripe, Stripe } from '@stripe/stripe-js';
 
-let stripePromise: Promise<StripeJS | null>;
+let stripePromise: Promise<Stripe | null> | null = null;
 
-export const getStripe = () => {
+export const getStripe = async (): Promise<Stripe | null> => {
   if (!stripePromise) {
-    stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
+    const key = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+    if (!key) {
+      console.error('Stripe publishable key is not set');
+      return null;
+    }
+    stripePromise = loadStripe(key);
   }
   return stripePromise;
 }; 
