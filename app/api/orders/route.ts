@@ -3,6 +3,9 @@ import { Order } from '../../../lib/getOrders';
 import { createClient } from '@supabase/supabase-js';
 import { supabase, getServiceRoleKey } from '../../../lib/supabaseClient';
 
+// Import the runtime config
+export { runtime } from '../config';
+
 // Helper function to create a new admin client if needed
 const getSupabaseAdmin = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

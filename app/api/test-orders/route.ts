@@ -1,3 +1,6 @@
+// Import the runtime config
+export { runtime } from '../config';
+
 import { NextResponse } from 'next/server';
 import { Order } from '../../../lib/getOrders';
 

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 // This middleware protects routes that require authentication
+// It runs on each request and doesn't affect the build process
 export async function middleware(req: NextRequest) {
   // Create a response object
   const res = NextResponse.next()

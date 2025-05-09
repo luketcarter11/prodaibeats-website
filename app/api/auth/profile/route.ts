@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '../../../../lib/supabaseClient';
 
+// Mark this route as using the Edge runtime to avoid static prerendering
+export const runtime = 'edge';
+
 // Get profile for authenticated user
 export async function GET() {
   try {

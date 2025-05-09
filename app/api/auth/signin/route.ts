@@ -3,6 +3,9 @@ import { supabase } from '../../../../lib/supabaseClient';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
+// Mark this route as using the Edge runtime to avoid static prerendering
+export const runtime = 'edge';
+
 export async function POST(request: Request) {
   try {
     // Parse request body

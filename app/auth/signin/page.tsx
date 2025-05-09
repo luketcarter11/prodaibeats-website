@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { supabase } from '../../../lib/supabaseClient'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function SignInPage() {
+// Client component that safely uses useSearchParams inside Suspense
+function SignInForm() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -192,5 +193,21 @@ export default function SignInPage() {
         </motion.div>
       </div>
     </main>
+  )
+}
+
+// Wrapper component with Suspense boundary
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <div className="bg-black min-h-screen flex items-center justify-center">
+        <div className="text-white text-center">
+          <div className="mb-4">Loading...</div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto"></div>
+        </div>
+      </div>
+    }>
+      <SignInForm />
+    </Suspense>
   )
 } 
