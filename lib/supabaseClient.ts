@@ -2,53 +2,82 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-url.supabase.co'
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || undefined
 
-console.log('✅ Supabase URL available:', !!process.env.NEXT_PUBLIC_SUPABASE_URL)
-console.log('✅ Supabase Anon Key available:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-console.log('✅ Supabase Service Key available:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
-
-// Flag to track if we're using the service role key
+// Initialize variables
+let supabase: SupabaseClient
 let isUsingServiceRoleKey = false
 
-let supabase: SupabaseClient
-
-if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-  // Use service role key for admin functions when available
-  if (supabaseServiceKey) {
-    // Use service role key for admin operations - note this grants full DB access
-    supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    })
-    isUsingServiceRoleKey = true
-    console.log('🔑 Using Supabase service role key (admin mode)')
-  } else {
-    // Use regular anon key for client-side requests
-    supabase = createClient(supabaseUrl, supabaseAnonKey)
-    console.log('🔑 Using Supabase anon key (regular mode) - admin features will be limited')
+// Safely check for service role key without throwing build errors
+const getServiceRoleKey = (): string | undefined => {
+  // During build time on server, don't error out if key is missing
+  if (process.env.NODE_ENV === 'production' && typeof window === 'undefined' && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn('🔶 SUPABASE_SERVICE_ROLE_KEY not available during build phase - this is normal')
+    return undefined
   }
-} else if (typeof window !== 'undefined') {
+  return process.env.SUPABASE_SERVICE_ROLE_KEY
+}
+
+const supabaseServiceKey = getServiceRoleKey()
+
+// Debug logging (only in development)
+if (process.env.NODE_ENV !== 'production') {
+  console.log('✅ Supabase URL available:', !!process.env.NEXT_PUBLIC_SUPABASE_URL)
+  console.log('✅ Supabase Anon Key available:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+  console.log('✅ Supabase Service Key available:', !!supabaseServiceKey)
+}
+
+// Client-side initialization (browser)
+if (typeof window !== 'undefined') {
   supabase = createClient(supabaseUrl, supabaseAnonKey)
-} else {
-  // Fallback mock for server build environments
-  supabase = {
-    auth: {
-      signUp: () => Promise.resolve({ error: new Error('Supabase not configured') }),
-      signIn: () => Promise.resolve({ error: new Error('Supabase not configured') }),
-      signOut: () => Promise.resolve({ error: new Error('Supabase not configured') }),
-      user: () => null,
-      session: () => null,
-    },
-    from: () => ({
-      select: () => ({ data: null, error: new Error('Supabase not configured') }),
-      insert: () => ({ data: null, error: new Error('Supabase not configured') }),
-      update: () => ({ data: null, error: new Error('Supabase not configured') }),
-      delete: () => ({ data: null, error: new Error('Supabase not configured') }),
-    }),
-  } as unknown as SupabaseClient
+}
+// Server-side initialization
+else {
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    // Try to use service role key for admin functions when available
+    if (supabaseServiceKey) {
+      try {
+        supabase = createClient(supabaseUrl, supabaseServiceKey, {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false
+          }
+        })
+        isUsingServiceRoleKey = true
+        
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('🔑 Using Supabase service role key (admin mode)')
+        }
+      } catch (error) {
+        console.error('❌ Error initializing with service role key:', error)
+        // Fallback to anon key
+        supabase = createClient(supabaseUrl, supabaseAnonKey)
+      }
+    } else {
+      // Use regular anon key for client-side requests
+      supabase = createClient(supabaseUrl, supabaseAnonKey)
+      
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('🔑 Using Supabase anon key (regular mode) - admin features will be limited')
+      }
+    }
+  } else {
+    // Fallback mock for server build environments
+    supabase = {
+      auth: {
+        signUp: () => Promise.resolve({ error: new Error('Supabase not configured') }),
+        signIn: () => Promise.resolve({ error: new Error('Supabase not configured') }),
+        signOut: () => Promise.resolve({ error: new Error('Supabase not configured') }),
+        user: () => null,
+        session: () => null,
+      },
+      from: () => ({
+        select: () => ({ data: null, error: new Error('Supabase not configured') }),
+        insert: () => ({ data: null, error: new Error('Supabase not configured') }),
+        update: () => ({ data: null, error: new Error('Supabase not configured') }),
+        delete: () => ({ data: null, error: new Error('Supabase not configured') }),
+      }),
+    } as unknown as SupabaseClient
+  }
 }
 
 // Create our function to check for service role key
@@ -87,11 +116,11 @@ const createCheckServiceRoleFunction = async () => {
 };
 
 // If we're using the service role key, attempt to create the function
-if (isUsingServiceRoleKey) {
+if (isUsingServiceRoleKey && typeof window === 'undefined' && process.env.NODE_ENV === 'development') {
   // Wait a bit before trying to create the function to avoid startup errors
   setTimeout(() => {
     createCheckServiceRoleFunction();
   }, 5000);
 }
 
-export { supabase, isUsingServiceRoleKey, checkServiceRoleAccess }
+export { supabase, isUsingServiceRoleKey, checkServiceRoleAccess, getServiceRoleKey }

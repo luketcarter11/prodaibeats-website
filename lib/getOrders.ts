@@ -16,18 +16,25 @@ export interface Order {
   license_file?: string;
 }
 
-// Set this to false to use the real endpoint
-const USE_TEST_ENDPOINT = false;
+// Automatically use test endpoint in development and real endpoint in production
+const USE_TEST_ENDPOINT = process.env.NODE_ENV === 'development';
 
 export async function getUserOrders(userId: string): Promise<Order[]> {
   try {
+    // In case no userId is provided
+    if (!userId) {
+      console.warn('getUserOrders called without a userId');
+      return [];
+    }
+    
     const endpoint = USE_TEST_ENDPOINT 
       ? `/api/test-orders?userId=${userId}`
       : `/api/orders?userId=${userId}`;
       
     const response = await fetch(endpoint);
     if (!response.ok) {
-      throw new Error('Failed to fetch orders');
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch orders: ${response.status} ${errorText}`);
     }
     const orders: Order[] = await response.json();
     return orders;
@@ -45,7 +52,8 @@ export async function getAllOrders(): Promise<Order[]> {
       
     const response = await fetch(endpoint);
     if (!response.ok) {
-      throw new Error('Failed to fetch orders');
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch all orders: ${response.status} ${errorText}`);
     }
     const orders: Order[] = await response.json();
     return orders;

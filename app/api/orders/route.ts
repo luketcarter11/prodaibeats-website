@@ -1,28 +1,40 @@
 import { NextResponse } from 'next/server';
 import { Order } from '../../../lib/getOrders';
 import { createClient } from '@supabase/supabase-js';
+import { supabase, getServiceRoleKey } from '../../../lib/supabaseClient';
 
-// Initialize Supabase client with service role for admin access
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  {
+// Helper function to create a new admin client if needed
+const getSupabaseAdmin = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = getServiceRoleKey();
+  
+  // If we don't have the required credentials, return regular supabase client
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.warn('Missing Supabase admin credentials - using regular client with limited permissions');
+    return supabase;
+  }
+  
+  // Create and return admin client
+  return createClient(supabaseUrl, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false
     }
-  }
-);
+  });
+};
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
     const isAdmin = searchParams.get('admin') === 'true';
+    
+    // Get appropriate client
+    const client = getSupabaseAdmin();
 
     // For admin, fetch all orders if admin flag is provided
     if (isAdmin) {
-      const { data: orders, error } = await supabaseAdmin
+      const { data: orders, error } = await client
         .from('orders')
         .select('*')
         .order('order_date', { ascending: false });
@@ -35,7 +47,7 @@ export async function GET(request: Request) {
         );
       }
 
-      return NextResponse.json(orders);
+      return NextResponse.json(orders || []);
     }
 
     // For regular users, fetch only their orders
@@ -46,7 +58,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const { data: orders, error } = await supabaseAdmin
+    const { data: orders, error } = await client
       .from('orders')
       .select('*')
       .eq('user_id', userId)
@@ -60,7 +72,7 @@ export async function GET(request: Request) {
       );
     }
 
-    return NextResponse.json(orders);
+    return NextResponse.json(orders || []);
   } catch (error) {
     console.error('Error in orders API route:', error);
     return NextResponse.json(
