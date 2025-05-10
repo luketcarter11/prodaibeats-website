@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { supabase, ensureProfilesTable } from '../../lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import OrdersList from '../../components/OrdersList'
@@ -74,6 +74,66 @@ export default function AccountPage() {
     }
   }, []);
 
+  // Immediately when the page loads, try to manually set the session
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Get all cookies
+      const allCookies = document.cookie.split(';').map(c => c.trim());
+      
+      // Log all cookies to help debug
+      console.log('All browser cookies:', allCookies);
+      
+      // Check specifically for Supabase auth cookie
+      const hasAuthCookie = allCookies.some(c => c.startsWith('sb-'));
+      console.log('Has Supabase auth cookie:', hasAuthCookie);
+      
+      if (hasAuthCookie) {
+        console.log('Found auth cookie, forcing fetch of user data');
+        getUser();
+      } else {
+        // Force a session refresh
+        supabase.auth.refreshSession().then(({ data, error }) => {
+          if (error) {
+            console.error('Session refresh error:', error);
+          } else {
+            console.log('Session refreshed successfully:', !!data.session);
+            
+            if (data.session) {
+              // Session is valid, trigger the getUser function
+              getUser();
+            } else {
+              console.log('No valid session after refresh attempt');
+              // Try signing in directly with token if available in local storage
+              try {
+                const localStorageAuth = localStorage.getItem('sb-auth-token');
+                if (localStorageAuth) {
+                  console.log('Found local storage token, attempting to restore session');
+                  const parsedAuth = JSON.parse(localStorageAuth);
+                  
+                  if (parsedAuth?.access_token && parsedAuth?.refresh_token) {
+                    supabase.auth.setSession({
+                      access_token: parsedAuth.access_token,
+                      refresh_token: parsedAuth.refresh_token
+                    }).then(({ data, error }) => {
+                      if (error) {
+                        console.error('Error restoring session:', error);
+                      } else {
+                        console.log('Session restored successfully');
+                        getUser();
+                      }
+                    });
+                  }
+                }
+              } catch (err) {
+                console.error('Error trying to restore session:', err);
+              }
+            }
+          }
+        });
+      }
+    }
+  }, []);
+
   const handleRetryProfileLoad = () => {
     setRetryCount(prev => prev + 1);
     setLoadingError(null);
@@ -86,67 +146,204 @@ export default function AccountPage() {
     console.log('Fetching user data...', retryCount > 0 ? `(Retry ${retryCount})` : '');
     
     try {
-      const { data, error } = await supabase.auth.getUser();
+      // Try to directly retrieve the user first
+      let userData = await supabase.auth.getUser();
       
-      if (error) {
-        console.error('Authentication error:', error.message);
-        setLoadingError(`Authentication error: ${error.message}`);
-        setIsLoading(false);
-        return;
+      if (userData.error) {
+        console.error('Error getting user:', userData.error);
+        
+        // If we can't get the user, try to refresh the session
+        console.log('Attempting to refresh session...');
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError || !refreshData.session) {
+          console.error('Session refresh failed:', refreshError);
+          setLoadingError('Your session has expired. Please sign in again.');
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log('Session refreshed successfully, retrying user data fetch');
+        // Try again with the refreshed session
+        userData = await supabase.auth.getUser();
+        
+        if (userData.error || !userData.data.user) {
+          console.error('User data fetch failed after refresh:', userData.error);
+          setLoadingError('Unable to retrieve your account information. Please sign in again.');
+          setIsLoading(false);
+          return;
+        }
       }
       
-      if (!data?.user) {
+      if (!userData.data?.user) {
         console.log('No user data found');
         setLoadingError('Unable to retrieve user data. Please sign in again.');
         setIsLoading(false);
         return;
       }
       
-      console.log('User authenticated successfully:', data.user.id);
-      setUserId(data.user.id);
-      setUserEmail(data.user.email || null);
+      const user = userData.data.user;
+      console.log('User authenticated successfully:', user.id);
+      setUserId(user.id);
+      setUserEmail(user.email || null);
       
-      if (data.user.email) {
-        setProfile(prev => ({ ...prev, email: data.user.email || '' }));
+      if (user.email) {
+        setProfile(prev => ({ ...prev, email: user.email || '' }));
       }
       
       try {
-        // First check if the profiles table exists
-        console.log('Checking profiles table...');
-        const { error: tableCheckError } = await supabase
-          .from('profiles')
-          .select('id')
-          .limit(1);
+        // Ensure profiles table exists before trying to access it
+        console.log('Ensuring profiles table exists...');
+        const { success: tableExists, error: tableError } = await ensureProfilesTable();
         
-        if (tableCheckError) {
-          console.warn('Profiles table may not exist:', tableCheckError.message);
-          // Table doesn't exist - we'll create the user profile when they save
-        } else {
-          // Table exists, try to get the user's profile
-          console.log('Fetching user profile for ID:', data.user.id);
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', data.user.id)
-            .single();
+        console.log('Profile table check result:', { 
+          success: tableExists, 
+          error: tableError?.message 
+        });
+        
+        if (!tableExists) {
+          console.warn('Could not ensure profiles table exists:', tableError);
+          // Continue anyway to try direct profile access
+        }
+        
+        // Now try to get the user's profile
+        console.log('Fetching user profile for ID:', user.id);
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        console.log('Profile fetch result:', {
+          hasProfile: !!profileData,
+          profileError: profileError?.message,
+          profileErrorCode: profileError?.code,
+          profileErrorDetails: profileError?.details,
+          userId: user.id,
+          profileData: profileData ? {
+            id: profileData.id,
+            hasFullName: !!profileData.full_name,
+            hasDisplayName: !!profileData.display_name,
+            hasEmail: !!profileData.email,
+            hasBillingAddress: !!profileData.billing_address,
+            hasCountry: !!profileData.country,
+            hasPhone: !!profileData.phone,
+            hasProfilePicture: !!profileData.profile_picture_url
+          } : null
+        });
+        
+        if (profileData && !profileError) {
+          console.log('Profile data retrieved successfully');
+          setProfile({
+            full_name: profileData.full_name || '',
+            display_name: profileData.display_name || '',
+            email: profileData.email || user.email || '',
+            billing_address: profileData.billing_address || '',
+            country: profileData.country || '',
+            phone: profileData.phone || '',
+            profile_picture_url: profileData.profile_picture_url || ''
+          });
+        } else if (profileError) {
+          console.error('Profile fetch error details:', {
+            message: profileError.message,
+            code: profileError.code,
+            details: profileError.details,
+            hint: profileError.hint
+          });
           
-          if (profileData && !profileError) {
-            console.log('Profile data retrieved successfully');
-            setProfile({
-              full_name: profileData.full_name || '',
-              display_name: profileData.display_name || '',
-              email: profileData.email || data.user.email || '',
-              billing_address: profileData.billing_address || '',
-              country: profileData.country || '',
-              phone: profileData.phone || '',
-              profile_picture_url: profileData.profile_picture_url || ''
-            });
-          } else if (profileError) {
-            if (profileError.code === 'PGRST116') {
-              console.log('New user, no profile record found');
-            } else {
-              console.error('Error fetching profile:', profileError);
+          if (profileError.code === 'PGRST116') {
+            console.log('New user, no profile record found - creating profile');
+            
+            try {
+              // Try using the API route for creating a profile
+              console.log('Creating profile via API');
+              const response = await fetch('/api/auth/create-profile', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  userId: user.id,
+                  email: user.email
+                }),
+              });
+              
+              const result = await response.json();
+              console.log('API profile creation result:', result);
+              
+              if (result.success && result.profile) {
+                console.log('Profile created successfully via API');
+                // Set the profile from the API response
+                setProfile({
+                  full_name: result.profile.full_name || '',
+                  display_name: result.profile.display_name || '',
+                  email: result.profile.email || user.email || '',
+                  billing_address: result.profile.billing_address || '',
+                  country: result.profile.country || '',
+                  phone: result.profile.phone || '',
+                  profile_picture_url: result.profile.profile_picture_url || ''
+                });
+              } else {
+                console.error('API profile creation failed:', result.error);
+                
+                // Fall back to direct database access if API fails
+                console.log('Falling back to direct profile creation');
+                const { data: createProfileData, error: createProfileError } = await supabase
+                  .from('profiles')
+                  .insert({
+                    id: user.id,
+                    full_name: '',
+                    display_name: '',
+                    email: user.email,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                  })
+                  .select();
+                
+                console.log('Direct profile creation result:', {
+                  success: !createProfileError,
+                  data: createProfileData,
+                  error: createProfileError?.message
+                });
+                
+                if (createProfileError) {
+                  // Fall back to updating user metadata
+                  console.log('Could not create profile, updating user metadata as fallback');
+                  await supabase.auth.updateUser({
+                    data: {
+                      profile_fallback: true,
+                      email: user.email
+                    }
+                  });
+                  setLoadingError('Failed to create profile. Please try again or contact support.');
+                } else {
+                  console.log('Profile created successfully');
+                  // Try fetching the profile again
+                  const { data: newProfileData } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', user.id)
+                    .single();
+                    
+                  if (newProfileData) {
+                    setProfile({
+                      full_name: newProfileData.full_name || '',
+                      display_name: newProfileData.display_name || '',
+                      email: newProfileData.email || user.email || '',
+                      billing_address: newProfileData.billing_address || '',
+                      country: newProfileData.country || '',
+                      phone: newProfileData.phone || '',
+                      profile_picture_url: newProfileData.profile_picture_url || ''
+                    });
+                  }
+                }
+              }
+            } catch (apiError) {
+              console.error('Error using API route to create profile:', apiError);
+              setLoadingError('Failed to create profile. Please try again or contact support.');
             }
+          } else {
+            console.error('Error fetching profile:', profileError);
           }
         }
         
@@ -166,8 +363,81 @@ export default function AccountPage() {
     }
   };
 
+  // Add a session listener
   useEffect(() => {
-    getUser();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', { event, hasSession: !!session });
+      if (event === 'SIGNED_IN') {
+        console.log('SIGNED_IN event detected, fetching user data');
+        getUser();
+      } else if (event === 'SIGNED_OUT') {
+        console.log('SIGNED_OUT event detected, redirecting to homepage');
+        router.push('/');
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [router]);
+
+  // Replace the useEffect that does the immediate auth check
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        console.log('Running immediate auth check...');
+        // Force a refresh of the auth state
+        const { data: { session }, error } = await supabase.auth.refreshSession();
+        
+        console.log('Auth check result:', {
+          hasSession: !!session,
+          error: error?.message,
+          userId: session?.user?.id,
+          expiresAt: session?.expires_at,
+          nowTime: Math.floor(Date.now() / 1000)
+        });
+        
+        if (error) {
+          console.error('Session refresh error:', error);
+          setLoadingError(`Session error: ${error.message}`);
+          setIsLoading(false);
+          return;
+        }
+        
+        if (!session) {
+          console.log('No active session after refresh');
+          
+          // Check if we have cookie or token
+          const hasCookie = document.cookie.split(';').some(c => c.trim().startsWith('sb-'));
+          console.log('Has auth cookie:', hasCookie);
+          
+          if (hasCookie) {
+            console.log('Cookie exists but session refresh failed - trying getSession');
+            // Try one more time with getSession
+            const { data: sessionData } = await supabase.auth.getSession();
+            if (sessionData.session) {
+              console.log('Got session via getSession, proceeding with user data fetch');
+              getUser();
+              return;
+            }
+          }
+          
+          console.log('No valid session found, redirecting to sign in...');
+          router.push('/auth/signin');
+          return;
+        }
+        
+        console.log('Valid session found, user ID:', session.user.id);
+        // Valid session, so fetch user data
+        getUser();
+      } catch (err) {
+        console.error('Unexpected error in auth check:', err);
+        setLoadingError('An unexpected error occurred checking your session. Please try signing in again.');
+        setIsLoading(false);
+      }
+    }
+    
+    checkAuth();
   }, [router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -732,6 +1002,143 @@ export default function AccountPage() {
     }
   }
 
+  // Add this function to handle profile creation button click
+  const handleCreateProfile = async () => {
+    if (!userId) {
+      console.error('Cannot create profile: No user ID available');
+      return;
+    }
+    
+    setIsLoading(true);
+    setLoadingError(null);
+    
+    try {
+      // Try using the API route for creating a profile
+      console.log('Creating profile via API');
+      const response = await fetch('/api/auth/create-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userId,
+          email: userEmail
+        }),
+      });
+      
+      const result = await response.json();
+      console.log('API profile creation result:', result);
+      
+      if (result.success && result.profile) {
+        console.log('Profile created successfully via API');
+        // Set the profile from the API response
+        setProfile({
+          full_name: result.profile.full_name || '',
+          display_name: result.profile.display_name || '',
+          email: result.profile.email || userEmail || '',
+          billing_address: result.profile.billing_address || '',
+          country: result.profile.country || '',
+          phone: result.profile.phone || '',
+          profile_picture_url: result.profile.profile_picture_url || ''
+        });
+        
+        // Reset loading state
+        setIsLoading(false);
+      } else {
+        console.error('API profile creation failed:', result.error);
+        setLoadingError(`Failed to create profile: ${result.error}`);
+        setIsLoading(false);
+      }
+    } catch (apiError) {
+      console.error('Error using API route to create profile:', apiError);
+      setLoadingError('Failed to create profile. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
+  // Add this function to handle session refresh
+  const handleRefreshSession = async () => {
+    setIsLoading(true);
+    setLoadingError(null);
+    
+    try {
+      console.log('Manually refreshing session...');
+      const { data, error } = await supabase.auth.refreshSession();
+      
+      if (error) {
+        console.error('Session refresh failed:', error);
+        setLoadingError('Could not refresh your session. Please sign in again.');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!data.session) {
+        console.log('No session returned after refresh');
+        setLoadingError('Your session has expired. Please sign in again.');
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log('Session refreshed successfully, expires at:', data.session.expires_at);
+      
+      // Get user data with the refreshed session
+      getUser();
+    } catch (err) {
+      console.error('Unexpected error refreshing session:', err);
+      setLoadingError('An unexpected error occurred. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
+  // Add this function to reset the auth state
+  const handleResetAuth = async () => {
+    try {
+      console.log('Resetting auth state...');
+      setIsLoading(true);
+      
+      // First call API to clear server-side cookies
+      const response = await fetch('/api/auth/reset-session', {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      const data = await response.json();
+      console.log('Auth reset result:', data);
+      
+      // Clear local storage
+      if (typeof window !== 'undefined') {
+        // Clear any Supabase related items from localStorage
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-')) {
+            console.log(`Clearing localStorage item: ${key}`);
+            localStorage.removeItem(key);
+          }
+        });
+        
+        // Clear client-side cookies
+        document.cookie.split(';').forEach(c => {
+          const cookie = c.trim();
+          const name = cookie.split('=')[0];
+          if (name.startsWith('sb-')) {
+            console.log(`Clearing client-side cookie: ${name}`);
+            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+          }
+        });
+      }
+      
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+      
+      // Redirect to sign in page
+      console.log('Auth state reset complete, redirecting to sign in page');
+      router.push('/auth/signin');
+    } catch (err) {
+      console.error('Failed to reset auth state:', err);
+      setLoadingError('Failed to reset auth state. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -739,6 +1146,56 @@ export default function AccountPage() {
           <div className="w-4 h-4 bg-white rounded-full animate-bounce" />
           <div className="w-4 h-4 bg-white rounded-full animate-bounce [animation-delay:-.3s]" />
           <div className="w-4 h-4 bg-white rounded-full animate-bounce [animation-delay:-.5s]" />
+        </div>
+      </div>
+    );
+  }
+
+  if (loadingError) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="max-w-md w-full bg-[#111111] rounded-lg p-8 text-center">
+          <h2 className="text-2xl font-bold text-white mb-4">Account Error</h2>
+          <p className="text-red-400 mb-6">{loadingError}</p>
+          
+          <div className="mt-6 flex flex-col space-y-4">
+            <button
+              onClick={handleRefreshSession}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors"
+            >
+              Refresh Session
+            </button>
+            
+            <button
+              onClick={handleResetAuth}
+              className="px-4 py-2 bg-yellow-600 text-white rounded-lg text-sm hover:bg-yellow-700 transition-colors"
+            >
+              Reset Auth State & Sign In Again
+            </button>
+            
+            {userId && (
+              <button
+                onClick={handleCreateProfile}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition-colors"
+              >
+                Create Profile
+              </button>
+            )}
+            
+            <button
+              onClick={handleRetryProfileLoad}
+              className="px-4 py-2 border border-white/10 text-gray-300 rounded-lg hover:bg-gray-800 transition-colors text-sm"
+            >
+              Retry
+            </button>
+            
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-600/20 text-red-500 rounded-lg hover:bg-red-600/30 transition-colors text-sm"
+            >
+              Log Out
+            </button>
+          </div>
         </div>
       </div>
     );

@@ -1,213 +1,188 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
-import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { supabase } from '../../../lib/supabaseClient'
+import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { supabase } from '../../../lib/supabaseClient'
 
-// Client component that safely uses useSearchParams inside Suspense
-function SignInForm() {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  })
-  const [loading, setLoading] = useState(false)
+export default function SignIn() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [debugInfo, setDebugInfo] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirectUrl = searchParams.get('redirectUrl') || '/account'
+  const redirectTo = searchParams.get('redirect') || '/account'
 
-  // Check if we're already logged in
   useEffect(() => {
+    // Check if user is already signed in
     const checkSession = async () => {
-      const { data } = await supabase.auth.getSession()
-      if (data.session) {
-        console.log('User already has an active session, redirecting...')
-        router.push(redirectUrl)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        console.log('Session found, redirecting to:', redirectTo)
+        router.push(redirectTo)
       }
     }
-    
     checkSession()
-  }, [redirectUrl, router])
+  }, [router, redirectTo])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     setError(null)
-    setDebugInfo(null)
-    
-    console.log('Sign in attempt for:', formData.email)
-    
+    setIsLoading(true)
+
     try {
-      // Call our server-side API route for authentication
+      console.log('Signing in...');
+      // Call our server-side API route
       const response = await fetch('/api/auth/signin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
+        body: JSON.stringify({ email, password }),
         credentials: 'include', // Important for cookie handling
-      });
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        console.error('Sign in failed:', data.error);
+        setError(data.error || 'Failed to sign in')
+        setIsLoading(false);
+        return
+      }
+
+      console.log('Sign in API response success:', data.success);
+
+      // After successful API response, explicitly refresh the session
+      console.log('Refreshing session after sign-in...');
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
       
-      console.log('Login response status:', response.status);
-      const result = await response.json();
-      
-      if (!response.ok || !result.success) {
-        console.error('Login failed:', result);
-        setError(result.message || 'An error occurred during sign in');
-        // Try to get additional debug info
-        try {
-          const debugResponse = await fetch('/api/auth/debug');
-          const debugData = await debugResponse.json();
-          setDebugInfo(debugData);
-          console.log('Debug data:', debugData);
-        } catch (debugErr) {
-          console.error('Could not fetch debug info:', debugErr);
-        }
-        setLoading(false);
+      if (refreshError) {
+        console.error('Session refresh error:', refreshError);
+        setError('Failed to initialize session. Please try again.');
+        setIsLoading(false);
         return;
       }
       
-      console.log('Login successful, checking session...');
-      
-      // Verify we have a valid session before redirecting
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData.session) {
-        console.log('Session verified, redirecting to:', redirectUrl);
-        router.push(redirectUrl);
-      } else {
-        // If we don't have a session yet, we need to refresh it
-        console.log('No session found after login, refreshing...');
-        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      if (!refreshData.session) {
+        console.error('No session after refresh');
         
-        if (refreshError || !refreshData.session) {
-          console.error('Session refresh failed:', refreshError);
-          setError('Your login was successful, but session creation failed. Please try again.');
-          setLoading(false);
+        // Try directly getting session as fallback
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError || !sessionData.session) {
+          console.error('Get session failed:', sessionError || 'No session found');
+          setError('Session not created. Please try again.');
+          setIsLoading(false);
           return;
         }
         
-        console.log('Session refreshed, redirecting to:', redirectUrl);
-        router.push(redirectUrl);
+        console.log('Got session via getSession instead');
       }
-    } catch (err: any) {
-      console.error('Unexpected error during login:', err);
-      setError('An unexpected error occurred. Please try again.');
-      setLoading(false);
+
+      // Verify we have a session and it's not expired
+      const { data: { session }, error: verifyError } = await supabase.auth.getSession();
+      
+      if (verifyError) {
+        console.error('Session verification error:', verifyError);
+        setError('Failed to verify session. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!session) {
+        console.error('No session found after sign in');
+        setError('Session not created. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+
+      const now = Math.floor(Date.now() / 1000);
+      const expiresIn = session.expires_at ? session.expires_at - now : null;
+      
+      console.log('Sign in successful, session created:', {
+        userId: session.user.id,
+        email: session.user.email,
+        expiresAt: session.expires_at,
+        expiresIn: expiresIn ? `${expiresIn} seconds` : 'unknown',
+        accessToken: session.access_token ? 'present' : 'missing',
+        refreshToken: session.refresh_token ? 'present' : 'missing'
+      });
+
+      // Check for and log auth cookies
+      const authCookies = document.cookie
+        .split(';')
+        .map(c => c.trim())
+        .filter(c => c.startsWith('sb-'));
+        
+      console.log('Auth cookies after sign-in:', authCookies.length ? authCookies : 'none found');
+
+      // Redirect to the original destination or account page
+      console.log('Redirecting to:', redirectTo);
+      router.push(redirectTo)
+    } catch (err) {
+      console.error('Sign in error:', err)
+      setError('An unexpected error occurred')
+      setIsLoading(false);
     }
   }
 
   return (
-    <main className="bg-black min-h-screen">
-      <div className="max-w-md mx-auto px-4 py-16">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="bg-zinc-900/50 border border-white/10 rounded-lg p-8"
-        >
+    <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="max-w-md w-full space-y-8 p-8 bg-[#111111] rounded-lg">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
+            Sign in to your account
+          </h2>
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
-            <div className="mb-4 text-red-500 text-sm text-center">{error}</div>
+            <div className="bg-red-500/10 border border-red-500/20 text-red-500 px-4 py-3 rounded relative" role="alert">
+              <span className="block sm:inline">{error}</span>
+            </div>
           )}
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-white mb-2">Welcome Back</h1>
-            <p className="text-gray-400">Sign in to your account to continue</p>
+          <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <label htmlFor="email" className="sr-only">Email address</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-700 bg-[#1A1A1A] placeholder-gray-500 text-white rounded-t-md focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-sm"
+                placeholder="Email address"
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="sr-only">Password</label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-700 bg-[#1A1A1A] placeholder-gray-500 text-white rounded-b-md focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-sm"
+                placeholder="Password"
+              />
+            </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-400 mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                id="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full bg-zinc-900/50 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="you@example.com"
-                required
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-400 mb-2">
-                Password
-              </label>
-              <input
-                type="password"
-                id="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full bg-zinc-900/50 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="••••••••"
-                required
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="remember"
-                  className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                />
-                <label htmlFor="remember" className="ml-2 block text-sm text-gray-400">
-                  Remember me
-                </label>
-              </div>
-              <Link href="/auth/forgot-password" className="text-sm text-purple-500 hover:text-purple-400">
-                Forgot password?
-              </Link>
-            </div>
-
+          <div>
             <button
               type="submit"
-              className="w-full bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-60"
-              disabled={loading}
+              disabled={isLoading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Signing In...' : 'Sign In'}
+              {isLoading ? 'Signing in...' : 'Sign in'}
             </button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-400">
-              Don't have an account?{' '}
-              <Link href="/auth/signup" className="text-purple-500 hover:text-purple-400">
-                Sign up
-              </Link>
-            </p>
           </div>
-          
-          {process.env.NODE_ENV !== 'production' && debugInfo && (
-            <div className="mt-8 p-4 bg-gray-900 rounded text-xs text-gray-400 overflow-auto max-h-40">
-              <p>Debug Info:</p>
-              <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
-            </div>
-          )}
-        </motion.div>
+        </form>
       </div>
-    </main>
+    </div>
   )
 }
-
-// Wrapper component with Suspense boundary
-export default function SignInPage() {
-  return (
-    <Suspense fallback={
-      <div className="bg-black min-h-screen flex items-center justify-center">
-        <div className="text-white text-center">
-          <div className="mb-4">Loading...</div>
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto"></div>
-        </div>
-      </div>
-    }>
-      <SignInForm />
-    </Suspense>
-  )
-} 
