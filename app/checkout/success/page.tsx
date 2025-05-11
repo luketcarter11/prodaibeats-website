@@ -12,6 +12,7 @@ function SuccessContent() {
   const { clearCart } = useCart()
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [hasCleared, setHasCleared] = useState(false)
   
   useEffect(() => {
     const sessionId = searchParams.get('session_id')
@@ -22,10 +23,13 @@ function SuccessContent() {
       return
     }
 
-    // Clear the cart after successful payment
-    clearCart()
+    if (!hasCleared) {
+      clearCart()
+      setHasCleared(true)
+    }
+    
     setIsLoading(false)
-  }, [searchParams, clearCart])
+  }, [searchParams, clearCart, hasCleared])
 
   if (isLoading) {
     return (

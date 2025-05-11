@@ -2,11 +2,10 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { useAuth } from '../context/AuthContext'
 
 export default function Footer() {
   const [email, setEmail] = useState('')
-  const { openLoginPopup, user } = useAuth()
+  const user = null // Assuming no user is logged in by default
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -19,7 +18,7 @@ export default function Footer() {
     if (user) {
       window.location.href = '/account'
     } else {
-      openLoginPopup()
+      window.location.href = '/sign-in'
     }
   }
 

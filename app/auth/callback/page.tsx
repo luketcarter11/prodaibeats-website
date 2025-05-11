@@ -2,64 +2,59 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '../../../lib/supabaseClient'
+import { supabase } from '../../../lib/supabase'
 
-export default function AuthCallbackPage() {
+export default function AuthCallback() {
   const router = useRouter()
-  const [message, setMessage] = useState('Processing authentication...')
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const handleAuthCallback = async () => {
+    const handleEmailConfirmation = async () => {
       try {
-        // The hash contains the access token and refresh token after email confirmation
+        // Get the session from URL
         const { error } = await supabase.auth.getSession()
         
-        if (error) {
-          console.error('Auth callback error:', error)
-          setError('Authentication failed. Please try signing in again.')
-          return
-        }
-        
-        console.log('Auth callback successful')
-        setMessage('Authentication successful! Redirecting...')
-        
+        if (error) throw error
+
         // Redirect to account page
-        setTimeout(() => {
-          router.push('/account')
-        }, 1500)
+        router.push('/account')
       } catch (err) {
-        console.error('Unexpected error in auth callback:', err)
-        setError('An unexpected error occurred. Please try signing in again.')
+        console.error('Error confirming email:', err)
+        setError(err instanceof Error ? err.message : 'Failed to confirm email')
       }
     }
 
-    handleAuthCallback()
+    handleEmailConfirmation()
   }, [router])
 
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="max-w-md w-full space-y-8 p-8 bg-[#111111] rounded-lg">
+          <div>
+            <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
+              Verification Failed
+            </h2>
+            <p className="mt-2 text-center text-sm text-red-400">
+              {error}
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="flex items-center justify-center min-h-screen bg-black">
-      <div className="max-w-md w-full p-8 bg-zinc-900 rounded-lg shadow-lg">
-        {error ? (
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-red-500 mb-4">Authentication Failed</h1>
-            <p className="text-gray-300 mb-6">{error}</p>
-            <button 
-              onClick={() => router.push('/auth/signin')}
-              className="bg-purple-600 text-white py-2 px-6 rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              Return to Sign In
-            </button>
+    <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="max-w-md w-full space-y-8 p-8 bg-[#111111] rounded-lg">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
+            Verifying Email
+          </h2>
+          <div className="mt-4 flex justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
           </div>
-        ) : (
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-white mb-4">Authentication</h1>
-            <div className="flex justify-center mb-6">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-500"></div>
-            </div>
-            <p className="text-gray-300">{message}</p>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   )

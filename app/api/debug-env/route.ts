@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isUsingServiceRoleKey, checkServiceRoleAccess } from '../../../lib/supabaseClient';
 
 // Edge and Streaming flags
 export const runtime = 'edge';
@@ -27,24 +26,12 @@ export async function GET(req: NextRequest) {
     );
   }
   
-  // Never expose actual key values, only indicate if they're present
-  const envStatus: Record<string, any> = {
+  return NextResponse.json({
+    status: 'unavailable',
+    message: 'The authentication system is currently being rebuilt. This debug API will be restored once the new authentication system is in place.',
     NODE_ENV: process.env.NODE_ENV,
-    NEXT_PUBLIC_SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    isUsingServiceRoleKey,
-  };
-  
-  // Check actual service role access
-  try {
-    const hasServiceRoleAccess = await checkServiceRoleAccess();
-    envStatus['serviceRoleAccessConfirmed'] = hasServiceRoleAccess;
-  } catch (error) {
-    envStatus['serviceRoleAccessError'] = error instanceof Error ? error.message : 'Unknown error';
-  }
-
-  return NextResponse.json(envStatus);
+    timestamp: new Date().toISOString()
+  });
 }
 
 export function POST() {

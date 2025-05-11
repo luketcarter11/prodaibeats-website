@@ -1,198 +1,266 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { supabase, withApiKey } from '../../../lib/supabaseClient'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { supabase } from '../../../lib/supabase'
 
-export default function SignUpPage() {
+export default function SignUp() {
+  const router = useRouter()
   const [formData, setFormData] = useState({
-    name: '',
     email: '',
     password: '',
     confirmPassword: '',
+    fullName: '',
+    phone: '',
+    country: '',
+    billingAddress: ''
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-  const router = useRouter()
+  const [success, setSuccess] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setLoading(true)
     setError(null)
-    setSuccess(null)
+
+    // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match.')
+      setError('Passwords do not match')
+      setLoading(false)
       return
     }
-    
-    setLoading(true)
-    
+
     try {
-      // Call our server-side API route instead of Supabase directly
-      console.log('Submitting signup form:', { email: formData.email, name: formData.name });
-      
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          name: formData.name,
-        }),
-      });
-      
-      const result = await response.json();
-      console.log('Signup response status:', response.status);
-      console.log('Signup response:', result);
-      
-      if (!response.ok || !result.success) {
-        const errorMessage = result.message || 'An error occurred during signup';
-        console.error('Signup error:', errorMessage);
-        console.error('Error details:', result.error);
-        setError(errorMessage);
-        setLoading(false);
-        return;
+      // 1. Sign up with Supabase Auth
+      const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: {
+            full_name: formData.fullName,
+            phone: formData.phone || null,
+            country: formData.country || null,
+            billing_address: formData.billingAddress || null
+          }
+        }
+      })
+
+      console.error('Debug - Sign up response:', { user, error: signUpError })
+
+      // If we get a user object with no identities, it means the email exists
+      if (user && (!user.identities || user.identities.length === 0)) {
+        throw new Error('An account with this email already exists. Please try signing in instead.')
       }
-      
-      if (result.requiresEmailConfirmation) {
-        console.log('Email confirmation required');
-        setSuccess(result.message);
-        setFormData({ name: '', email: '', password: '', confirmPassword: '' });
+
+      // Handle signup errors
+      if (signUpError) {
+        throw signUpError
+      }
+
+      if (!user) {
+        throw new Error('No user returned after signup')
+      }
+
+      // Show success message - we'll create the profile after email verification
+      setSuccess(true)
+
+    } catch (err) {
+      console.error('Sign up error details:', err)
+      // Handle different types of errors
+      if (err instanceof Error) {
+        if (err.message.includes('row-level security policy')) {
+          setError('Account created but profile setup failed. Please try signing in.')
+        } else {
+          setError(err.message)
+        }
       } else {
-        console.log('User created and confirmed, redirecting to account page');
-        router.push('/account');
+        setError('Failed to create account. Please try again.')
       }
-    } catch (error) {
-      console.error('Unexpected error during signup:', error);
-      setError('An unexpected error occurred. Please try again.');
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
-  return (
-    <main className="bg-black min-h-screen">
-      <div className="max-w-md mx-auto px-4 py-16">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="bg-zinc-900/50 border border-white/10 rounded-lg p-8"
-        >
-          {error && (
-            <div className="mb-4 text-red-500 text-sm text-center">{error}</div>
-          )}
-          {success && (
-            <div className="mb-4 text-green-500 text-sm text-center">{success}</div>
-          )}
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-white mb-2">Create Account</h1>
-            <p className="text-gray-400">Join our community of music creators</p>
+  if (success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="max-w-md w-full space-y-8 p-8 bg-[#111111] rounded-lg">
+          <div>
+            <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
+              Check Your Email
+            </h2>
+            <p className="mt-2 text-center text-sm text-gray-400">
+              We've sent you an email with a verification link. Please verify your email address to complete your registration.
+            </p>
           </div>
+          <div className="mt-4 text-center">
+            <Link
+              href="/"
+              className="text-purple-400 hover:text-purple-300"
+            >
+              Return to Home Page
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-400 mb-2">
-                Full Name
-              </label>
-              <input
-                type="text"
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full bg-zinc-900/50 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="John Doe"
-                required
-              />
-            </div>
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-black py-12 px-4">
+      <div className="max-w-md w-full space-y-8 p-8 bg-[#111111] rounded-lg">
+        <div>
+          <h2 className="text-center text-3xl font-extrabold text-white">
+            Create an Account
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-400">
+            Already have an account?{' '}
+            <Link href="/auth/signin" className="text-purple-400 hover:text-purple-300">
+              Sign in
+            </Link>
+          </p>
+        </div>
 
+        {error && (
+          <div className="bg-red-900/30 border border-red-700 rounded-lg p-4">
+            <p className="text-red-400 text-sm">{error}</p>
+          </div>
+        )}
+
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-400 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-400">
                 Email Address
               </label>
               <input
-                type="email"
                 id="email"
+                name="email"
+                type="email"
+                required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full bg-zinc-900/50 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="you@example.com"
-                required
+                className="mt-1 block w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                disabled={loading}
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-400 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-400">
                 Password
               </label>
               <input
-                type="password"
                 id="password"
+                name="password"
+                type="password"
+                required
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full bg-zinc-900/50 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="••••••••"
-                required
+                className="mt-1 block w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                disabled={loading}
               />
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-400 mb-2">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-400">
                 Confirm Password
               </label>
               <input
-                type="password"
                 id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                required
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                className="w-full bg-zinc-900/50 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="••••••••"
-                required
+                className="mt-1 block w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                disabled={loading}
               />
             </div>
 
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="terms"
-                className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                required
-              />
-              <label htmlFor="terms" className="ml-2 block text-sm text-gray-400">
-                I agree to the{' '}
-                <Link href="/legal/terms" className="text-purple-500 hover:text-purple-400">
-                  Terms of Service
-                </Link>{' '}
-                and{' '}
-                <Link href="/legal/privacy" className="text-purple-500 hover:text-purple-400">
-                  Privacy Policy
-                </Link>
+            <div>
+              <label htmlFor="fullName" className="block text-sm font-medium text-gray-400">
+                Full Name
               </label>
+              <input
+                id="fullName"
+                name="fullName"
+                type="text"
+                required
+                value={formData.fullName}
+                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                className="mt-1 block w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                disabled={loading}
+              />
             </div>
 
-            <button
-              type="submit"
-              className="w-full bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-60"
-              disabled={loading}
-            >
-              {loading ? 'Creating Account...' : 'Create Account'}
-            </button>
-          </form>
+            <div>
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-400">
+                Phone Number (Optional)
+              </label>
+              <input
+                id="phone"
+                name="phone"
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                className="mt-1 block w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                disabled={loading}
+              />
+            </div>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-400">
-              Already have an account?{' '}
-              <Link href="/auth/signin" className="text-purple-500 hover:text-purple-400">
-                Sign in
-              </Link>
-            </p>
+            <div>
+              <label htmlFor="country" className="block text-sm font-medium text-gray-400">
+                Country (Optional)
+              </label>
+              <input
+                id="country"
+                name="country"
+                type="text"
+                value={formData.country}
+                onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                className="mt-1 block w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="billingAddress" className="block text-sm font-medium text-gray-400">
+                Billing Address (Optional)
+              </label>
+              <textarea
+                id="billingAddress"
+                name="billingAddress"
+                rows={3}
+                value={formData.billingAddress}
+                onChange={(e) => setFormData({ ...formData, billingAddress: e.target.value })}
+                className="mt-1 block w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                disabled={loading}
+              />
+            </div>
           </div>
-        </motion.div>
+
+          <button
+            type="submit"
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+            disabled={loading}
+          >
+            {loading ? (
+              <span className="flex items-center">
+                <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Creating Account...
+              </span>
+            ) : (
+              'Create Account'
+            )}
+          </button>
+        </form>
       </div>
-    </main>
+    </div>
   )
 } 

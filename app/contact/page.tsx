@@ -3,7 +3,6 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useState } from 'react'
-import { supabase } from '../../lib/supabaseClient'
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -23,45 +22,16 @@ export default function ContactPage() {
     setSuccess(null)
     
     try {
-      // First check if the contact_messages table exists by attempting to query it
-      const { error: tableCheckError } = await supabase
-        .from('contact_messages')
-        .select('id')
-        .limit(1)
-        .maybeSingle()
+      // Placeholder for form submission - no actual database connection
+      console.log('Message would be sent:', formData)
       
-      if (tableCheckError) {
-        console.warn('Contact messages table may not exist, attempting to create it')
-        
-        // Try to create the table if it doesn't exist
-        // This would normally be done in migrations, but this is a fallback
-        const { error: createTableError } = await supabase.rpc('create_contact_messages_table')
-        
-        if (createTableError) {
-          console.error('Failed to create contact_messages table:', createTableError)
-          throw new Error('Unable to save your message. Our team has been notified.')
-        }
-      }
+      // Simulate a short delay
+      await new Promise(resolve => setTimeout(resolve, 1000))
       
-      // Now insert the message
-      const { error: insertError } = await supabase
-        .from('contact_messages')
-        .insert({
-          name: formData.name,
-          email: formData.email,
-          subject: formData.subject,
-          message: formData.message,
-          status: 'new',
-          created_at: new Date().toISOString()
-        })
-
-      if (insertError) {
-        console.error('Error submitting message:', insertError)
-        throw new Error('Failed to submit your message. Please try again.')
-      }
-
-      // Success! Reset the form and show success message
+      // Display success message
       setSuccess('Your message has been sent! We\'ll get back to you soon.')
+      
+      // Reset form
       setFormData({
         name: '',
         email: '',

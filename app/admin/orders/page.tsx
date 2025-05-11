@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '../../../lib/supabaseClient'
 import { FaSearch, FaSpinner, FaEye, FaFilter } from 'react-icons/fa'
 import { format } from 'date-fns'
 import { Order, getAllOrders } from '../../../lib/getOrders'

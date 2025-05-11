@@ -9,6 +9,8 @@ import { FaArrowLeft, FaSpinner, FaExclamationCircle } from 'react-icons/fa'
 import { supabase } from '@/lib/supabaseClient'
 import { discountService, DiscountCode } from '@/services/discountService'
 import { getStripe } from '../../lib/stripe'
+import SignInPopup from '@/components/SignInPopup'
+import SignUpPopup from '@/components/SignUpPopup'
 
 // Use environment variable for CDN base URL
 const CDN = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
@@ -26,7 +28,8 @@ interface ErrorMessage {
 
 export default function CheckoutPage() {
   const { cart, cartTotal, isLoading } = useCart()
-  const [email, setEmail] = useState('')
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [userEmail, setUserEmail] = useState('')
   const [discountCode, setDiscountCode] = useState('')
   const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscount | null>(null)
   const [isRedirecting, setIsRedirecting] = useState(false)
@@ -34,7 +37,21 @@ export default function CheckoutPage() {
   const [error, setError] = useState<ErrorMessage | null>(null)
   const [discountError, setDiscountError] = useState<string | null>(null)
   const [discountedTotal, setDiscountedTotal] = useState(cartTotal)
+  const [isSignInOpen, setIsSignInOpen] = useState(false)
+  const [isSignUpOpen, setIsSignUpOpen] = useState(false)
   const router = useRouter()
+
+  // Check authentication status and get user email on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setIsAuthenticated(true)
+        setUserEmail(user.email || '')
+      }
+    }
+    checkAuth()
+  }, [])
 
   // Calculate discounted total whenever appliedDiscount changes
   // (only when not already set by the API response)
@@ -54,6 +71,14 @@ export default function CheckoutPage() {
       setDiscountedTotal(cartTotal);
     }
   }, [appliedDiscount, cartTotal, discountedTotal]);
+
+  const handleAuthSuccess = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      setIsAuthenticated(true)
+      setUserEmail(user.email || '')
+    }
+  }
 
   const handleApplyDiscount = async () => {
     if (!discountCode.trim() || isApplyingDiscount) return;
@@ -113,7 +138,14 @@ export default function CheckoutPage() {
   };
 
   const handleCheckout = async () => {
-    if (isRedirecting || !email) return;
+    if (isRedirecting) return;
+    if (!isAuthenticated) {
+      setError({
+        message: 'Please sign in or create an account to complete your purchase.',
+        field: 'auth'
+      });
+      return;
+    }
     
     setIsRedirecting(true);
     setError(null);
@@ -124,7 +156,7 @@ export default function CheckoutPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           cart,
-          email,
+          email: userEmail,
           discountCode: appliedDiscount?.code
         })
       });
@@ -330,25 +362,38 @@ export default function CheckoutPage() {
           )}
 
           <div className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-200 mb-1">
-                Email Address
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Enter your email"
-                required
-              />
-            </div>
+            {!isAuthenticated ? (
+              <div className="bg-purple-900/30 border border-purple-500/30 rounded-lg p-4 mb-6">
+                <h3 className="text-white font-medium mb-2">Sign In Required</h3>
+                <p className="text-gray-300 text-sm mb-4">
+                  Please sign in or create an account to complete your purchase. This helps you track your orders and access your beats.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setIsSignInOpen(true)}
+                    className="inline-flex items-center justify-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    onClick={() => setIsSignUpOpen(true)}
+                    className="inline-flex items-center justify-center px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors text-sm font-medium"
+                  >
+                    Create Account
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-zinc-800/50 rounded-lg p-4 mb-4">
+                <p className="text-gray-300 text-sm">
+                  Signed in as <span className="text-white font-medium">{userEmail}</span>
+                </p>
+              </div>
+            )}
 
             <button
               onClick={handleCheckout}
-              disabled={isRedirecting || !email || cart.length === 0}
+              disabled={isRedirecting || !isAuthenticated || cart.length === 0}
               className="w-full bg-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
               {isRedirecting ? (
@@ -379,6 +424,18 @@ export default function CheckoutPage() {
           <p className="text-white text-sm">{error.message}</p>
         </div>
       )}
+
+      {/* Sign In/Up Popups */}
+      <SignInPopup 
+        isOpen={isSignInOpen} 
+        onClose={() => setIsSignInOpen(false)}
+        onSuccess={handleAuthSuccess}
+      />
+      <SignUpPopup
+        isOpen={isSignUpOpen}
+        onClose={() => setIsSignUpOpen(false)}
+        onSuccess={handleAuthSuccess}
+      />
     </div>
   )
 } 

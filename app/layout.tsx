@@ -3,7 +3,6 @@
 import './globals.css'
 import Header from '../src/components/Header'
 import Footer from '../src/components/Footer'
-import { AuthProvider } from '../src/context/AuthContext'
 import { CartProvider } from '../src/context/CartContext'
 import type { Metadata } from 'next'
 
@@ -30,13 +29,11 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-black text-white font-body">
-        <AuthProvider>
-          <CartProvider>
-            <Header />
-            <main className="min-h-screen">{children}</main>
-            <Footer />
-          </CartProvider>
-        </AuthProvider>
+        <CartProvider>
+          <Header />
+          <main className="min-h-screen">{children}</main>
+          <Footer />
+        </CartProvider>
       </body>
     </html>
   )
