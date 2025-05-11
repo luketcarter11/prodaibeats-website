@@ -26,7 +26,7 @@ const getSupabase = () => {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const supabase = getSupabase()
@@ -45,7 +45,7 @@ export async function GET(
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select('*')
-      .eq('id', params.orderId)
+      .eq('id', params.id)
       .eq('user_id', user.id)
       .single()
 
@@ -56,27 +56,34 @@ export async function GET(
       )
     }
 
-    // Get track file from storage
+    if (!order.license_file) {
+      return NextResponse.json(
+        { error: 'License file not found' },
+        { status: 404 }
+      )
+    }
+
+    // Get license file from storage
     const { data: fileData, error: fileError } = await supabase.storage
-      .from('tracks')
-      .download(`${order.track_id}.wav`)
+      .from('licenses')
+      .download(order.license_file)
 
     if (fileError) {
-      console.error('Error downloading file:', fileError)
+      console.error('Error downloading license:', fileError)
       return NextResponse.json(
-        { error: 'Failed to download file' },
+        { error: 'Failed to download license' },
         { status: 500 }
       )
     }
 
     // Create response with file
     const response = new NextResponse(fileData)
-    response.headers.set('Content-Type', 'audio/wav')
-    response.headers.set('Content-Disposition', `attachment; filename="${order.track_name}.wav"`)
+    response.headers.set('Content-Type', 'application/pdf')
+    response.headers.set('Content-Disposition', `inline; filename="license-${order.track_name}.pdf"`)
     
     return response
   } catch (error) {
-    console.error('Download error:', error)
+    console.error('License error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
