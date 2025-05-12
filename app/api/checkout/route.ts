@@ -503,8 +503,10 @@ export async function POST(req: NextRequest) {
             images: item.coverUrl ? [item.coverUrl] : undefined,
             metadata: {
               itemId: item.id,
+              track_id: item.id,
               licenseType: item.licenseType,
-              originalPrice: item.price.toString()
+              originalPrice: item.price.toString(),
+              artist: item.artist || ''
             }
           },
           unit_amount: Math.round(finalPrice), // Already in cents
@@ -523,11 +525,13 @@ export async function POST(req: NextRequest) {
       cancel_url: `${baseUrl}/cart`,
       metadata: {
         userId: customerId,
+        userEmail: email,
         items: JSON.stringify(cart.map((item: CartItem) => ({
           id: item.id,
+          track_id: item.id,
           title: item.title,
           licenseType: item.licenseType,
-          originalPrice: item.price
+          price: item.price
         }))),
         totalBeforeDiscount: totalBeforeDiscount.toString(),
         discountCode: appliedCoupon?.code || '',

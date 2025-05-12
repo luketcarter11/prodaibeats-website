@@ -1,0 +1,981 @@
+[
+  {
+    "timestamp": "2025-05-11T17:11:01.024Z",
+    "type": "success",
+    "message": "Webhook processed successfully"
+  },
+  {
+    "timestamp": "2025-05-11T17:11:01.023Z",
+    "type": "success",
+    "message": "Successfully processed checkout.session.completed",
+    "data": {
+      "sessionId": "cs_test_1746983459750"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:11:01.023Z",
+    "type": "success",
+    "message": "Successfully processed checkout completion",
+    "data": {
+      "sessionId": "cs_test_1746983459750"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:11:01.022Z",
+    "type": "success",
+    "message": "Generated and attached license file",
+    "data": {
+      "orderId": "b81edb9c-455a-4d7c-ae0e-345a2b767f8c",
+      "fileName": "b81edb9c-455a-4d7c-ae0e-345a2b767f8c.pdf"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:11:00.430Z",
+    "type": "info",
+    "message": "Generating license for order",
+    "data": {
+      "orderId": "b81edb9c-455a-4d7c-ae0e-345a2b767f8c",
+      "licenseType": "Non-Exclusive"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:11:00.429Z",
+    "type": "success",
+    "message": "Saved order to Supabase",
+    "data": {
+      "orderId": "b81edb9c-455a-4d7c-ae0e-345a2b767f8c",
+      "trackId": "e6e822b8-42c1-4ccb-8954-13d83232cd3a",
+      "trackName": "Final Test Track"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:11:00.429Z",
+    "type": "success",
+    "message": "Successfully saved order b81edb9c-455a-4d7c-ae0e-345a2b767f8c to Supabase"
+  },
+  {
+    "timestamp": "2025-05-11T17:11:00.310Z",
+    "type": "warning",
+    "message": "No user_id found, generating fallback anonymous user ID",
+    "data": {
+      "customerEmail": "test@example.com"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:11:00.310Z",
+    "type": "debug",
+    "message": "Order data with timestamps",
+    "data": {
+      "id": "b81edb9c-455a-4d7c-ae0e-345a2b767f8c",
+      "user_id": null,
+      "track_id": "e6e822b8-42c1-4ccb-8954-13d83232cd3a",
+      "track_name": "Final Test Track",
+      "license": "Non-Exclusive",
+      "order_date": "2025-05-11T17:11:00.308Z",
+      "total_amount": 19.99,
+      "discount": 0,
+      "license_file": null,
+      "customer_email": "test@example.com",
+      "stripe_session_id": "cs_test_1746983459750",
+      "currency": "USD",
+      "status": "completed",
+      "created_at": "2025-05-11T17:11:00.309Z",
+      "updated_at": "2025-05-11T17:11:00.309Z"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:11:00.309Z",
+    "type": "info",
+    "message": "Attempting to save order to Supabase",
+    "data": {
+      "orderId": "b81edb9c-455a-4d7c-ae0e-345a2b767f8c",
+      "trackId": "e6e822b8-42c1-4ccb-8954-13d83232cd3a"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:11:00.308Z",
+    "type": "debug",
+    "message": "Order data to be saved",
+    "data": {
+      "id": "b81edb9c-455a-4d7c-ae0e-345a2b767f8c",
+      "user_id": null,
+      "track_id": "e6e822b8-42c1-4ccb-8954-13d83232cd3a",
+      "track_name": "Final Test Track",
+      "license": "Non-Exclusive",
+      "order_date": "2025-05-11T17:11:00.308Z",
+      "total_amount": 19.99,
+      "discount": 0,
+      "license_file": null,
+      "customer_email": "test@example.com",
+      "stripe_session_id": "cs_test_1746983459750",
+      "currency": "USD",
+      "status": "completed"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:11:00.308Z",
+    "type": "debug",
+    "message": "Product data",
+    "data": {
+      "trackId": "e6e822b8-42c1-4ccb-8954-13d83232cd3a",
+      "trackName": "Final Test Track",
+      "licenseType": "Non-Exclusive"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:11:00.308Z",
+    "type": "info",
+    "message": "Processing line item",
+    "data": {
+      "itemId": "li_1746983459750",
+      "description": "Non-Exclusive License",
+      "amount_total": 1999
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:11:00.308Z",
+    "type": "info",
+    "message": "Found line items in session",
+    "data": {
+      "count": 1,
+      "sessionId": "cs_test_1746983459750"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:11:00.308Z",
+    "type": "info",
+    "message": "Session type: Test Session",
+    "data": {
+      "sessionId": "cs_test_1746983459750"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:11:00.307Z",
+    "type": "warning",
+    "message": "No matching Supabase user found for email",
+    "data": {
+      "email": "test@example.com"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:11:00.092Z",
+    "type": "info",
+    "message": "Looking up Supabase user ID for email",
+    "data": {
+      "email": "test@example.com"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:11:00.091Z",
+    "type": "debug",
+    "message": "Session data",
+    "data": {
+      "id": "cs_test_1746983459750",
+      "amount_total": 1999,
+      "customer_details": {
+        "email": "test@example.com",
+        "phone": null,
+        "tax_exempt": "none",
+        "tax_ids": []
+      },
+      "metadata": {
+        "userId": "52b873f1-c6c6-4ada-b6e5-d74a44fbc195",
+        "items": "[{\"id\":\"e6e822b8-42c1-4ccb-8954-13d83232cd3a\",\"track_id\":\"e6e822b8-42c1-4ccb-8954-13d83232cd3a\",\"title\":\"Final Test Track\",\"licenseType\":\"Non-Exclusive\",\"price\":19.99}]"
+      },
+      "payment_status": "paid"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:11:00.091Z",
+    "type": "info",
+    "message": "Processing completed checkout",
+    "data": {
+      "sessionId": "cs_test_1746983459750",
+      "customerId": "cus_1746983459750"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:11:00.091Z",
+    "type": "info",
+    "message": "Processing checkout.session.completed",
+    "data": {
+      "sessionId": "cs_test_1746983459750",
+      "customerEmail": "test@example.com"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:11:00.090Z",
+    "type": "info",
+    "message": "Processing webhook event type: checkout.session.completed",
+    "data": {
+      "eventId": "evt_1746983459750",
+      "eventType": "checkout.session.completed"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:11:00.090Z",
+    "type": "info",
+    "message": "Validating Stripe webhook signature"
+  },
+  {
+    "timestamp": "2025-05-11T17:11:00.088Z",
+    "type": "info",
+    "message": "Received webhook request"
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.515Z",
+    "type": "success",
+    "message": "Webhook processed successfully"
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.515Z",
+    "type": "success",
+    "message": "Successfully processed checkout.session.completed",
+    "data": {
+      "sessionId": "cs_test_1746983387317"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.514Z",
+    "type": "success",
+    "message": "Successfully processed checkout completion",
+    "data": {
+      "sessionId": "cs_test_1746983387317"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.514Z",
+    "type": "error",
+    "message": "Error saving order to Supabase",
+    "data": {
+      "error": {
+        "code": "23502",
+        "details": "Failing row contains (161522b6-a36f-4c57-a949-8eeaef150950, c5b8a05b-7dd8-4f55-b377-61d7304ebc04, 2025-05-11 17:09:48.398, 19.99, null, Non-Exclusive, Test Track via API, 7065ee99-3a11-4b1d-b562-6020a8bde345, null, test@example.com, cs_test_1746983387317, 2025-05-11 17:09:48.399+00, 2025-05-11 17:09:48.399+00, USD, completed).",
+        "hint": null,
+        "message": "null value in column \"discount\" of relation \"orders\" violates not-null constraint"
+      },
+      "orderData": {
+        "id": "161522b6-a36f-4c57-a949-8eeaef150950",
+        "user_id": null,
+        "track_id": "7065ee99-3a11-4b1d-b562-6020a8bde345",
+        "track_name": "Test Track via API",
+        "license": "Non-Exclusive",
+        "order_date": "2025-05-11T17:09:48.398Z",
+        "total_amount": 19.99,
+        "discount": null,
+        "license_file": null,
+        "customer_email": "test@example.com",
+        "stripe_session_id": "cs_test_1746983387317",
+        "currency": "USD",
+        "status": "completed"
+      }
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.514Z",
+    "type": "error",
+    "message": "Error in saveOrderToSupabase: Unknown error",
+    "data": {
+      "error": {
+        "code": "23502",
+        "details": "Failing row contains (161522b6-a36f-4c57-a949-8eeaef150950, c5b8a05b-7dd8-4f55-b377-61d7304ebc04, 2025-05-11 17:09:48.398, 19.99, null, Non-Exclusive, Test Track via API, 7065ee99-3a11-4b1d-b562-6020a8bde345, null, test@example.com, cs_test_1746983387317, 2025-05-11 17:09:48.399+00, 2025-05-11 17:09:48.399+00, USD, completed).",
+        "hint": null,
+        "message": "null value in column \"discount\" of relation \"orders\" violates not-null constraint"
+      },
+      "orderData": {
+        "id": "161522b6-a36f-4c57-a949-8eeaef150950",
+        "track_id": "7065ee99-3a11-4b1d-b562-6020a8bde345",
+        "user_id": null
+      }
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.514Z",
+    "type": "error",
+    "message": "Error saving order to Supabase: null value in column \"discount\" of relation \"orders\" violates not-null constraint",
+    "data": {
+      "code": "23502",
+      "details": "Failing row contains (161522b6-a36f-4c57-a949-8eeaef150950, c5b8a05b-7dd8-4f55-b377-61d7304ebc04, 2025-05-11 17:09:48.398, 19.99, null, Non-Exclusive, Test Track via API, 7065ee99-3a11-4b1d-b562-6020a8bde345, null, test@example.com, cs_test_1746983387317, 2025-05-11 17:09:48.399+00, 2025-05-11 17:09:48.399+00, USD, completed).",
+      "hint": null,
+      "orderId": "161522b6-a36f-4c57-a949-8eeaef150950"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.399Z",
+    "type": "warning",
+    "message": "No user_id found, generating fallback anonymous user ID",
+    "data": {
+      "customerEmail": "test@example.com"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.399Z",
+    "type": "debug",
+    "message": "Order data with timestamps",
+    "data": {
+      "id": "161522b6-a36f-4c57-a949-8eeaef150950",
+      "user_id": null,
+      "track_id": "7065ee99-3a11-4b1d-b562-6020a8bde345",
+      "track_name": "Test Track via API",
+      "license": "Non-Exclusive",
+      "order_date": "2025-05-11T17:09:48.398Z",
+      "total_amount": 19.99,
+      "discount": null,
+      "license_file": null,
+      "customer_email": "test@example.com",
+      "stripe_session_id": "cs_test_1746983387317",
+      "currency": "USD",
+      "status": "completed",
+      "created_at": "2025-05-11T17:09:48.399Z",
+      "updated_at": "2025-05-11T17:09:48.399Z"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.398Z",
+    "type": "info",
+    "message": "Attempting to save order to Supabase",
+    "data": {
+      "orderId": "161522b6-a36f-4c57-a949-8eeaef150950",
+      "trackId": "7065ee99-3a11-4b1d-b562-6020a8bde345"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.398Z",
+    "type": "debug",
+    "message": "Order data to be saved",
+    "data": {
+      "id": "161522b6-a36f-4c57-a949-8eeaef150950",
+      "user_id": null,
+      "track_id": "7065ee99-3a11-4b1d-b562-6020a8bde345",
+      "track_name": "Test Track via API",
+      "license": "Non-Exclusive",
+      "order_date": "2025-05-11T17:09:48.398Z",
+      "total_amount": 19.99,
+      "discount": null,
+      "license_file": null,
+      "customer_email": "test@example.com",
+      "stripe_session_id": "cs_test_1746983387317",
+      "currency": "USD",
+      "status": "completed"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.397Z",
+    "type": "debug",
+    "message": "Product data",
+    "data": {
+      "trackId": "7065ee99-3a11-4b1d-b562-6020a8bde345",
+      "trackName": "Test Track via API",
+      "licenseType": "Non-Exclusive"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.397Z",
+    "type": "info",
+    "message": "Processing line item",
+    "data": {
+      "itemId": "li_1746983387317",
+      "description": "Non-Exclusive License",
+      "amount_total": 1999
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.396Z",
+    "type": "info",
+    "message": "Found line items in session",
+    "data": {
+      "count": 1,
+      "sessionId": "cs_test_1746983387317"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.396Z",
+    "type": "info",
+    "message": "Session type: Test Session",
+    "data": {
+      "sessionId": "cs_test_1746983387317"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.396Z",
+    "type": "warning",
+    "message": "No matching Supabase user found for email",
+    "data": {
+      "email": "test@example.com"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.133Z",
+    "type": "info",
+    "message": "Looking up Supabase user ID for email",
+    "data": {
+      "email": "test@example.com"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.133Z",
+    "type": "debug",
+    "message": "Session data",
+    "data": {
+      "id": "cs_test_1746983387317",
+      "amount_total": 1999,
+      "customer_details": {
+        "email": "test@example.com",
+        "phone": null,
+        "tax_exempt": "none",
+        "tax_ids": []
+      },
+      "metadata": {
+        "userId": "54c0567e-b658-4ce5-9ec4-fa8ae3165df0",
+        "items": "[{\"id\":\"7065ee99-3a11-4b1d-b562-6020a8bde345\",\"track_id\":\"7065ee99-3a11-4b1d-b562-6020a8bde345\",\"title\":\"Test Track via API\",\"licenseType\":\"Non-Exclusive\",\"price\":19.99}]"
+      },
+      "payment_status": "paid"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.132Z",
+    "type": "info",
+    "message": "Processing completed checkout",
+    "data": {
+      "sessionId": "cs_test_1746983387317",
+      "customerId": "cus_1746983387317"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.132Z",
+    "type": "info",
+    "message": "Processing checkout.session.completed",
+    "data": {
+      "sessionId": "cs_test_1746983387317",
+      "customerEmail": "test@example.com"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.132Z",
+    "type": "info",
+    "message": "Processing webhook event type: checkout.session.completed",
+    "data": {
+      "eventId": "evt_1746983387317",
+      "eventType": "checkout.session.completed"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.132Z",
+    "type": "info",
+    "message": "Validating Stripe webhook signature"
+  },
+  {
+    "timestamp": "2025-05-11T17:09:48.130Z",
+    "type": "info",
+    "message": "Received webhook request"
+  },
+  {
+    "timestamp": "2025-05-11T17:09:41.745Z",
+    "type": "success",
+    "message": "Successfully tested order creation and deletion",
+    "data": {
+      "message": "Supabase order operations are working properly"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:41.575Z",
+    "type": "info",
+    "message": "Attempting to create test order",
+    "data": {
+      "id": "edcec51e-cdd0-4c39-bde5-a7bf2d3e9687",
+      "user_id": "05090487-a457-4ead-85f4-22d99c3f876c",
+      "track_id": "b40b5042-4771-4777-b2b1-9b12a432eb42",
+      "track_name": "Debug Test Order",
+      "license": "Standard",
+      "order_date": "2025-05-11T17:09:41.575Z",
+      "created_at": "2025-05-11T17:09:41.575Z",
+      "updated_at": "2025-05-11T17:09:41.575Z",
+      "total_amount": 1.99,
+      "status": "pending",
+      "stripe_session_id": "debug_test_1746983381575",
+      "currency": "USD",
+      "customer_email": "test@example.com"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:41.574Z",
+    "type": "success",
+    "message": "Successfully connected to Supabase",
+    "data": {
+      "testResult": "Connected successfully",
+      "message": "Supabase connection is working"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:09:41.371Z",
+    "type": "info",
+    "message": "Debug webhook called",
+    "data": {
+      "debugData": {}
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:08:07.263Z",
+    "type": "error",
+    "message": "Failed to create test order in Supabase",
+    "data": {
+      "error": {
+        "code": "22P02",
+        "details": null,
+        "hint": null,
+        "message": "invalid input value for enum order_status: \"debug_test\""
+      },
+      "testOrder": {
+        "id": "96758b3d-4ab1-4f43-8e9b-740113c9ea85",
+        "user_id": "4c408d38-9744-4f83-9dc0-6955bb1ac31a",
+        "track_id": "dfbb1fc7-b340-42ae-a0fb-0f6184974e0c",
+        "track_name": "Debug Test Order",
+        "license": "Standard",
+        "order_date": "2025-05-11T17:08:07.174Z",
+        "created_at": "2025-05-11T17:08:07.174Z",
+        "updated_at": "2025-05-11T17:08:07.174Z",
+        "total_amount": 1.99,
+        "status": "debug_test",
+        "stripe_session_id": "debug_test_1746983287174",
+        "currency": "USD",
+        "customer_email": "test@example.com"
+      }
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:08:07.174Z",
+    "type": "info",
+    "message": "Attempting to create test order",
+    "data": {
+      "id": "96758b3d-4ab1-4f43-8e9b-740113c9ea85",
+      "user_id": "4c408d38-9744-4f83-9dc0-6955bb1ac31a",
+      "track_id": "dfbb1fc7-b340-42ae-a0fb-0f6184974e0c",
+      "track_name": "Debug Test Order",
+      "license": "Standard",
+      "order_date": "2025-05-11T17:08:07.174Z",
+      "created_at": "2025-05-11T17:08:07.174Z",
+      "updated_at": "2025-05-11T17:08:07.174Z",
+      "total_amount": 1.99,
+      "status": "debug_test",
+      "stripe_session_id": "debug_test_1746983287174",
+      "currency": "USD",
+      "customer_email": "test@example.com"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:08:07.172Z",
+    "type": "success",
+    "message": "Successfully connected to Supabase",
+    "data": {
+      "testResult": "Connected successfully",
+      "message": "Supabase connection is working"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:08:06.875Z",
+    "type": "info",
+    "message": "Debug webhook called",
+    "data": {
+      "debugData": {}
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.567Z",
+    "type": "success",
+    "message": "Webhook processed successfully"
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.567Z",
+    "type": "success",
+    "message": "Successfully processed checkout.session.completed",
+    "data": {
+      "sessionId": "cs_test_1746982844831"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.566Z",
+    "type": "success",
+    "message": "Successfully processed checkout completion",
+    "data": {
+      "sessionId": "cs_test_1746982844831"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.566Z",
+    "type": "error",
+    "message": "Error saving order to Supabase",
+    "data": {
+      "error": {},
+      "orderData": {
+        "id": "ad6eef61-2463-4387-a83d-a2e8bad79169",
+        "user_id": null,
+        "track_id": "a77cd9db-b28d-44f2-84a0-91b5939013bd",
+        "track_name": "Test Track from Webhook",
+        "license": "Non-Exclusive",
+        "order_date": "2025-05-11T17:00:45.564Z",
+        "total_amount": 19.99,
+        "discount": null,
+        "license_file": null,
+        "customer_email": "test@example.com",
+        "stripe_session_id": "cs_test_1746982844831",
+        "currency": "USD",
+        "status": "completed"
+      }
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.566Z",
+    "type": "error",
+    "message": "Error in saveOrderToSupabase: Missing required fields: user_id",
+    "data": {
+      "error": "Error: Missing required fields: user_id\n    at saveOrderToSupabase (webpack-internal:///(rsc)/./app/api/webhook/route.ts:114:19)\n    at handleCheckoutCompleted (webpack-internal:///(rsc)/./app/api/webhook/route.ts:335:27)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async POST (webpack-internal:///(rsc)/./app/api/webhook/route.ts:526:17)\n    at async /Users/lukecarter/Downloads/Side Hustles/website.1/prodai/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:57228\n    at async eT.execute (/Users/lukecarter/Downloads/Side Hustles/website.1/prodai/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:46851)\n    at async eT.handle (/Users/lukecarter/Downloads/Side Hustles/website.1/prodai/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:58760)\n    at async doRender (/Users/lukecarter/Downloads/Side Hustles/website.1/prodai/node_modules/next/dist/server/base-server.js:1366:42)\n    at async cacheEntry.responseCache.get.routeKind (/Users/lukecarter/Downloads/Side Hustles/website.1/prodai/node_modules/next/dist/server/base-server.js:1588:28)\n    at async DevServer.renderToResponseWithComponentsImpl (/Users/lukecarter/Downloads/Side Hustles/website.1/prodai/node_modules/next/dist/server/base-server.js:1496:28)\n    at async DevServer.renderPageComponent (/Users/lukecarter/Downloads/Side Hustles/website.1/prodai/node_modules/next/dist/server/base-server.js:1924:24)\n    at async DevServer.renderToResponseImpl (/Users/lukecarter/Downloads/Side Hustles/website.1/prodai/node_modules/next/dist/server/base-server.js:1962:32)\n    at async DevServer.pipeImpl (/Users/lukecarter/Downloads/Side Hustles/website.1/prodai/node_modules/next/dist/server/base-server.js:922:25)\n    at async NextNodeServer.handleCatchallRenderRequest (/Users/lukecarter/Downloads/Side Hustles/website.1/prodai/node_modules/next/dist/server/next-server.js:272:17)\n    at async DevServer.handleRequestImpl (/Users/lukecarter/Downloads/Side Hustles/website.1/prodai/node_modules/next/dist/server/base-server.js:818:17)\n    at async /Users/lukecarter/Downloads/Side Hustles/website.1/prodai/node_modules/next/dist/server/dev/next-dev-server.js:339:20\n    at async Span.traceAsyncFn (/Users/lukecarter/Downloads/Side Hustles/website.1/prodai/node_modules/next/dist/trace/trace.js:154:20)\n    at async DevServer.handleRequest (/Users/lukecarter/Downloads/Side Hustles/website.1/prodai/node_modules/next/dist/server/dev/next-dev-server.js:336:24)\n    at async invokeRender (/Users/lukecarter/Downloads/Side Hustles/website.1/prodai/node_modules/next/dist/server/lib/router-server.js:178:21)\n    at async handleRequest (/Users/lukecarter/Downloads/Side Hustles/website.1/prodai/node_modules/next/dist/server/lib/router-server.js:355:24)\n    at async requestHandlerImpl (/Users/lukecarter/Downloads/Side Hustles/website.1/prodai/node_modules/next/dist/server/lib/router-server.js:379:13)\n    at async Server.requestListener (/Users/lukecarter/Downloads/Side Hustles/website.1/prodai/node_modules/next/dist/server/lib/start-server.js:141:13)",
+      "orderData": {
+        "id": "ad6eef61-2463-4387-a83d-a2e8bad79169",
+        "track_id": "a77cd9db-b28d-44f2-84a0-91b5939013bd",
+        "user_id": null
+      }
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.566Z",
+    "type": "error",
+    "message": "Missing required fields: user_id",
+    "data": {
+      "orderData": {
+        "id": "ad6eef61-2463-4387-a83d-a2e8bad79169",
+        "user_id": null,
+        "track_id": "a77cd9db-b28d-44f2-84a0-91b5939013bd",
+        "track_name": "Test Track from Webhook",
+        "license": "Non-Exclusive",
+        "order_date": "2025-05-11T17:00:45.564Z",
+        "total_amount": 19.99,
+        "discount": null,
+        "license_file": null,
+        "customer_email": "test@example.com",
+        "stripe_session_id": "cs_test_1746982844831",
+        "currency": "USD",
+        "status": "completed"
+      }
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.565Z",
+    "type": "debug",
+    "message": "Order data with timestamps",
+    "data": {
+      "id": "ad6eef61-2463-4387-a83d-a2e8bad79169",
+      "user_id": null,
+      "track_id": "a77cd9db-b28d-44f2-84a0-91b5939013bd",
+      "track_name": "Test Track from Webhook",
+      "license": "Non-Exclusive",
+      "order_date": "2025-05-11T17:00:45.564Z",
+      "total_amount": 19.99,
+      "discount": null,
+      "license_file": null,
+      "customer_email": "test@example.com",
+      "stripe_session_id": "cs_test_1746982844831",
+      "currency": "USD",
+      "status": "completed",
+      "created_at": "2025-05-11T17:00:45.565Z",
+      "updated_at": "2025-05-11T17:00:45.565Z"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.565Z",
+    "type": "info",
+    "message": "Attempting to save order to Supabase",
+    "data": {
+      "orderId": "ad6eef61-2463-4387-a83d-a2e8bad79169",
+      "trackId": "a77cd9db-b28d-44f2-84a0-91b5939013bd"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.565Z",
+    "type": "debug",
+    "message": "Order data to be saved",
+    "data": {
+      "id": "ad6eef61-2463-4387-a83d-a2e8bad79169",
+      "user_id": null,
+      "track_id": "a77cd9db-b28d-44f2-84a0-91b5939013bd",
+      "track_name": "Test Track from Webhook",
+      "license": "Non-Exclusive",
+      "order_date": "2025-05-11T17:00:45.564Z",
+      "total_amount": 19.99,
+      "discount": null,
+      "license_file": null,
+      "customer_email": "test@example.com",
+      "stripe_session_id": "cs_test_1746982844831",
+      "currency": "USD",
+      "status": "completed"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.564Z",
+    "type": "debug",
+    "message": "Product data",
+    "data": {
+      "id": "prod_1746982844831",
+      "name": "Test Track from Webhook",
+      "metadata": {
+        "track_id": "a77cd9db-b28d-44f2-84a0-91b5939013bd",
+        "licenseType": "Non-Exclusive",
+        "originalPrice": "19.99"
+      }
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.564Z",
+    "type": "info",
+    "message": "Processing line item",
+    "data": {
+      "itemId": "li_1746982844831",
+      "description": "Non-Exclusive License",
+      "amount_total": 1999
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.564Z",
+    "type": "info",
+    "message": "Found line items in session",
+    "data": {
+      "count": 1,
+      "sessionId": "cs_test_1746982844831"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.564Z",
+    "type": "info",
+    "message": "Retrieving full session with line items",
+    "data": {
+      "sessionId": "cs_test_1746982844831"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.563Z",
+    "type": "warning",
+    "message": "No matching Supabase user found for email",
+    "data": {
+      "email": "test@example.com"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.194Z",
+    "type": "info",
+    "message": "Looking up Supabase user ID for email",
+    "data": {
+      "email": "test@example.com"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.194Z",
+    "type": "debug",
+    "message": "Session data",
+    "data": {
+      "id": "cs_test_1746982844831",
+      "amount_total": 1999,
+      "customer_details": {
+        "email": "test@example.com",
+        "phone": null,
+        "tax_exempt": "none",
+        "tax_ids": []
+      },
+      "metadata": {
+        "userId": null,
+        "items": "[{\"id\":\"a77cd9db-b28d-44f2-84a0-91b5939013bd\",\"track_id\":\"a77cd9db-b28d-44f2-84a0-91b5939013bd\",\"title\":\"Test Track from Webhook\",\"licenseType\":\"Non-Exclusive\",\"price\":19.99}]"
+      },
+      "payment_status": "paid"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.194Z",
+    "type": "info",
+    "message": "Processing completed checkout",
+    "data": {
+      "sessionId": "cs_test_1746982844831",
+      "customerId": "cus_1746982844831"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.194Z",
+    "type": "info",
+    "message": "Processing checkout.session.completed",
+    "data": {
+      "sessionId": "cs_test_1746982844831",
+      "customerEmail": "test@example.com"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.193Z",
+    "type": "info",
+    "message": "Processing webhook event type: checkout.session.completed",
+    "data": {
+      "eventId": "evt_1746982844831",
+      "eventType": "checkout.session.completed"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.193Z",
+    "type": "info",
+    "message": "Validating Stripe webhook signature"
+  },
+  {
+    "timestamp": "2025-05-11T17:00:45.189Z",
+    "type": "info",
+    "message": "Received webhook request"
+  },
+  {
+    "timestamp": "2025-05-11T16:58:24.140Z",
+    "type": "error",
+    "message": "Error processing checkout.session.completed webhook: No such checkout.session: cs_test_1746982702518",
+    "data": {
+      "sessionId": "cs_test_1746982702518",
+      "error": "Error: No such checkout.session: cs_test_1746982702518\n    at generateV1Error (webpack-internal:///(rsc)/./node_modules/stripe/esm/Error.js:26:20)\n    at res.toJSON.then._Error_js__WEBPACK_IMPORTED_MODULE_0__.StripeAPIError.message (webpack-internal:///(rsc)/./node_modules/stripe/esm/RequestSender.js:112:89)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T16:58:24.139Z",
+    "type": "error",
+    "message": "Error handling checkout completed webhook",
+    "data": {
+      "error": {
+        "type": "StripeInvalidRequestError",
+        "raw": {
+          "code": "resource_missing",
+          "doc_url": "https://stripe.com/docs/error-codes/resource-missing",
+          "message": "No such checkout.session: cs_test_1746982702518",
+          "request_log_url": "https://dashboard.stripe.com/logs/req_gdVChdVW7aVkyp?t=1746982704",
+          "type": "invalid_request_error",
+          "headers": {
+            "server": "nginx",
+            "date": "Sun, 11 May 2025 16:58:24 GMT",
+            "content-type": "application/json",
+            "content-length": "318",
+            "connection": "keep-alive",
+            "access-control-allow-credentials": "true",
+            "access-control-allow-methods": "GET, HEAD, PUT, PATCH, POST, DELETE",
+            "access-control-allow-origin": "*",
+            "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, Stripe-Should-Retry, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
+            "access-control-max-age": "300",
+            "cache-control": "no-cache, no-store",
+            "content-security-policy": "base-uri 'none'; default-src 'none'; form-action 'none'; frame-ancestors 'none'; img-src 'self'; script-src 'self' 'report-sample'; style-src 'self'; worker-src 'none'; upgrade-insecure-requests; report-uri https://q.stripe.com/csp-violation?q=IJI8HvN-iBCPepDk6srt1YVcGQXsBRPaL83Xc9h8ddccsHwhnH7gpwl68Hv06TURTt1vYfpeZ0Kwx6pD",
+            "request-id": "req_gdVChdVW7aVkyp",
+            "stripe-version": "2025-04-30.basil",
+            "vary": "Origin",
+            "x-stripe-priority-routing-enabled": "true",
+            "x-stripe-routing-context-priority-tier": "livemode",
+            "x-wc": "ABGHI",
+            "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+          },
+          "statusCode": 404,
+          "requestId": "req_gdVChdVW7aVkyp"
+        },
+        "rawType": "invalid_request_error",
+        "code": "resource_missing",
+        "doc_url": "https://stripe.com/docs/error-codes/resource-missing",
+        "headers": {
+          "server": "nginx",
+          "date": "Sun, 11 May 2025 16:58:24 GMT",
+          "content-type": "application/json",
+          "content-length": "318",
+          "connection": "keep-alive",
+          "access-control-allow-credentials": "true",
+          "access-control-allow-methods": "GET, HEAD, PUT, PATCH, POST, DELETE",
+          "access-control-allow-origin": "*",
+          "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, Stripe-Should-Retry, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
+          "access-control-max-age": "300",
+          "cache-control": "no-cache, no-store",
+          "content-security-policy": "base-uri 'none'; default-src 'none'; form-action 'none'; frame-ancestors 'none'; img-src 'self'; script-src 'self' 'report-sample'; style-src 'self'; worker-src 'none'; upgrade-insecure-requests; report-uri https://q.stripe.com/csp-violation?q=IJI8HvN-iBCPepDk6srt1YVcGQXsBRPaL83Xc9h8ddccsHwhnH7gpwl68Hv06TURTt1vYfpeZ0Kwx6pD",
+          "request-id": "req_gdVChdVW7aVkyp",
+          "stripe-version": "2025-04-30.basil",
+          "vary": "Origin",
+          "x-stripe-priority-routing-enabled": "true",
+          "x-stripe-routing-context-priority-tier": "livemode",
+          "x-wc": "ABGHI",
+          "strict-transport-security": "max-age=63072000; includeSubDomains; preload"
+        },
+        "requestId": "req_gdVChdVW7aVkyp",
+        "statusCode": 404
+      }
+    }
+  },
+  {
+    "timestamp": "2025-05-11T16:58:23.772Z",
+    "type": "info",
+    "message": "Retrieving full session with line items",
+    "data": {
+      "sessionId": "cs_test_1746982702518"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T16:58:23.772Z",
+    "type": "warning",
+    "message": "No matching Supabase user found for email",
+    "data": {
+      "email": "test@example.com"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T16:58:23.412Z",
+    "type": "info",
+    "message": "Looking up Supabase user ID for email",
+    "data": {
+      "email": "test@example.com"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T16:58:23.412Z",
+    "type": "debug",
+    "message": "Session data",
+    "data": {
+      "id": "cs_test_1746982702518",
+      "amount_total": 1999,
+      "customer_details": {
+        "email": "test@example.com",
+        "phone": null,
+        "tax_exempt": "none",
+        "tax_ids": []
+      },
+      "metadata": {
+        "items": "[{\"id\":\"2fcaceb8-081f-4e6d-970a-514977819303\",\"track_id\":\"2fcaceb8-081f-4e6d-970a-514977819303\",\"title\":\"Test Track from Webhook\",\"licenseType\":\"Non-Exclusive\",\"price\":19.99}]"
+      },
+      "payment_status": "paid"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T16:58:23.412Z",
+    "type": "info",
+    "message": "Processing completed checkout",
+    "data": {
+      "sessionId": "cs_test_1746982702518",
+      "customerId": "cus_1746982702518"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T16:58:23.412Z",
+    "type": "info",
+    "message": "Processing checkout.session.completed",
+    "data": {
+      "sessionId": "cs_test_1746982702518",
+      "customerEmail": "test@example.com"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T16:58:23.412Z",
+    "type": "info",
+    "message": "Processing webhook event type: checkout.session.completed",
+    "data": {
+      "eventId": "evt_1746982702518",
+      "eventType": "checkout.session.completed"
+    }
+  },
+  {
+    "timestamp": "2025-05-11T16:58:23.411Z",
+    "type": "info",
+    "message": "Validating Stripe webhook signature"
+  },
+  {
+    "timestamp": "2025-05-11T16:58:23.411Z",
+    "type": "info",
+    "message": "Received webhook request"
+  }
+]

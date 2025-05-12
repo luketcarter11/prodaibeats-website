@@ -71,7 +71,7 @@ function SuccessContent() {
         </p>
         <div className="space-y-4">
           <Link
-            href="/account/downloads"
+            href="/account"
             className="block w-full bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
           >
             View Downloads
