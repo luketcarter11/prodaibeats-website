@@ -1,7 +1,7 @@
 export interface Order {
-  id: string;
-  user_id: string;
-  track_id: string;
+  id: string;          // UUID in database
+  user_id: string;     // UUID in database
+  track_id: string;    // UUID in database
   track_name: string;
   license: string;
   total_amount: number;

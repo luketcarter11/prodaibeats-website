@@ -72,11 +72,11 @@ export async function GET(request: Request) {
       }
       
       case 'test-insert': {
-        // Create a test order
+        // Create a test order with proper UUIDs
         const testOrder = {
-          id: `test_order_${Date.now()}`,
-          user_id: userId || 'test_user',
-          track_id: 'test_track_001',
+          id: crypto.randomUUID(),
+          user_id: userId || crypto.randomUUID(),
+          track_id: crypto.randomUUID(),
           track_name: 'Test Track',
           license: 'Standard',
           total_amount: 29.99,

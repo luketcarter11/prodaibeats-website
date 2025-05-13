@@ -3,13 +3,14 @@ export { runtime } from '../config';
 
 import { NextResponse } from 'next/server';
 import { Order } from '../../../lib/getOrders';
+import { randomUUID } from 'crypto';
 
-// Sample mock data for testing
+// Sample mock data for testing with proper UUIDs
 const MOCK_ORDERS: Order[] = [
   {
-    id: '123e4567-e89b-12d3-a456-426614174000',
-    user_id: 'user123',
-    track_id: 'track1',
+    id: randomUUID(),
+    user_id: 'user123', // Keep these as strings for test data
+    track_id: randomUUID(),
     track_name: 'Summer Vibes',
     license: 'Non-Exclusive',
     total_amount: 29.99,
@@ -23,9 +24,9 @@ const MOCK_ORDERS: Order[] = [
     currency: 'USD'
   },
   {
-    id: '223e4567-e89b-12d3-a456-426614174001',
+    id: randomUUID(),
     user_id: 'user456',
-    track_id: 'track2',
+    track_id: randomUUID(),
     track_name: 'Winter Beats',
     license: 'Exclusive',
     total_amount: 149.99,
@@ -38,9 +39,9 @@ const MOCK_ORDERS: Order[] = [
     currency: 'USD'
   },
   {
-    id: '323e4567-e89b-12d3-a456-426614174002',
+    id: randomUUID(),
     user_id: 'user123',
-    track_id: 'track3',
+    track_id: randomUUID(),
     track_name: 'Hip Hop Classic',
     license: 'Non-Exclusive Plus',
     total_amount: 49.99,

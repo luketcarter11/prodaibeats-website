@@ -43,8 +43,25 @@ export type Database = {
           created_at: string
           updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['orders']['Row'], 'created_at' | 'updated_at'>
+        Insert: Omit<Database['public']['Tables']['orders']['Row'], 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['orders']['Insert']>
+      }
+      transactions: {
+        Row: {
+          id: string
+          order_id: string | null
+          user_id: string
+          amount: number
+          currency: string
+          transaction_type: 'payment' | 'refund' | 'chargeback'
+          status: 'pending' | 'completed' | 'failed'
+          stripe_transaction_id: string | null
+          metadata: Record<string, any> | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['transactions']['Row'], 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Database['public']['Tables']['transactions']['Insert']>
       }
     }
     Views: {

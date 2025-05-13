@@ -4,14 +4,10 @@ import { headers } from 'next/headers';
 import fs from 'fs';
 import path from 'path';
 import { discountService } from '@/services/discountService';
-import { transactionService } from '../../../services/transactionService';
 import { createClient } from '@supabase/supabase-js';
 import { generateLicensePDF, LicenseType } from '../../../lib/generateLicense';
 import { addWebhookLog } from '../webhook-logs/route';
 import crypto from 'crypto';
-import type { Database } from '@/types/supabase';
-type TransactionType = Database['public']['Tables']['transactions']['Row']['transaction_type'];
-type TransactionStatus = Database['public']['Tables']['transactions']['Row']['status'];
 
 // Edge and Streaming flags
 export const runtime = 'nodejs'; // Keep as nodejs for file system operations
@@ -60,12 +56,6 @@ const getSupabaseAdmin = () => {
       persistSession: false
     }
   });
-};
-
-// Add UUID validation helper
-const isValidUUID = (str: string): boolean => {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(str);
 };
 
 async function updateOrderStatus(sessionId: string, status: 'completed' | 'failed', customerId?: string) {
@@ -168,9 +158,10 @@ async function saveOrderToSupabase(orderData: any) {
     }
     
     // Validate UUID fields
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const uuidFields = ['id', 'user_id', 'track_id'];
     for (const field of uuidFields) {
-      if (orderWithTimestamps[field] && !isValidUUID(orderWithTimestamps[field])) {
+      if (orderWithTimestamps[field] && !uuidRegex.test(orderWithTimestamps[field])) {
         const errorMsg = `Invalid UUID format for field ${field}: ${orderWithTimestamps[field]}`;
         console.error(errorMsg);
         addWebhookLog('error', errorMsg, { [field]: orderWithTimestamps[field] });
@@ -309,7 +300,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       }
     }
     
-    // Process each line item as a separate order and transaction
+    // Process each line item as a separate order
     const lineItems = sessionWithItems.line_items?.data || [];
     console.log(`Found ${lineItems.length} line items in session`);
     addWebhookLog('info', `Found line items in session`, { 
@@ -401,153 +392,128 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         });
         
         // Validate trackId is a valid UUID
-        if (!trackId || !isValidUUID(trackId)) {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!trackId || !uuidRegex.test(trackId)) {
           addWebhookLog('error', 'Invalid track_id format', { trackId });
           // Generate a valid UUID as fallback
           trackId = crypto.randomUUID();
           addWebhookLog('warning', 'Generated a fallback UUID for track_id', { newTrackId: trackId });
         }
         
-        // Create order data with proper UUID handling
+        // Create order data matching Supabase schema
         const orderData = {
-          id: crypto.randomUUID(),
-          user_id: isValidUUID(supabaseUserId || '') ? supabaseUserId! : crypto.randomUUID(),
-          track_id: isValidUUID(trackId) ? trackId : crypto.randomUUID(),
+          id: crypto.randomUUID(), // Generate UUID for order
+          user_id: supabaseUserId, // UUID from Supabase user
+          track_id: trackId,
           track_name: trackName,
           license: licenseType,
           order_date: new Date().toISOString(),
           total_amount: (item.amount_total || 0) / 100,
           discount: session.total_details?.amount_discount ? session.total_details.amount_discount / 100 : 0,
-          license_file: null,
+          license_file: null, // Will be generated and updated later
           customer_email: customerEmail || '',
           stripe_session_id: session.id,
           currency: session.currency?.toUpperCase() || 'USD',
-          status: 'completed' as const
+          status: 'completed'
         };
-
+        
+        console.log(`Order data to be saved:`, JSON.stringify(orderData, null, 2));
+        addWebhookLog('debug', 'Order data to be saved', orderData);
+        
         // Save order to Supabase
         try {
           await saveOrderToSupabase(orderData);
-          
-          // Create transaction record with proper UUID handling
-          const transactionData = {
-            order_id: orderData.id,
-            user_id: orderData.user_id,
-            amount: orderData.total_amount,
-            currency: orderData.currency,
-            transaction_type: 'payment' as const,
-            status: 'completed' as const,
-            stripe_transaction_id: session.payment_intent as string,
-            metadata: {
-              stripe_session_id: session.id,
-              customer_email: customerEmail,
-              track_name: trackName,
-              license_type: licenseType,
-              payment_method: session.payment_method_types?.[0] || 'unknown'
-            }
-          };
-
-          const transaction = await transactionService.createTransaction(transactionData);
-          if (!transaction) {
-            console.error('Failed to create transaction record');
-            addWebhookLog('error', 'Failed to create transaction record', { 
-              orderId: orderData.id,
-              sessionId: session.id 
-            });
-          } else {
-            console.log('Successfully created transaction record:', transaction.id);
-            addWebhookLog('success', 'Created transaction record', { 
-              transactionId: transaction.id,
-              orderId: orderData.id 
-            });
-          }
-          
-          // Generate license if this is a valid license type
-          if (isValidLicenseType(orderData.license)) {
-            try {
-              console.log(`Generating license for order ${orderData.id}`);
-              addWebhookLog('info', `Generating license for order`, { 
-                orderId: orderData.id,
-                licenseType: orderData.license 
-              });
-              
-              // Generate and store the license PDF
-              const effectiveDate = new Date().toLocaleString('en-US', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
-              });
-
-              const pdfBuffer = await generateLicensePDF({
-                orderId: orderData.id,
-                trackTitle: orderData.track_name,
-                licenseType: orderData.license as LicenseType,
-                effectiveDate
-              });
-
-              // Upload to Supabase storage
-              const fileName = `${orderData.id}.pdf`;
-              const supabase = getSupabaseAdmin();
-              const { error: uploadError } = await supabase.storage
-                .from('licenses')
-                .upload(fileName, pdfBuffer, {
-                  contentType: 'application/pdf',
-                  upsert: true
-                });
-
-              if (uploadError) {
-                console.error('Failed to upload license:', uploadError);
-                addWebhookLog('error', 'Failed to upload license', { 
-                  orderId: orderData.id,
-                  error: uploadError 
-                });
-              } else {
-                // Update order with license file path
-                const { error: updateError } = await supabase
-                  .from('orders')
-                  .update({ license_file: fileName })
-                  .eq('id', orderData.id);
-
-                if (updateError) {
-                  console.error('Failed to update order with license file:', updateError);
-                  addWebhookLog('error', 'Failed to update order with license file', { 
-                    orderId: orderData.id,
-                    error: updateError 
-                  });
-                } else {
-                  console.log(`Generated and attached license file for order ${orderData.id}`);
-                  addWebhookLog('success', 'Generated and attached license file', { 
-                    orderId: orderData.id,
-                    fileName 
-                  });
-                }
-              }
-            } catch (licenseError) {
-              console.error('Error generating license:', licenseError);
-              addWebhookLog('error', 'Error generating license', { 
-                orderId: orderData.id, 
-                error: licenseError 
-              });
-            }
-          } else {
-            console.log(`License type "${orderData.license}" is not valid for generating a license file`);
-            addWebhookLog('warning', 'Invalid license type for license generation', { 
-              licenseType: orderData.license,
-              orderId: orderData.id 
-            });
-          }
-          
-        } catch (error) {
-          console.error('Error processing order and transaction:', error);
-          addWebhookLog('error', 'Error processing order and transaction', { 
-            error,
-            orderData,
-            sessionId: session.id 
+          console.log(`Saved order for track ${orderData.track_name} to Supabase`);
+          addWebhookLog('success', `Saved order to Supabase`, { 
+            orderId: orderData.id,
+            trackId: orderData.track_id,
+            trackName: orderData.track_name 
+          });
+        } catch (saveError) {
+          console.error('Error saving order to Supabase:', saveError);
+          addWebhookLog('error', 'Error saving order to Supabase', { 
+            error: saveError,
+            orderData
           });
           continue;
+        }
+        
+        // Generate license if this is a valid license type
+        if (isValidLicenseType(orderData.license)) {
+          try {
+            console.log(`Generating license for order ${orderData.id}`);
+            addWebhookLog('info', `Generating license for order`, { 
+              orderId: orderData.id,
+              licenseType: orderData.license 
+            });
+            
+            // Generate and store the license PDF
+            const effectiveDate = new Date().toLocaleString('en-US', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true
+            });
+
+            const pdfBuffer = await generateLicensePDF({
+              orderId: orderData.id,
+              trackTitle: orderData.track_name,
+              licenseType: orderData.license as LicenseType,
+              effectiveDate
+            });
+
+            // Upload to Supabase storage
+            const fileName = `${orderData.id}.pdf`;
+            const supabase = getSupabaseAdmin();
+            const { error: uploadError } = await supabase.storage
+              .from('licenses')
+              .upload(fileName, pdfBuffer, {
+                contentType: 'application/pdf',
+                upsert: true
+              });
+
+            if (uploadError) {
+              console.error('Failed to upload license:', uploadError);
+              addWebhookLog('error', 'Failed to upload license', { 
+                orderId: orderData.id,
+                error: uploadError 
+              });
+            } else {
+              // Update order with license file path
+              const { error: updateError } = await supabase
+                .from('orders')
+                .update({ license_file: fileName })
+                .eq('id', orderData.id);
+
+              if (updateError) {
+                console.error('Failed to update order with license file:', updateError);
+                addWebhookLog('error', 'Failed to update order with license file', { 
+                  orderId: orderData.id,
+                  error: updateError 
+                });
+              } else {
+                console.log(`Generated and attached license file for order ${orderData.id}`);
+                addWebhookLog('success', 'Generated and attached license file', { 
+                  orderId: orderData.id,
+                  fileName 
+                });
+              }
+            }
+          } catch (licenseError) {
+            console.error('Error generating license:', licenseError);
+            addWebhookLog('error', 'Error generating license', { 
+              orderId: orderData.id, 
+              error: licenseError 
+            });
+          }
+        } else {
+          console.log(`License type "${orderData.license}" is not valid for generating a license file`);
+          addWebhookLog('warning', 'Invalid license type for license generation', { 
+            licenseType: orderData.license,
+            orderId: orderData.id 
+          });
         }
       } catch (itemError) {
         console.error('Error processing line item:', itemError);
@@ -605,6 +571,7 @@ async function handleAsyncPaymentFailed(session: Stripe.Checkout.Session) {
     console.log(`Processing async payment failed for session ${session.id}`);
     addWebhookLog('info', `Processing async payment failed`, { sessionId: session.id });
     
+    // Get customer ID from the session
     const customerId = session.customer;
     if (!customerId) {
       console.error('No customer ID found in session:', session.id);
@@ -612,37 +579,9 @@ async function handleAsyncPaymentFailed(session: Stripe.Checkout.Session) {
       return;
     }
 
-    // Update order status
+    // Update order status to failed
     await updateOrderStatus(session.id, 'failed', customerId.toString());
-    
-    // Create failed transaction record with proper UUID handling
-    const transactionData = {
-      order_id: null,
-      user_id: isValidUUID(customerId.toString()) ? customerId.toString() : crypto.randomUUID(),
-      amount: (session.amount_total || 0) / 100,
-      currency: session.currency?.toUpperCase() || 'USD',
-      transaction_type: 'payment' as const,
-      status: 'failed' as const,
-      stripe_transaction_id: session.payment_intent as string,
-      metadata: {
-        stripe_session_id: session.id,
-        customer_email: session.customer_details?.email,
-        failure_reason: session.payment_status
-      }
-    };
-
-    const transaction = await transactionService.createTransaction(transactionData);
-    if (!transaction) {
-      console.error('Failed to create failed transaction record');
-      addWebhookLog('error', 'Failed to create failed transaction record', { 
-        sessionId: session.id 
-      });
-    } else {
-      console.log('Successfully created failed transaction record:', transaction.id);
-      addWebhookLog('success', 'Created failed transaction record', { 
-        transactionId: transaction.id 
-      });
-    }
+    addWebhookLog('info', `Updated order status to failed`, { sessionId: session.id });
     
     // Handle discount code usage if applicable
     const discountId = session.metadata?.discountId;
@@ -724,7 +663,7 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
 export async function POST(request: NextRequest) {
   try {
     console.log('Received webhook request');
-    addWebhookLog('info', 'Received webhook request');
+    addWebhookLog('info', 'Received webhook request from Stripe');
     
     const body = await request.text();
     const signature = headers().get('stripe-signature');
