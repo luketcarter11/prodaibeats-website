@@ -1,10 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
 import { addWebhookLog } from '../../../lib/webhookLogger';
 
 // Set the runtime to edge for better performance
 export const runtime = 'edge';
+
+// Generate UUID using Web Crypto API
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers (should never be needed in Edge Runtime)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
 
 // Initialize Supabase client
 const getSupabaseAdmin = () => {
@@ -26,139 +38,24 @@ const getSupabaseAdmin = () => {
 
 export async function POST(request: NextRequest) {
   try {
-    // Ensure we're in development mode
-    if (process.env.NODE_ENV === 'production') {
+    const body = await request.json();
+    const { type, message, data } = body;
+    
+    if (!type || !message) {
       return NextResponse.json(
-        { error: 'This endpoint is only available in development mode' },
-        { status: 403 }
-      );
-    }
-
-    // Parse request body
-    let debugData;
-    try {
-      debugData = await request.json();
-    } catch (e) {
-      return NextResponse.json(
-        { error: 'Invalid JSON input' },
+        { error: 'Type and message are required' },
         { status: 400 }
       );
     }
-
-    // Log the attempt
-    addWebhookLog('info', 'Debug webhook called', { debugData });
-
-    // Check for connection to Supabase
-    try {
-      const supabase = getSupabaseAdmin();
-      const { data, error } = await supabase.from('orders').select('id').limit(1);
-      
-      if (error) {
-        return NextResponse.json({
-          success: false,
-          error: 'Failed to connect to Supabase',
-          details: error
-        }, { status: 500 });
-      }
-      
-      addWebhookLog('success', 'Successfully connected to Supabase', { 
-        testResult: 'Connected successfully',
-        message: 'Supabase connection is working' 
-      });
-    } catch (error) {
-      addWebhookLog('error', 'Failed to connect to Supabase', { error });
-      return NextResponse.json({
-        success: false,
-        error: 'Supabase connection error',
-        details: error
-      }, { status: 500 });
-    }
-
-    // Test creating a record in Supabase
-    try {
-      const testOrderId = crypto.randomUUID();
-      const supabase = getSupabaseAdmin();
-      
-      // Create a test record
-      const testOrder = {
-        id: testOrderId,
-        user_id: debugData.userId || crypto.randomUUID(),
-        track_id: debugData.trackId || crypto.randomUUID(),
-        track_name: 'Debug Test Order',
-        license: 'Standard',
-        order_date: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        total_amount: 1.99,
-        discount: 0,
-        status: 'pending',
-        stripe_session_id: `debug_test_${Date.now()}`,
-        currency: 'USD',
-        customer_email: debugData.email || 'test@example.com'
-      };
-      
-      addWebhookLog('info', 'Attempting to create test order', testOrder);
-      
-      const { data, error } = await supabase
-        .from('orders')
-        .insert(testOrder)
-        .select();
-      
-      if (error) {
-        addWebhookLog('error', 'Failed to create test order in Supabase', { 
-          error,
-          testOrder
-        });
-        
-        return NextResponse.json({
-          success: false,
-          error: 'Failed to create test order',
-          details: error,
-          testOrder
-        }, { status: 500 });
-      }
-      
-      // Clean up - delete the test record
-      const { error: deleteError } = await supabase
-        .from('orders')
-        .delete()
-        .eq('id', testOrderId);
-      
-      if (deleteError) {
-        addWebhookLog('warning', 'Failed to clean up test order', { 
-          error: deleteError,
-          testOrderId 
-        });
-      }
-      
-      addWebhookLog('success', 'Successfully tested order creation and deletion', {
-        message: 'Supabase order operations are working properly'
-      });
-      
-      return NextResponse.json({
-        success: true,
-        message: 'Supabase connection and order creation tested successfully',
-        testResults: {
-          connection: 'Success',
-          orderCreate: 'Success',
-          orderDelete: deleteError ? 'Failed' : 'Success'
-        }
-      });
-    } catch (error: any) {
-      addWebhookLog('error', 'Unhandled error in debug webhook', { error });
-      
-      return NextResponse.json({
-        success: false,
-        error: 'Unhandled error during debug test',
-        details: error.message || 'Unknown error'
-      }, { status: 500 });
-    }
-  } catch (error: any) {
-    console.error('Debug webhook error:', error);
-    addWebhookLog('error', 'Debug webhook unhandled error', { error });
     
+    // Add log entry
+    await addWebhookLog(type, message, data);
+    
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error in debug webhook:', error);
     return NextResponse.json(
-      { error: error.message || 'An unknown error occurred' },
+      { error: 'Failed to process debug webhook' },
       { status: 500 }
     );
   }

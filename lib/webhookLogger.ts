@@ -21,6 +21,19 @@ const getSupabaseAdmin = () => {
   });
 };
 
+// Generate UUID using Web Crypto API
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers (should never be needed in Edge Runtime)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 // Add a log entry
 export async function addWebhookLog(type: string, message: string, data?: any) {
   try {
@@ -34,7 +47,7 @@ export async function addWebhookLog(type: string, message: string, data?: any) {
     
     // Add new log entry
     const logEntry = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       timestamp: new Date().toISOString(),
       type,
       message,

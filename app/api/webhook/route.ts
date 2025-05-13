@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
-import fs from 'fs';
-import path from 'path';
 import { discountService } from '@/services/discountService';
 import { transactionService } from '../../../services/transactionService';
 import { createClient } from '@supabase/supabase-js';
 import { generateLicensePDF, LicenseType } from '../../../lib/generateLicense';
 import { addWebhookLog } from '../../../lib/webhookLogger';
-import crypto from 'crypto';
 import type { Database } from '@/types/supabase';
 type TransactionType = Database['public']['Tables']['transactions']['Row']['transaction_type'];
 type TransactionStatus = Database['public']['Tables']['transactions']['Row']['status'];
@@ -27,21 +24,6 @@ if (!process.env.STRIPE_SECRET_KEY) {
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2025-04-30.basil'
 });
-
-// Define the orders directory path
-const ORDERS_DIR = path.join(process.cwd(), 'data', 'orders');
-
-// Ensure the orders directory exists
-try {
-  if (!fs.existsSync(ORDERS_DIR)) {
-    fs.mkdirSync(ORDERS_DIR, { recursive: true });
-    console.log(`Created orders directory at: ${ORDERS_DIR}`);
-    addWebhookLog('info', `Created orders directory`, { path: ORDERS_DIR });
-  }
-} catch (err) {
-  console.error('Failed to check/create orders directory:', err);
-  addWebhookLog('error', 'Failed to check/create orders directory', { error: err });
-}
 
 // Initialize Supabase client
 const getSupabaseAdmin = () => {
@@ -62,6 +44,19 @@ const getSupabaseAdmin = () => {
   });
 };
 
+// Generate UUID using Web Crypto API
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers (should never be needed in Edge Runtime)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 // Add UUID validation helper
 const isValidUUID = (str: string): boolean => {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -70,51 +65,41 @@ const isValidUUID = (str: string): boolean => {
 
 async function updateOrderStatus(sessionId: string, status: 'completed' | 'failed', customerId?: string) {
   try {
-    // Check if orders directory exists
-    if (!fs.existsSync(ORDERS_DIR)) {
-      console.error(`Orders directory does not exist: ${ORDERS_DIR}`);
-      addWebhookLog('error', 'Orders directory does not exist', { path: ORDERS_DIR });
-      return null;
-    }
+    const supabase = getSupabaseAdmin();
     
-    // Read all files in the orders directory
-    const files = fs.readdirSync(ORDERS_DIR);
-    
-    // Find the order file that matches the session ID
-    const orderFile = files.find(file => {
-      try {
-        const orderData = JSON.parse(fs.readFileSync(path.join(ORDERS_DIR, file), 'utf-8'));
-        return orderData.stripe_session_id === sessionId;
-      } catch (err) {
-        console.error(`Error reading order file ${file}:`, err);
-        addWebhookLog('error', `Error reading order file`, { file, error: err });
-        return false;
-      }
-    });
-
-    if (!orderFile) {
+    // Find the order by session ID
+    const { data: orders, error: findError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('stripe_session_id', sessionId)
+      .single();
+      
+    if (findError || !orders) {
       console.error(`No order found for session ID: ${sessionId}`);
-      addWebhookLog('warning', 'No order found for session ID', { sessionId });
+      await addWebhookLog('warning', 'No order found for session ID', { sessionId });
       return null;
     }
 
     // Update the order status
-    const orderPath = path.join(ORDERS_DIR, orderFile);
-    const orderData = JSON.parse(fs.readFileSync(orderPath, 'utf-8'));
-    orderData.status = status;
-    
-    // Update user_id if customer ID is provided
-    if (customerId) {
-      orderData.user_id = customerId;
+    const { error: updateError } = await supabase
+      .from('orders')
+      .update({ 
+        status,
+        user_id: customerId || orders.user_id,
+        updated_at: new Date().toISOString()
+      })
+      .eq('stripe_session_id', sessionId);
+      
+    if (updateError) {
+      console.error('Error updating order status:', updateError);
+      await addWebhookLog('error', `Failed to update order status: ${updateError.message}`, { error: updateError });
+      throw updateError;
     }
     
-    // Write the updated order back to file
-    fs.writeFileSync(orderPath, JSON.stringify(orderData, null, 2));
-    
-    return orderData;
+    return orders;
   } catch (error: any) {
     console.error('Error updating order status:', error);
-    addWebhookLog('error', `Failed to update order status: ${error.message}`, { error });
+    await addWebhookLog('error', `Failed to update order status: ${error.message}`, { error });
     throw new Error(`Failed to update order status: ${error.message}`);
   }
 }
@@ -157,7 +142,7 @@ async function saveOrderToSupabase(orderData: any) {
       await addWebhookLog('warning', 'No user_id found, generating fallback anonymous user ID', {
         customerEmail: orderWithTimestamps.customer_email || 'unknown'
       });
-      orderWithTimestamps.user_id = crypto.randomUUID();
+      orderWithTimestamps.user_id = generateUUID();
     }
     
     if (missingFields.length > 0) {
@@ -176,7 +161,7 @@ async function saveOrderToSupabase(orderData: any) {
         await addWebhookLog('error', errorMsg, { [field]: orderWithTimestamps[field] });
         
         // Generate fallback UUID for invalid fields
-        orderWithTimestamps[field] = crypto.randomUUID();
+        orderWithTimestamps[field] = generateUUID();
         await addWebhookLog('warning', `Generated fallback UUID for ${field}`, { 
           original: orderWithTimestamps[field],
           new: orderWithTimestamps[field]
@@ -404,15 +389,15 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         if (!trackId || !isValidUUID(trackId)) {
           addWebhookLog('error', 'Invalid track_id format', { trackId });
           // Generate a valid UUID as fallback
-          trackId = crypto.randomUUID();
+          trackId = generateUUID();
           addWebhookLog('warning', 'Generated a fallback UUID for track_id', { newTrackId: trackId });
         }
         
         // Create order data with proper UUID handling
         const orderData = {
-          id: crypto.randomUUID(),
-          user_id: isValidUUID(supabaseUserId || '') ? supabaseUserId! : crypto.randomUUID(),
-          track_id: isValidUUID(trackId) ? trackId : crypto.randomUUID(),
+          id: generateUUID(),
+          user_id: isValidUUID(supabaseUserId || '') ? supabaseUserId! : generateUUID(),
+          track_id: isValidUUID(trackId) ? trackId : generateUUID(),
           track_name: trackName,
           license: licenseType,
           order_date: new Date().toISOString(),
@@ -618,7 +603,7 @@ async function handleAsyncPaymentFailed(session: Stripe.Checkout.Session) {
     // Create failed transaction record with proper UUID handling
     const transactionData = {
       order_id: null,
-      user_id: isValidUUID(customerId.toString()) ? customerId.toString() : crypto.randomUUID(),
+      user_id: isValidUUID(customerId.toString()) ? customerId.toString() : generateUUID(),
       amount: (session.amount_total || 0) / 100,
       currency: session.currency?.toUpperCase() || 'USD',
       transaction_type: 'payment' as const,
