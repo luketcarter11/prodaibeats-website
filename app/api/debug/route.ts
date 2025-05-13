@@ -5,7 +5,7 @@ import { r2Storage } from '@/lib/r2Storage';
 // Mark the route as dynamic to ensure it doesn't get cached
 export const dynamic = 'force-dynamic';
 // Set the runtime to edge for better performance
-export const runtime = 'edge';
+export const runtime = 'edge' as const;
 
 /**
  * Debug API route for examining raw tracks data

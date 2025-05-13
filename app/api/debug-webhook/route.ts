@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { addWebhookLog } from '../../../lib/webhookLogger';
 
 // Set the runtime to edge for better performance
-export const runtime = 'edge';
+export const runtime = 'edge' as const;
 
 // Generate UUID using Web Crypto API
 const generateUUID = () => {

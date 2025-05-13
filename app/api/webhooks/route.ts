@@ -5,10 +5,10 @@ import { discountService } from '@/services/discountService';
 import { createClient } from '@supabase/supabase-js';
 import { generateLicensePDF, LicenseType } from '../../../lib/generateLicense';
 import { addWebhookLog } from '../../../lib/webhookLogger';
-import { transactionService } from '@/services/transactionService';
+import { transactionService } from '../../../services/transactionService';
 
 // Set the runtime to edge for better performance
-export const runtime = 'edge';
+export const runtime = 'edge' as const;
 export const dynamic = 'force-dynamic';
 
 // Use the webhook secret provided

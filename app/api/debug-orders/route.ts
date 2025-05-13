@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 // Set the runtime to edge for better performance
-export const runtime = 'edge';
+export const runtime = 'edge' as const;
 
 // Helper function to create a new admin client 
 const getSupabaseAdmin = () => {

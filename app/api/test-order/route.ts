@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
+
+// Set the runtime to edge for better performance
+export const runtime = 'edge' as const;
 
 // Initialize Supabase client
 const getSupabaseAdmin = () => {
@@ -17,6 +19,19 @@ const getSupabaseAdmin = () => {
       autoRefreshToken: false,
       persistSession: false
     }
+  });
+};
+
+// Generate UUID using Web Crypto API
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers (should never be needed in Edge Runtime)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
   });
 };
 
@@ -38,7 +53,7 @@ export async function POST(request: NextRequest) {
       // Use default test data if no data is provided
       testData = {
         userId: null, // Can be null to use first user
-        trackId: crypto.randomUUID(), // Generate a valid UUID for track_id
+        trackId: generateUUID(), // Generate a valid UUID for track_id
         trackName: 'Test Track',
         price: 19.99,
         licenseType: 'Non-Exclusive',
@@ -48,7 +63,7 @@ export async function POST(request: NextRequest) {
     // Ensure trackId is a valid UUID
     if (testData.trackId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(testData.trackId)) {
       // If trackId is not a valid UUID, generate one
-      testData.trackId = crypto.randomUUID();
+      testData.trackId = generateUUID();
       console.log(`Generated new UUID for track_id: ${testData.trackId}`);
     }
 
@@ -79,7 +94,7 @@ export async function POST(request: NextRequest) {
 
     // Create test order directly in Supabase
     const order = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       user_id: userId,
       track_id: testData.trackId,
       track_name: testData.trackName,
@@ -193,6 +208,9 @@ export async function GET() {
         <script>
           // UUID generation function
           function generateUUID() {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+              return crypto.randomUUID();
+            }
             return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
               var r = Math.random() * 16 | 0,
                   v = c == 'x' ? r : (r & 0x3 | 0x8);
