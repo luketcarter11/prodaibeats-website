@@ -6,6 +6,9 @@ import { createClient } from '@supabase/supabase-js';
 import { generateLicensePDF, LicenseType } from '../../../lib/generateLicense';
 import { addWebhookLog } from '../../../lib/webhookLogger';
 import { transactionService } from '../../../services/transactionService';
+import type { Database } from '@/types/supabase';
+type TransactionType = Database['public']['Tables']['transactions']['Row']['transaction_type'];
+type TransactionStatus = Database['public']['Tables']['transactions']['Row']['status'];
 
 // Set the runtime to edge for better performance
 export const runtime = 'edge' as const;
@@ -18,8 +21,10 @@ if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Stripe API key is not defined');
 }
 
+// Initialize Stripe with Edge-compatible configuration
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-04-30.basil'
+  apiVersion: '2025-04-30.basil',
+  httpClient: Stripe.createFetchHttpClient()
 });
 
 // Initialize Supabase client
@@ -707,7 +712,8 @@ export async function POST(request: NextRequest) {
     console.log('Received webhook request');
     await addWebhookLog('info', 'Received webhook request');
     
-    const body = await request.text();
+    // Get the raw body as text for Stripe verification
+    const rawBody = await request.text();
     const signature = headers().get('stripe-signature');
 
     if (!signature) {
@@ -724,8 +730,9 @@ export async function POST(request: NextRequest) {
     
     let event;
     try {
-      event = stripe.webhooks.constructEvent(
-        body,
+      // Use the async version of constructEvent with the raw body as string
+      event = await stripe.webhooks.constructEventAsync(
+        rawBody,
         signature,
         STRIPE_WEBHOOK_SECRET
       );
