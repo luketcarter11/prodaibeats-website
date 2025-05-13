@@ -1,8 +1,8 @@
-// Legacy file maintained for backward compatibility 
-// The application has been migrated to use local file storage instead of Supabase
+// Note: Only Supabase Storage has been deprecated in favor of local file storage
+// Database operations (transactions, orders, etc.) still use Supabase
 
-console.warn('DEPRECATION NOTICE: supabaseClient.ts is deprecated and will be removed in a future update.');
-console.warn('The application now uses local file storage instead of Supabase.');
+console.warn('Note: Supabase Storage features have been moved to local file storage');
+console.warn('Database operations continue to use Supabase');
 
 import { createClient } from '@supabase/supabase-js'
 import { Database } from '@/types/supabase'
@@ -12,12 +12,14 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseKey)
 
+// The old implementation below is only for file storage compatibility
+// and will be removed once all file storage operations are migrated
 interface SupabaseError {
   message: string;
   code?: string;
 }
 
-// Provide a dummy implementation for backward compatibility
+// Provide a dummy implementation for backward compatibility with old storage operations
 export const supabaseOld = {
   from: (table: string) => ({
     select: (fields?: string) => ({
