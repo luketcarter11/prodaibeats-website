@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+// Set the runtime to edge for better performance
+export const runtime = 'edge';
+
 export async function GET() {
   return NextResponse.json({
     R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID || '❌ Not set',

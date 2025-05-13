@@ -7,6 +7,8 @@ const storageBaseUrl = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://cdn.
 
 // Mark the route as dynamic to ensure it doesn't get cached
 export const dynamic = 'force-dynamic';
+// Set the runtime to edge for better performance
+export const runtime = 'edge';
 
 /**
  * API route for fetching all tracks from R2 storage

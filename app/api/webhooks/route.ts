@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
-import fs from 'fs';
-import path from 'path';
 import { discountService } from '@/services/discountService';
 import { createClient } from '@supabase/supabase-js';
 import { generateLicensePDF, LicenseType } from '../../../lib/generateLicense';
 import { addWebhookLog } from '../../../lib/webhookLogger';
-import crypto from 'crypto';
+import { transactionService } from '@/services/transactionService';
 
 // Set the runtime to edge for better performance
 export const runtime = 'edge';
@@ -23,21 +21,6 @@ if (!process.env.STRIPE_SECRET_KEY) {
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2025-04-30.basil'
 });
-
-// Define the orders directory path
-const ORDERS_DIR = path.join(process.cwd(), 'data', 'orders');
-
-// Ensure the orders directory exists
-try {
-  if (!fs.existsSync(ORDERS_DIR)) {
-    fs.mkdirSync(ORDERS_DIR, { recursive: true });
-    console.log(`Created orders directory at: ${ORDERS_DIR}`);
-    addWebhookLog('info', `Created orders directory`, { path: ORDERS_DIR });
-  }
-} catch (err) {
-  console.error('Failed to check/create orders directory:', err);
-  addWebhookLog('error', 'Failed to check/create orders directory', { error: err });
-}
 
 // Initialize Supabase client
 const getSupabaseAdmin = () => {
@@ -58,53 +41,62 @@ const getSupabaseAdmin = () => {
   });
 };
 
+// Generate UUID using Web Crypto API
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers (should never be needed in Edge Runtime)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
+// Add UUID validation helper
+const isValidUUID = (str: string): boolean => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+};
+
 async function updateOrderStatus(sessionId: string, status: 'completed' | 'failed', customerId?: string) {
   try {
-    // Check if orders directory exists
-    if (!fs.existsSync(ORDERS_DIR)) {
-      console.error(`Orders directory does not exist: ${ORDERS_DIR}`);
-      addWebhookLog('error', 'Orders directory does not exist', { path: ORDERS_DIR });
-      return null;
-    }
+    const supabase = getSupabaseAdmin();
     
-    // Read all files in the orders directory
-    const files = fs.readdirSync(ORDERS_DIR);
-    
-    // Find the order file that matches the session ID
-    const orderFile = files.find(file => {
-      try {
-        const orderData = JSON.parse(fs.readFileSync(path.join(ORDERS_DIR, file), 'utf-8'));
-        return orderData.stripe_session_id === sessionId;
-      } catch (err) {
-        console.error(`Error reading order file ${file}:`, err);
-        addWebhookLog('error', `Error reading order file`, { file, error: err });
-        return false;
-      }
-    });
-
-    if (!orderFile) {
+    // Find the order by session ID
+    const { data: orders, error: findError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('stripe_session_id', sessionId)
+      .single();
+      
+    if (findError || !orders) {
       console.error(`No order found for session ID: ${sessionId}`);
-      addWebhookLog('warning', 'No order found for session ID', { sessionId });
+      await addWebhookLog('warning', 'No order found for session ID', { sessionId });
       return null;
     }
 
     // Update the order status
-    const orderPath = path.join(ORDERS_DIR, orderFile);
-    const orderData = JSON.parse(fs.readFileSync(orderPath, 'utf-8'));
-    orderData.status = status;
-    
-    // Update user_id if customer ID is provided
-    if (customerId) {
-      orderData.user_id = customerId;
+    const { error: updateError } = await supabase
+      .from('orders')
+      .update({ 
+        status,
+        user_id: customerId || orders.user_id,
+        updated_at: new Date().toISOString()
+      })
+      .eq('stripe_session_id', sessionId);
+      
+    if (updateError) {
+      console.error('Error updating order status:', updateError);
+      await addWebhookLog('error', `Failed to update order status: ${updateError.message}`, { error: updateError });
+      throw updateError;
     }
     
-    // Write the updated order back to file
-    fs.writeFileSync(orderPath, JSON.stringify(orderData, null, 2));
-    
-    return orderData;
+    return orders;
   } catch (error: any) {
     console.error('Error updating order status:', error);
-    addWebhookLog('error', `Failed to update order status: ${error.message}`, { error });
+    await addWebhookLog('error', `Failed to update order status: ${error.message}`, { error });
     throw new Error(`Failed to update order status: ${error.message}`);
   }
 }
@@ -112,7 +104,7 @@ async function updateOrderStatus(sessionId: string, status: 'completed' | 'faile
 async function saveOrderToSupabase(orderData: any) {
   try {
     console.log('Attempting to save order to Supabase:', JSON.stringify(orderData, null, 2));
-    addWebhookLog('info', 'Attempting to save order to Supabase', { 
+    await addWebhookLog('info', 'Attempting to save order to Supabase', { 
       orderId: orderData.id,
       trackId: orderData.track_id 
     });
@@ -130,13 +122,13 @@ async function saveOrderToSupabase(orderData: any) {
     // Ensure discount has a default value
     if (orderWithTimestamps.discount === null || orderWithTimestamps.discount === undefined) {
       orderWithTimestamps.discount = 0;
-      addWebhookLog('info', 'Setting default value for discount', { 
+      await addWebhookLog('info', 'Setting default value for discount', { 
         orderId: orderData.id,
         discount: 0
       });
     }
     
-    addWebhookLog('debug', 'Order data with timestamps', orderWithTimestamps);
+    await addWebhookLog('debug', 'Order data with timestamps', orderWithTimestamps);
     
     // Validate required fields
     const requiredFields = ['id', 'track_id', 'track_name', 'total_amount', 'status'];
@@ -144,31 +136,30 @@ async function saveOrderToSupabase(orderData: any) {
     
     // Special handling for user_id - generate a fallback if missing
     if (!orderWithTimestamps.user_id) {
-      addWebhookLog('warning', 'No user_id found, generating fallback anonymous user ID', {
+      await addWebhookLog('warning', 'No user_id found, generating fallback anonymous user ID', {
         customerEmail: orderWithTimestamps.customer_email || 'unknown'
       });
-      orderWithTimestamps.user_id = crypto.randomUUID();
+      orderWithTimestamps.user_id = generateUUID();
     }
     
     if (missingFields.length > 0) {
       const errorMsg = `Missing required fields: ${missingFields.join(', ')}`;
       console.error(errorMsg);
-      addWebhookLog('error', errorMsg, { orderData });
+      await addWebhookLog('error', errorMsg, { orderData });
       throw new Error(errorMsg);
     }
     
     // Validate UUID fields
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const uuidFields = ['id', 'user_id', 'track_id'];
     for (const field of uuidFields) {
-      if (orderWithTimestamps[field] && !uuidRegex.test(orderWithTimestamps[field])) {
+      if (orderWithTimestamps[field] && !isValidUUID(orderWithTimestamps[field])) {
         const errorMsg = `Invalid UUID format for field ${field}: ${orderWithTimestamps[field]}`;
         console.error(errorMsg);
-        addWebhookLog('error', errorMsg, { [field]: orderWithTimestamps[field] });
+        await addWebhookLog('error', errorMsg, { [field]: orderWithTimestamps[field] });
         
         // Generate fallback UUID for invalid fields
-        orderWithTimestamps[field] = crypto.randomUUID();
-        addWebhookLog('warning', `Generated fallback UUID for ${field}`, { 
+        orderWithTimestamps[field] = generateUUID();
+        await addWebhookLog('warning', `Generated fallback UUID for ${field}`, { 
           original: orderWithTimestamps[field],
           new: orderWithTimestamps[field]
         });
@@ -183,8 +174,7 @@ async function saveOrderToSupabase(orderData: any) {
       
     if (error) {
       console.error('Error saving order to Supabase:', error);
-      // Log detailed error information
-      addWebhookLog('error', `Error saving order to Supabase: ${error.message}`, {
+      await addWebhookLog('error', `Error saving order to Supabase: ${error.message}`, {
         code: error.code,
         details: error.details,
         hint: error.hint,
@@ -195,11 +185,11 @@ async function saveOrderToSupabase(orderData: any) {
     }
     
     console.log(`Successfully saved order ${orderData.id} to Supabase`);
-    addWebhookLog('success', `Successfully saved order ${orderData.id} to Supabase`);
+    await addWebhookLog('success', `Successfully saved order ${orderData.id} to Supabase`);
     return data;
   } catch (error) {
     console.error('Error in saveOrderToSupabase:', error);
-    addWebhookLog('error', `Error in saveOrderToSupabase: ${error instanceof Error ? error.message : 'Unknown error'}`, {
+    await addWebhookLog('error', `Error in saveOrderToSupabase: ${error instanceof Error ? error.message : 'Unknown error'}`, {
       error: error instanceof Error ? error.stack : error,
       orderData: {
         id: orderData.id,
@@ -217,19 +207,19 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     const customerId = session.customer;
     if (!customerId) {
       console.error('No customer ID found in session:', session.id);
-      addWebhookLog('error', 'No customer ID found in session', { sessionId: session.id });
+      await addWebhookLog('error', 'No customer ID found in session', { sessionId: session.id });
       return;
     }
     
     console.log(`Processing completed checkout for session ${session.id}`);
     console.log(`Customer ID: ${customerId}`);
-    addWebhookLog('info', `Processing completed checkout`, { 
+    await addWebhookLog('info', `Processing completed checkout`, { 
       sessionId: session.id,
       customerId: customerId
     });
     
     // Session debug data
-    addWebhookLog('debug', 'Session data', {
+    await addWebhookLog('debug', 'Session data', {
       id: session.id,
       amount_total: session.amount_total,
       customer_details: session.customer_details,
@@ -245,7 +235,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     if (customerEmail) {
       try {
         console.log(`Looking up Supabase user ID for email: ${customerEmail}`);
-        addWebhookLog('info', `Looking up Supabase user ID for email`, { email: customerEmail });
+        await addWebhookLog('info', `Looking up Supabase user ID for email`, { email: customerEmail });
         
         const supabase = getSupabaseAdmin();
         const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
@@ -258,21 +248,21 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
           if (matchingUser) {
             supabaseUserId = matchingUser.id;
             console.log(`Found Supabase user ID ${supabaseUserId} for customer email ${customerEmail}`);
-            addWebhookLog('success', `Found Supabase user ID for customer email`, { 
+            await addWebhookLog('success', `Found Supabase user ID for customer email`, { 
               email: customerEmail,
               userId: supabaseUserId 
             });
           } else {
             console.log(`No matching Supabase user found for email ${customerEmail}`);
-            addWebhookLog('warning', `No matching Supabase user found for email`, { email: customerEmail });
+            await addWebhookLog('warning', `No matching Supabase user found for email`, { email: customerEmail });
           }
         } else {
           console.error('Error or no data when fetching users:', userError);
-          addWebhookLog('error', 'Error fetching users from Supabase', { error: userError });
+          await addWebhookLog('error', 'Error fetching users from Supabase', { error: userError });
         }
       } catch (error) {
         console.error('Error finding Supabase user by email:', error);
-        addWebhookLog('error', 'Error finding Supabase user by email', { error: error });
+        await addWebhookLog('error', 'Error finding Supabase user by email', { error: error });
       }
     }
     
@@ -280,19 +270,19 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     let sessionWithItems = session;
     const isTestSession = session.id.startsWith('cs_test_');
     
-    addWebhookLog('info', `Session type: ${isTestSession ? 'Test Session' : 'Real Session'}`, { sessionId: session.id });
+    await addWebhookLog('info', `Session type: ${isTestSession ? 'Test Session' : 'Real Session'}`, { sessionId: session.id });
     
     // Only retrieve expanded session from Stripe for real events (not our test ones)
     if (!isTestSession) {
       try {
-        addWebhookLog('info', `Retrieving full session with line items`, { sessionId: session.id });
+        await addWebhookLog('info', `Retrieving full session with line items`, { sessionId: session.id });
         sessionWithItems = await stripe.checkout.sessions.retrieve(
           session.id,
           { expand: ['line_items.data.price.product'] }
         );
       } catch (retrieveError) {
         console.error(`Error retrieving session details: ${retrieveError instanceof Error ? retrieveError.message : 'Unknown error'}`);
-        addWebhookLog('error', `Error retrieving session details`, { 
+        await addWebhookLog('error', `Error retrieving session details`, { 
           sessionId: session.id,
           error: retrieveError instanceof Error ? retrieveError.message : 'Unknown error'
         });
@@ -300,17 +290,17 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       }
     }
     
-    // Process each line item as a separate order
+    // Process each line item as a separate order and transaction
     const lineItems = sessionWithItems.line_items?.data || [];
     console.log(`Found ${lineItems.length} line items in session`);
-    addWebhookLog('info', `Found line items in session`, { 
+    await addWebhookLog('info', `Found line items in session`, { 
       count: lineItems.length,
       sessionId: session.id 
     });
     
     if (lineItems.length === 0) {
       console.error('No line items found in session:', session.id);
-      addWebhookLog('error', 'No line items found in session', { sessionId: session.id });
+      await addWebhookLog('error', 'No line items found in session', { sessionId: session.id });
       return;
     }
     
@@ -323,7 +313,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
           price: item.price?.id
         }, null, 2));
         
-        addWebhookLog('info', `Processing line item`, {
+        await addWebhookLog('info', `Processing line item`, {
           itemId: item.id,
           description: item.description,
           amount_total: item.amount_total
@@ -344,7 +334,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             trackName = product.name || 'Unknown Track';
             licenseType = product.metadata?.licenseType || 'Standard';
           } else {
-            addWebhookLog('warning', 'No product found in test session, checking metadata', { itemId: item.id });
+            await addWebhookLog('warning', 'No product found in test session, checking metadata', { itemId: item.id });
             
             // Try to get data from session metadata
             if (session.metadata?.items) {
@@ -356,14 +346,14 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
                   trackName = firstItem.title || 'Unknown Track';
                   licenseType = firstItem.licenseType || 'Standard';
                   
-                  addWebhookLog('info', 'Retrieved item data from session metadata', {
+                  await addWebhookLog('info', 'Retrieved item data from session metadata', {
                     trackId,
                     trackName,
                     licenseType
                   });
                 }
               } catch (parseError) {
-                addWebhookLog('error', 'Failed to parse items from session metadata', { 
+                await addWebhookLog('error', 'Failed to parse items from session metadata', { 
                   error: parseError,
                   metadata: session.metadata
                 });
@@ -375,7 +365,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
           const product = item.price?.product as Stripe.Product;
           if (!product) {
             console.error('No product found for line item:', item.id);
-            addWebhookLog('error', 'No product found for line item', { itemId: item.id });
+            await addWebhookLog('error', 'No product found for line item', { itemId: item.id });
             continue;
           }
           
@@ -385,139 +375,164 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
           licenseType = product.metadata?.licenseType || 'Standard';
         }
         
-        addWebhookLog('debug', 'Product data', {
+        await addWebhookLog('debug', 'Product data', {
           trackId,
           trackName,
           licenseType
         });
         
         // Validate trackId is a valid UUID
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        if (!trackId || !uuidRegex.test(trackId)) {
-          addWebhookLog('error', 'Invalid track_id format', { trackId });
+        if (!trackId || !isValidUUID(trackId)) {
+          await addWebhookLog('error', 'Invalid track_id format', { trackId });
           // Generate a valid UUID as fallback
-          trackId = crypto.randomUUID();
-          addWebhookLog('warning', 'Generated a fallback UUID for track_id', { newTrackId: trackId });
+          trackId = generateUUID();
+          await addWebhookLog('warning', 'Generated a fallback UUID for track_id', { newTrackId: trackId });
         }
         
-        // Create order data matching Supabase schema
+        // Create order data with proper UUID handling
         const orderData = {
-          id: crypto.randomUUID(), // Generate UUID for order
-          user_id: supabaseUserId, // UUID from Supabase user
-          track_id: trackId,
+          id: generateUUID(),
+          user_id: isValidUUID(supabaseUserId || '') ? supabaseUserId! : generateUUID(),
+          track_id: isValidUUID(trackId) ? trackId : generateUUID(),
           track_name: trackName,
           license: licenseType,
           order_date: new Date().toISOString(),
           total_amount: (item.amount_total || 0) / 100,
           discount: session.total_details?.amount_discount ? session.total_details.amount_discount / 100 : 0,
-          license_file: null, // Will be generated and updated later
+          license_file: null,
           customer_email: customerEmail || '',
           stripe_session_id: session.id,
           currency: session.currency?.toUpperCase() || 'USD',
-          status: 'completed'
+          status: 'completed' as const
         };
-        
-        console.log(`Order data to be saved:`, JSON.stringify(orderData, null, 2));
-        addWebhookLog('debug', 'Order data to be saved', orderData);
-        
+
         // Save order to Supabase
         try {
           await saveOrderToSupabase(orderData);
-          console.log(`Saved order for track ${orderData.track_name} to Supabase`);
-          addWebhookLog('success', `Saved order to Supabase`, { 
-            orderId: orderData.id,
-            trackId: orderData.track_id,
-            trackName: orderData.track_name 
-          });
-        } catch (saveError) {
-          console.error('Error saving order to Supabase:', saveError);
-          addWebhookLog('error', 'Error saving order to Supabase', { 
-            error: saveError,
-            orderData
+          
+          // Create transaction record with proper UUID handling
+          const transactionData = {
+            order_id: orderData.id,
+            user_id: orderData.user_id,
+            amount: orderData.total_amount,
+            currency: orderData.currency,
+            transaction_type: 'payment' as const,
+            status: 'completed' as const,
+            stripe_transaction_id: session.payment_intent as string,
+            metadata: {
+              stripe_session_id: session.id,
+              customer_email: customerEmail,
+              track_name: trackName,
+              license_type: licenseType,
+              payment_method: session.payment_method_types?.[0] || 'unknown'
+            }
+          };
+
+          const transaction = await transactionService.createTransaction(transactionData);
+          if (!transaction) {
+            console.error('Failed to create transaction record');
+            await addWebhookLog('error', 'Failed to create transaction record', { 
+              orderId: orderData.id,
+              sessionId: session.id 
+            });
+          } else {
+            console.log('Successfully created transaction record:', transaction.id);
+            await addWebhookLog('success', 'Created transaction record', { 
+              transactionId: transaction.id,
+              orderId: orderData.id 
+            });
+          }
+          
+          // Generate license if this is a valid license type
+          if (isValidLicenseType(orderData.license)) {
+            try {
+              console.log(`Generating license for order ${orderData.id}`);
+              await addWebhookLog('info', `Generating license for order`, { 
+                orderId: orderData.id,
+                licenseType: orderData.license 
+              });
+              
+              // Generate and store the license PDF
+              const effectiveDate = new Date().toLocaleString('en-US', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+              });
+
+              const pdfBuffer = await generateLicensePDF({
+                orderId: orderData.id,
+                trackTitle: orderData.track_name,
+                licenseType: orderData.license as LicenseType,
+                effectiveDate
+              });
+
+              // Upload to Supabase storage
+              const fileName = `${orderData.id}.pdf`;
+              const supabase = getSupabaseAdmin();
+              const { error: uploadError } = await supabase.storage
+                .from('licenses')
+                .upload(fileName, pdfBuffer, {
+                  contentType: 'application/pdf',
+                  upsert: true
+                });
+
+              if (uploadError) {
+                console.error('Failed to upload license:', uploadError);
+                await addWebhookLog('error', 'Failed to upload license', { 
+                  orderId: orderData.id,
+                  error: uploadError 
+                });
+              } else {
+                // Update order with license file path
+                const { error: updateError } = await supabase
+                  .from('orders')
+                  .update({ license_file: fileName })
+                  .eq('id', orderData.id);
+
+                if (updateError) {
+                  console.error('Failed to update order with license file:', updateError);
+                  await addWebhookLog('error', 'Failed to update order with license file', { 
+                    orderId: orderData.id,
+                    error: updateError 
+                  });
+                } else {
+                  console.log(`Generated and attached license file for order ${orderData.id}`);
+                  await addWebhookLog('success', 'Generated and attached license file', { 
+                    orderId: orderData.id,
+                    fileName 
+                  });
+                }
+              }
+            } catch (licenseError) {
+              console.error('Error generating license:', licenseError);
+              await addWebhookLog('error', 'Error generating license', { 
+                orderId: orderData.id, 
+                error: licenseError 
+              });
+            }
+          } else {
+            console.log(`License type "${orderData.license}" is not valid for generating a license file`);
+            await addWebhookLog('warning', 'Invalid license type for license generation', { 
+              licenseType: orderData.license,
+              orderId: orderData.id 
+            });
+          }
+          
+        } catch (error) {
+          console.error('Error processing order and transaction:', error);
+          await addWebhookLog('error', 'Error processing order and transaction', { 
+            error,
+            orderData,
+            sessionId: session.id 
           });
           continue;
         }
-        
-        // Generate license if this is a valid license type
-        if (isValidLicenseType(orderData.license)) {
-          try {
-            console.log(`Generating license for order ${orderData.id}`);
-            addWebhookLog('info', `Generating license for order`, { 
-              orderId: orderData.id,
-              licenseType: orderData.license 
-            });
-            
-            // Generate and store the license PDF
-            const effectiveDate = new Date().toLocaleString('en-US', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: true
-            });
-
-            const pdfBuffer = await generateLicensePDF({
-              orderId: orderData.id,
-              trackTitle: orderData.track_name,
-              licenseType: orderData.license as LicenseType,
-              effectiveDate
-            });
-
-            // Upload to Supabase storage
-            const fileName = `${orderData.id}.pdf`;
-            const supabase = getSupabaseAdmin();
-            const { error: uploadError } = await supabase.storage
-              .from('licenses')
-              .upload(fileName, pdfBuffer, {
-                contentType: 'application/pdf',
-                upsert: true
-              });
-
-            if (uploadError) {
-              console.error('Failed to upload license:', uploadError);
-              addWebhookLog('error', 'Failed to upload license', { 
-                orderId: orderData.id,
-                error: uploadError 
-              });
-            } else {
-              // Update order with license file path
-              const { error: updateError } = await supabase
-                .from('orders')
-                .update({ license_file: fileName })
-                .eq('id', orderData.id);
-
-              if (updateError) {
-                console.error('Failed to update order with license file:', updateError);
-                addWebhookLog('error', 'Failed to update order with license file', { 
-                  orderId: orderData.id,
-                  error: updateError 
-                });
-              } else {
-                console.log(`Generated and attached license file for order ${orderData.id}`);
-                addWebhookLog('success', 'Generated and attached license file', { 
-                  orderId: orderData.id,
-                  fileName 
-                });
-              }
-            }
-          } catch (licenseError) {
-            console.error('Error generating license:', licenseError);
-            addWebhookLog('error', 'Error generating license', { 
-              orderId: orderData.id, 
-              error: licenseError 
-            });
-          }
-        } else {
-          console.log(`License type "${orderData.license}" is not valid for generating a license file`);
-          addWebhookLog('warning', 'Invalid license type for license generation', { 
-            licenseType: orderData.license,
-            orderId: orderData.id 
-          });
-        }
       } catch (itemError) {
         console.error('Error processing line item:', itemError);
-        addWebhookLog('error', 'Error processing line item', { error: itemError });
+        await addWebhookLog('error', 'Error processing line item', { error: itemError });
       }
     }
     
@@ -527,24 +542,24 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       try {
         await discountService.incrementUsageCount(discountId);
         console.log(`Incremented usage count for discount code ${session.metadata?.discountCode}`);
-        addWebhookLog('success', 'Incremented discount code usage count', { 
+        await addWebhookLog('success', 'Incremented discount code usage count', { 
           discountId,
           discountCode: session.metadata?.discountCode 
         });
       } catch (error) {
         console.error('Failed to increment discount code usage:', error);
-        addWebhookLog('error', 'Failed to increment discount code usage', { 
+        await addWebhookLog('error', 'Failed to increment discount code usage', { 
           discountId,
           error 
         });
       }
     }
     
-    addWebhookLog('success', 'Successfully processed checkout completion', { sessionId: session.id });
+    await addWebhookLog('success', 'Successfully processed checkout completion', { sessionId: session.id });
     console.log(`Successfully processed completed checkout for session ${session.id}`);
   } catch (error) {
     console.error('Error handling checkout completed webhook:', error);
-    addWebhookLog('error', 'Error handling checkout completed webhook', { error });
+    await addWebhookLog('error', 'Error handling checkout completed webhook', { error });
     throw error;
   }
 }
@@ -552,16 +567,16 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 async function handleAsyncPaymentSucceeded(session: Stripe.Checkout.Session) {
   try {
     console.log(`Processing async payment succeeded for session ${session.id}`);
-    addWebhookLog('info', `Processing async payment succeeded`, { sessionId: session.id });
+    await addWebhookLog('info', `Processing async payment succeeded`, { sessionId: session.id });
     
     // Since this payment was successful, handle it the same way as checkout.session.completed
     await handleCheckoutCompleted(session);
     
     console.log(`Successfully processed async payment succeeded for session ${session.id}`);
-    addWebhookLog('success', `Successfully processed async payment succeeded`, { sessionId: session.id });
+    await addWebhookLog('success', `Successfully processed async payment succeeded`, { sessionId: session.id });
   } catch (error) {
     console.error('Error handling async payment succeeded webhook:', error);
-    addWebhookLog('error', 'Error handling async payment succeeded webhook', { error });
+    await addWebhookLog('error', 'Error handling async payment succeeded webhook', { error });
     throw error;
   }
 }
@@ -569,19 +584,46 @@ async function handleAsyncPaymentSucceeded(session: Stripe.Checkout.Session) {
 async function handleAsyncPaymentFailed(session: Stripe.Checkout.Session) {
   try {
     console.log(`Processing async payment failed for session ${session.id}`);
-    addWebhookLog('info', `Processing async payment failed`, { sessionId: session.id });
+    await addWebhookLog('info', `Processing async payment failed`, { sessionId: session.id });
     
-    // Get customer ID from the session
     const customerId = session.customer;
     if (!customerId) {
       console.error('No customer ID found in session:', session.id);
-      addWebhookLog('error', 'No customer ID found in session', { sessionId: session.id });
+      await addWebhookLog('error', 'No customer ID found in session', { sessionId: session.id });
       return;
     }
 
-    // Update order status to failed
+    // Update order status
     await updateOrderStatus(session.id, 'failed', customerId.toString());
-    addWebhookLog('info', `Updated order status to failed`, { sessionId: session.id });
+    
+    // Create failed transaction record with proper UUID handling
+    const transactionData = {
+      order_id: null,
+      user_id: isValidUUID(customerId.toString()) ? customerId.toString() : generateUUID(),
+      amount: (session.amount_total || 0) / 100,
+      currency: session.currency?.toUpperCase() || 'USD',
+      transaction_type: 'payment' as const,
+      status: 'failed' as const,
+      stripe_transaction_id: session.payment_intent as string,
+      metadata: {
+        stripe_session_id: session.id,
+        customer_email: session.customer_details?.email,
+        failure_reason: session.payment_status
+      }
+    };
+
+    const transaction = await transactionService.createTransaction(transactionData);
+    if (!transaction) {
+      console.error('Failed to create failed transaction record');
+      await addWebhookLog('error', 'Failed to create failed transaction record', { 
+        sessionId: session.id 
+      });
+    } else {
+      console.log('Successfully created failed transaction record:', transaction.id);
+      await addWebhookLog('success', 'Created failed transaction record', { 
+        transactionId: transaction.id 
+      });
+    }
     
     // Handle discount code usage if applicable
     const discountId = session.metadata?.discountId;
@@ -591,13 +633,13 @@ async function handleAsyncPaymentFailed(session: Stripe.Checkout.Session) {
         await discountService.decrementUsageCount(discountId);
         
         console.log(`Successfully decremented usage count for discount code ${session.metadata?.discountCode}`);
-        addWebhookLog('success', 'Decremented discount code usage count', { 
+        await addWebhookLog('success', 'Decremented discount code usage count', { 
           discountId,
           discountCode: session.metadata?.discountCode 
         });
       } catch (error) {
         console.error('Failed to decrement discount code usage:', error);
-        addWebhookLog('error', 'Failed to decrement discount code usage', { 
+        await addWebhookLog('error', 'Failed to decrement discount code usage', { 
           discountId,
           error 
         });
@@ -605,10 +647,10 @@ async function handleAsyncPaymentFailed(session: Stripe.Checkout.Session) {
     }
     
     console.log(`Successfully processed async payment failed for session ${session.id}`);
-    addWebhookLog('success', `Successfully processed async payment failed`, { sessionId: session.id });
+    await addWebhookLog('success', `Successfully processed async payment failed`, { sessionId: session.id });
   } catch (error) {
     console.error('Error handling async payment failed webhook:', error);
-    addWebhookLog('error', 'Error handling async payment failed webhook', { error });
+    await addWebhookLog('error', 'Error handling async payment failed webhook', { error });
     throw error;
   }
 }
@@ -616,19 +658,19 @@ async function handleAsyncPaymentFailed(session: Stripe.Checkout.Session) {
 async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
   try {
     console.log(`Processing checkout expired for session ${session.id}`);
-    addWebhookLog('info', `Processing checkout expired`, { sessionId: session.id });
+    await addWebhookLog('info', `Processing checkout expired`, { sessionId: session.id });
     
     // Get customer ID from the session
     const customerId = session.customer;
     if (!customerId) {
       console.error('No customer ID found in session:', session.id);
-      addWebhookLog('error', 'No customer ID found in session', { sessionId: session.id });
+      await addWebhookLog('error', 'No customer ID found in session', { sessionId: session.id });
       return;
     }
 
     // Update order status
     await updateOrderStatus(session.id, 'failed', customerId.toString());
-    addWebhookLog('info', `Updated order status to failed`, { sessionId: session.id });
+    await addWebhookLog('info', `Updated order status to failed`, { sessionId: session.id });
     
     // Get the discount code from metadata
     const discountId = session.metadata?.discountId;
@@ -638,13 +680,13 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
         await discountService.decrementUsageCount(discountId);
         
         console.log(`Successfully decremented usage count for discount code ${session.metadata?.discountCode}`);
-        addWebhookLog('success', 'Decremented discount code usage count', { 
+        await addWebhookLog('success', 'Decremented discount code usage count', { 
           discountId,
           discountCode: session.metadata?.discountCode 
         });
       } catch (error) {
         console.error('Failed to decrement discount code usage:', error);
-        addWebhookLog('error', 'Failed to decrement discount code usage', { 
+        await addWebhookLog('error', 'Failed to decrement discount code usage', { 
           discountId,
           error 
         });
@@ -652,10 +694,10 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
     }
     
     console.log(`Successfully processed checkout expired for session ${session.id}`);
-    addWebhookLog('success', `Successfully processed checkout expired`, { sessionId: session.id });
+    await addWebhookLog('success', `Successfully processed checkout expired`, { sessionId: session.id });
   } catch (error) {
     console.error('Error handling checkout expired webhook:', error);
-    addWebhookLog('error', 'Error handling checkout expired webhook', { error });
+    await addWebhookLog('error', 'Error handling checkout expired webhook', { error });
     throw error;
   }
 }
@@ -663,14 +705,14 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
 export async function POST(request: NextRequest) {
   try {
     console.log('Received webhook request');
-    addWebhookLog('info', 'Received webhook request from Stripe');
+    await addWebhookLog('info', 'Received webhook request');
     
     const body = await request.text();
     const signature = headers().get('stripe-signature');
 
     if (!signature) {
       console.error('No Stripe signature provided');
-      addWebhookLog('error', 'No Stripe signature provided');
+      await addWebhookLog('error', 'No Stripe signature provided');
       return NextResponse.json(
         { error: 'No signature provided' },
         { status: 400 }
@@ -678,7 +720,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Validating Stripe webhook signature');
-    addWebhookLog('info', 'Validating Stripe webhook signature');
+    await addWebhookLog('info', 'Validating Stripe webhook signature');
     
     let event;
     try {
@@ -689,7 +731,7 @@ export async function POST(request: NextRequest) {
       );
     } catch (err: any) {
       console.error('Webhook signature verification failed:', err.message);
-      addWebhookLog('error', `Webhook signature verification failed: ${err.message}`, {
+      await addWebhookLog('error', `Webhook signature verification failed: ${err.message}`, {
         providedSignature: signature
       });
       return NextResponse.json(
@@ -699,7 +741,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`Processing webhook event type: ${event.type}`);
-    addWebhookLog('info', `Processing webhook event type: ${event.type}`, { 
+    await addWebhookLog('info', `Processing webhook event type: ${event.type}`, { 
       eventId: event.id,
       eventType: event.type
     });
@@ -712,10 +754,10 @@ export async function POST(request: NextRequest) {
         try {
           await handleCheckoutCompleted(session);
           console.log(`Successfully processed checkout.session.completed for session ${session.id}`);
-          addWebhookLog('success', `Successfully processed checkout.session.completed`, { sessionId: session.id });
+          await addWebhookLog('success', `Successfully processed checkout.session.completed`, { sessionId: session.id });
         } catch (error: any) {
           console.error(`Error processing checkout.session.completed webhook:`, error);
-          addWebhookLog('error', `Error processing checkout.session.completed webhook: ${error.message}`, {
+          await addWebhookLog('error', `Error processing checkout.session.completed webhook: ${error.message}`, {
             sessionId: session.id,
             error: error.stack || error.toString()
           });
@@ -733,7 +775,7 @@ export async function POST(request: NextRequest) {
           await handleAsyncPaymentSucceeded(session);
         } catch (error: any) {
           console.error(`Error processing checkout.session.async_payment_succeeded webhook:`, error);
-          addWebhookLog('error', `Error processing async payment succeeded webhook: ${error.message}`, {
+          await addWebhookLog('error', `Error processing async payment succeeded webhook: ${error.message}`, {
             sessionId: session.id,
             error: error.stack || error.toString()
           });
@@ -750,7 +792,7 @@ export async function POST(request: NextRequest) {
           await handleAsyncPaymentFailed(session);
         } catch (error: any) {
           console.error(`Error processing checkout.session.async_payment_failed webhook:`, error);
-          addWebhookLog('error', `Error processing async payment failed webhook: ${error.message}`, {
+          await addWebhookLog('error', `Error processing async payment failed webhook: ${error.message}`, {
             sessionId: session.id,
             error: error.stack || error.toString()
           });
@@ -767,7 +809,7 @@ export async function POST(request: NextRequest) {
           await handleCheckoutExpired(session);
         } catch (error: any) {
           console.error(`Error processing checkout.session.expired webhook:`, error);
-          addWebhookLog('error', `Error processing checkout.session.expired webhook: ${error.message}`, {
+          await addWebhookLog('error', `Error processing checkout.session.expired webhook: ${error.message}`, {
             sessionId: session.id,
             error: error.stack || error.toString() 
           });
@@ -781,15 +823,15 @@ export async function POST(request: NextRequest) {
       
       default:
         console.log(`Ignoring unhandled event type: ${event.type}`);
-        addWebhookLog('warning', `Ignoring unhandled event type: ${event.type}`);
+        await addWebhookLog('warning', `Ignoring unhandled event type: ${event.type}`);
     }
 
-    addWebhookLog('success', 'Webhook processed successfully');
+    await addWebhookLog('success', 'Webhook processed successfully');
     return NextResponse.json({ received: true });
   } catch (error: any) {
     console.error('Webhook unhandled error:', error);
     console.error('Error stack:', error.stack || 'No stack trace available');
-    addWebhookLog('error', `Webhook unhandled error: ${error.message}`, {
+    await addWebhookLog('error', `Webhook unhandled error: ${error.message}`, {
       error: error.stack || error.toString()
     });
     
