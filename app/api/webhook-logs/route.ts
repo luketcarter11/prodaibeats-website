@@ -146,11 +146,10 @@ export async function POST(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   
   if (searchParams.get('clear') === 'true') {
-    const success = clearWebhookLogs();
-    
-    if (success) {
+    try {
+      await clearWebhookLogs();
       return NextResponse.json({ success: true });
-    } else {
+    } catch (error) {
       return NextResponse.json(
         { success: false, error: 'Failed to clear logs' },
         { status: 500 }
