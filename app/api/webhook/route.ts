@@ -7,14 +7,14 @@ import { discountService } from '@/services/discountService';
 import { transactionService } from '../../../services/transactionService';
 import { createClient } from '@supabase/supabase-js';
 import { generateLicensePDF, LicenseType } from '../../../lib/generateLicense';
-import { addWebhookLog } from '../webhook-logs/route';
+import { addWebhookLog } from '../../../lib/webhookLogger';
 import crypto from 'crypto';
 import type { Database } from '@/types/supabase';
 type TransactionType = Database['public']['Tables']['transactions']['Row']['transaction_type'];
 type TransactionStatus = Database['public']['Tables']['transactions']['Row']['status'];
 
-// Edge and Streaming flags
-export const runtime = 'nodejs'; // Keep as nodejs for file system operations
+// Set the runtime to edge for better performance
+export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 // Use the webhook secret provided
@@ -122,7 +122,7 @@ async function updateOrderStatus(sessionId: string, status: 'completed' | 'faile
 async function saveOrderToSupabase(orderData: any) {
   try {
     console.log('Attempting to save order to Supabase:', JSON.stringify(orderData, null, 2));
-    addWebhookLog('info', 'Attempting to save order to Supabase', { 
+    await addWebhookLog('info', 'Attempting to save order to Supabase', { 
       orderId: orderData.id,
       trackId: orderData.track_id 
     });
@@ -140,13 +140,13 @@ async function saveOrderToSupabase(orderData: any) {
     // Ensure discount has a default value
     if (orderWithTimestamps.discount === null || orderWithTimestamps.discount === undefined) {
       orderWithTimestamps.discount = 0;
-      addWebhookLog('info', 'Setting default value for discount', { 
+      await addWebhookLog('info', 'Setting default value for discount', { 
         orderId: orderData.id,
         discount: 0
       });
     }
     
-    addWebhookLog('debug', 'Order data with timestamps', orderWithTimestamps);
+    await addWebhookLog('debug', 'Order data with timestamps', orderWithTimestamps);
     
     // Validate required fields
     const requiredFields = ['id', 'track_id', 'track_name', 'total_amount', 'status'];
@@ -154,7 +154,7 @@ async function saveOrderToSupabase(orderData: any) {
     
     // Special handling for user_id - generate a fallback if missing
     if (!orderWithTimestamps.user_id) {
-      addWebhookLog('warning', 'No user_id found, generating fallback anonymous user ID', {
+      await addWebhookLog('warning', 'No user_id found, generating fallback anonymous user ID', {
         customerEmail: orderWithTimestamps.customer_email || 'unknown'
       });
       orderWithTimestamps.user_id = crypto.randomUUID();
@@ -163,7 +163,7 @@ async function saveOrderToSupabase(orderData: any) {
     if (missingFields.length > 0) {
       const errorMsg = `Missing required fields: ${missingFields.join(', ')}`;
       console.error(errorMsg);
-      addWebhookLog('error', errorMsg, { orderData });
+      await addWebhookLog('error', errorMsg, { orderData });
       throw new Error(errorMsg);
     }
     
@@ -173,11 +173,11 @@ async function saveOrderToSupabase(orderData: any) {
       if (orderWithTimestamps[field] && !isValidUUID(orderWithTimestamps[field])) {
         const errorMsg = `Invalid UUID format for field ${field}: ${orderWithTimestamps[field]}`;
         console.error(errorMsg);
-        addWebhookLog('error', errorMsg, { [field]: orderWithTimestamps[field] });
+        await addWebhookLog('error', errorMsg, { [field]: orderWithTimestamps[field] });
         
         // Generate fallback UUID for invalid fields
         orderWithTimestamps[field] = crypto.randomUUID();
-        addWebhookLog('warning', `Generated fallback UUID for ${field}`, { 
+        await addWebhookLog('warning', `Generated fallback UUID for ${field}`, { 
           original: orderWithTimestamps[field],
           new: orderWithTimestamps[field]
         });
@@ -193,7 +193,7 @@ async function saveOrderToSupabase(orderData: any) {
     if (error) {
       console.error('Error saving order to Supabase:', error);
       // Log detailed error information
-      addWebhookLog('error', `Error saving order to Supabase: ${error.message}`, {
+      await addWebhookLog('error', `Error saving order to Supabase: ${error.message}`, {
         code: error.code,
         details: error.details,
         hint: error.hint,
@@ -204,11 +204,11 @@ async function saveOrderToSupabase(orderData: any) {
     }
     
     console.log(`Successfully saved order ${orderData.id} to Supabase`);
-    addWebhookLog('success', `Successfully saved order ${orderData.id} to Supabase`);
+    await addWebhookLog('success', `Successfully saved order ${orderData.id} to Supabase`);
     return data;
   } catch (error) {
     console.error('Error in saveOrderToSupabase:', error);
-    addWebhookLog('error', `Error in saveOrderToSupabase: ${error instanceof Error ? error.message : 'Unknown error'}`, {
+    await addWebhookLog('error', `Error in saveOrderToSupabase: ${error instanceof Error ? error.message : 'Unknown error'}`, {
       error: error instanceof Error ? error.stack : error,
       orderData: {
         id: orderData.id,
