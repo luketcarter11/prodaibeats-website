@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { addWebhookLog } from '../webhook-logs/route';
+import { addWebhookLog } from '../../../lib/webhookLogger';
+
+// Set the runtime to edge for better performance
+export const runtime = 'edge';
 
 // Initialize Supabase client
 const getSupabaseAdmin = () => {

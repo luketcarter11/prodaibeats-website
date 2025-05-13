@@ -6,11 +6,11 @@ import path from 'path';
 import { discountService } from '@/services/discountService';
 import { createClient } from '@supabase/supabase-js';
 import { generateLicensePDF, LicenseType } from '../../../lib/generateLicense';
-import { addWebhookLog } from '../webhook-logs/route';
+import { addWebhookLog } from '../../../lib/webhookLogger';
 import crypto from 'crypto';
 
-// Edge and Streaming flags
-export const runtime = 'nodejs'; // Keep as nodejs for file system operations
+// Set the runtime to edge for better performance
+export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 // Use the webhook secret provided

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { Order } from '../../../lib/getOrders';
 
-// Import the runtime config
-export { runtime } from '../config';
+// Set the runtime to edge for better performance
+export const runtime = 'edge';
 
 /**
  * This is a placeholder implementation of the orders API.
