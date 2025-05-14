@@ -2,6 +2,8 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   try {
     const cookieStore = cookies()
@@ -9,9 +11,17 @@ export async function GET(request: Request) {
 
     // Check if user is authenticated
     const { data: { session }, error: authError } = await supabase.auth.getSession()
-    if (authError || !session) {
+    if (authError) {
+      console.error('Auth error:', authError)
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Authentication error' },
+        { status: 401 }
+      )
+    }
+    
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized - No session found' },
         { status: 401 }
       )
     }
@@ -35,7 +45,15 @@ export async function GET(request: Request) {
         .eq('id', session.user.id)
         .single()
 
-      if (profileError || profile?.role !== 'admin') {
+      if (profileError) {
+        console.error('Profile error:', profileError)
+        return NextResponse.json(
+          { error: 'Error checking admin status' },
+          { status: 500 }
+        )
+      }
+
+      if (profile?.role !== 'admin') {
         return NextResponse.json(
           { error: 'Unauthorized - Admin access required' },
           { status: 403 }

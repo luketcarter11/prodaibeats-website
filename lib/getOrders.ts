@@ -57,7 +57,12 @@ export async function getAllTransactions(): Promise<Transaction[]> {
       : `/api/transactions?admin=true`;
       
     console.log(`Fetching all transactions from: ${endpoint}`);
-    const response = await fetch(endpoint);
+    const response = await fetch(endpoint, {
+      credentials: 'include',  // Include cookies for authentication
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`Failed to fetch all transactions: ${response.status} ${errorText}`);

@@ -1,11 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { FaSearch, FaSpinner, FaEye, FaFilter } from 'react-icons/fa'
 import { format } from 'date-fns'
 import { Transaction, getAllTransactions } from '../../../lib/getOrders'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export default function OrdersPage() {
+  const router = useRouter()
+  const supabase = createClientComponentClient()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -17,12 +21,46 @@ export default function OrdersPage() {
   const [isViewingDetails, setIsViewingDetails] = useState(false)
 
   useEffect(() => {
-    fetchTransactions()
+    checkUser()
   }, [])
 
   useEffect(() => {
     applyFilters()
   }, [transactions, searchTerm, statusFilter, dateFilter])
+
+  const checkUser = async () => {
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError) throw sessionError
+      
+      if (!session) {
+        router.push('/auth/signin?redirect=/admin/orders')
+        return
+      }
+
+      // Check if user has admin role
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .single()
+
+      if (profileError) throw profileError
+
+      if (profile?.role !== 'admin') {
+        router.push('/')
+        return
+      }
+
+      // If we get here, user is authenticated and is an admin
+      fetchTransactions()
+    } catch (err) {
+      console.error('Error checking user:', err)
+      setError('Authentication error')
+      router.push('/auth/signin?redirect=/admin/orders')
+    }
+  }
 
   const fetchTransactions = async () => {
     setIsLoading(true)
