@@ -177,19 +177,54 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       const trackName = product.name || 'Unknown Track';
       const licenseType = product.metadata?.licenseType || 'Standard';
 
-      // Create transaction record
-      const transactionData = {
+      // Create order record first
+      const orderData = {
         id: generateUUID(),
         user_id: isValidUUID(supabaseUserId || '') ? supabaseUserId! : generateUUID(),
         track_id: isValidUUID(trackId) ? trackId : generateUUID(),
         track_name: trackName,
-        license_type: licenseType as LicenseType,
-        amount: (item.amount_total || 0) / 100,
-        currency: session.currency?.toUpperCase() || 'USD',
+        license: licenseType,
+        total_amount: (item.amount_total || 0) / 100,
+        order_date: new Date().toISOString(),
+        status: 'completed',
         stripe_session_id: session.id,
         customer_email: customerEmail,
+        currency: session.currency?.toUpperCase() || 'USD'
+      };
+
+      // Insert order into Supabase
+      const { data: orderResult, error: orderError } = await supabase
+        .from('orders')
+        .insert(orderData)
+        .select()
+        .single();
+
+      if (orderError) {
+        throw new Error(`Failed to insert order: ${orderError.message}`);
+      }
+
+      console.log(`→ Inserted order record ${orderResult.id}`);
+      await addWebhookLog('success', 'Inserted order record', {
+        orderId: orderResult.id,
+        sessionId: session.id
+      });
+
+      // Create transaction record
+      const transactionData = {
+        id: generateUUID(),
+        order_id: orderResult.id,
+        user_id: orderData.user_id,
+        amount: orderData.total_amount,
+        currency: orderData.currency,
+        transaction_type: 'payment',
         status: 'completed' as const,
-        created_at: new Date().toISOString()
+        stripe_transaction_id: session.payment_intent || session.id,
+        metadata: {
+          track_id: trackId,
+          track_name: trackName,
+          license_type: licenseType,
+          customer_email: customerEmail
+        }
       };
 
       // Insert transaction into Supabase
@@ -223,25 +258,25 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             trackTitle: trackName,
             licenseType: licenseType as LicenseType,
             effectiveDate,
-            orderId: transactionData.id
+            orderId: orderResult.id
           });
 
-          // Update transaction with license file
+          // Update order with license file
           const { error: updateError } = await supabase
-            .from('transactions')
+            .from('orders')
             .update({ license_file: licenseFile })
-            .eq('id', transactionData.id);
+            .eq('id', orderResult.id);
 
           if (updateError) {
-            throw new Error(`Failed to update transaction with license: ${updateError.message}`);
+            throw new Error(`Failed to update order with license: ${updateError.message}`);
           }
 
           await addWebhookLog('success', 'Generated and stored license file', {
-            transactionId: transactionData.id
+            orderId: orderResult.id
           });
         } catch (error: any) {
           await addWebhookLog('error', `Failed to generate/store license: ${error.message}`, {
-            transactionId: transactionData.id
+            orderId: orderResult.id
           });
           // Continue processing - license generation failure shouldn't block the transaction
         }
