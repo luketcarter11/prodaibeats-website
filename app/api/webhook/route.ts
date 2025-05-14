@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { generateLicensePDF, type LicenseType } from '../../../lib/generateLicense';
 import { isValidUUID } from '../../../lib/utils';
@@ -24,28 +23,6 @@ Object.entries(requiredEnvVars).forEach(([key, value]) => {
     throw new Error(`Missing required environment variable: ${key}`);
   }
 });
-
-// Initialize Stripe with Edge-compatible configuration
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-04-30.basil',
-  httpClient: Stripe.createFetchHttpClient()
-});
-
-// Initialize Supabase client
-const getSupabaseAdmin = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  
-  if (!supabaseUrl || supabaseUrl === 'https://placeholder-url.supabase.co') {
-    throw new Error('Supabase URL is not defined or is a placeholder');
-  }
-  
-  if (!supabaseServiceKey) {
-    throw new Error('Supabase service role key is not defined');
-  }
-
-  return createClient(supabaseUrl, supabaseServiceKey);
-};
 
 // Generate UUID using Web Crypto API
 const generateUUID = () => {
