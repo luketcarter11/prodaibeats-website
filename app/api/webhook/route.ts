@@ -219,11 +219,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         transaction_type: 'payment',
         status: 'completed' as const,
         stripe_transaction_id: session.payment_intent || session.id,
+        customer_email: customerEmail,
         metadata: {
           track_id: trackId,
           track_name: trackName,
-          license_type: licenseType,
-          customer_email: customerEmail
+          license_type: licenseType
         }
       };
 
