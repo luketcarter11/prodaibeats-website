@@ -1,15 +1,10 @@
-import { loadStripe, Stripe } from '@stripe/stripe-js';
+import Stripe from 'stripe';
 
-let stripePromise: Promise<Stripe | null> | null = null;
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error('STRIPE_SECRET_KEY is not defined');
+}
 
-export const getStripe = async (): Promise<Stripe | null> => {
-  if (!stripePromise) {
-    const key = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-    if (!key) {
-      console.error('Stripe publishable key is not set');
-      return null;
-    }
-    stripePromise = loadStripe(key);
-  }
-  return stripePromise;
-}; 
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: '2025-04-30.basil',
+  typescript: true,
+}); 

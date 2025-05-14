@@ -35,6 +35,26 @@ const getSupabase = () => {
   });
 };
 
+// Generate UUID using Web Crypto API
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers (should never be needed in Edge Runtime)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
+// Get Supabase admin client
+const getSupabaseAdmin = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  return createClient(supabaseUrl, supabaseServiceKey);
+};
+
 interface CartItem {
   id: string;
   title: string;
@@ -84,6 +104,26 @@ interface LineItem {
   quantity: number;
 }
 
+interface Transaction {
+  id: string;
+  user_id: string;
+  order_id: string | null;
+  amount: number;
+  currency: string;
+  transaction_type: string;
+  status: string;
+  stripe_transaction_id: string | null;
+  stripe_session_id: string;
+  customer_email: string | null;
+  license_type: string;
+  metadata: {
+    track_id: string;
+    track_name: string;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
 async function getOrCreateCustomer(email: string, promoCodeId?: string): Promise<string> {
   try {
     // Check if customer exists
@@ -128,37 +168,54 @@ async function getOrCreateCustomer(email: string, promoCodeId?: string): Promise
   }
 }
 
-async function storeOrder(orderDetails: {
+async function storeTransaction(details: {
   user_id: string;
   track_id: string;
   track_name: string;
-  license: string;
-  total_amount: number;
-  discount?: number;
+  license_type: string;
+  amount: number;
   stripe_session_id: string;
-}): Promise<Order> {
-  const order: Order = {
-    id: `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    ...orderDetails,
-    order_date: new Date().toISOString(),
-    status: 'pending'
+  customer_email: string | null;
+  currency: string;
+}): Promise<Transaction> {
+  const transaction: Transaction = {
+    id: generateUUID(),
+    user_id: details.user_id,
+    order_id: null,
+    amount: details.amount,
+    currency: details.currency,
+    transaction_type: 'payment',
+    status: 'pending',
+    stripe_transaction_id: null,
+    stripe_session_id: details.stripe_session_id,
+    customer_email: details.customer_email,
+    license_type: details.license_type,
+    metadata: {
+      track_id: details.track_id,
+      track_name: details.track_name,
+    },
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   };
 
   try {
-    // Store order metadata in Stripe
-    await stripe.customers.update(orderDetails.user_id, {
-      metadata: {
-        [`order_${order.id}`]: JSON.stringify({
-          ...order,
-          created_at: new Date().toISOString()
-        })
-      }
-    });
-  } catch (error) {
-    console.error('Failed to store order metadata:', error);
-  }
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from('transactions')
+      .insert(transaction)
+      .select()
+      .single();
 
-  return order;
+    if (error) {
+      console.error('Failed to store transaction:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Failed to store transaction:', error);
+    throw error;
+  }
 }
 
 async function getValidCoupon(code: string): Promise<Coupon | null> {

@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { generateLicensePDF, type LicenseType } from '../../../lib/generateLicense';
-import { addWebhookLog } from '../../../lib/webhookLogger';
+import { isValidUUID } from '../../../lib/utils';
+import { getSupabaseAdmin } from '../../../lib/supabase-admin';
+import { addWebhookLog } from '../../../lib/webhook-logger';
+import { stripe } from '../../../lib/stripe';
+import type { Stripe } from 'stripe';
 
 // Set the runtime to edge for better performance
 export const runtime = 'edge';
@@ -29,27 +33,31 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 // Initialize Supabase client
 const getSupabaseAdmin = () => {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    }
-  );
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  
+  if (!supabaseUrl || supabaseUrl === 'https://placeholder-url.supabase.co') {
+    throw new Error('Supabase URL is not defined or is a placeholder');
+  }
+  
+  if (!supabaseServiceKey) {
+    throw new Error('Supabase service role key is not defined');
+  }
+
+  return createClient(supabaseUrl, supabaseServiceKey);
 };
 
-// Helper function to validate UUIDs
-const isValidUUID = (uuid: string) => {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(uuid);
-};
-
-// Helper function to generate UUIDs
+// Generate UUID using Web Crypto API
 const generateUUID = () => {
-  return crypto.randomUUID();
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers (should never be needed in Edge Runtime)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 };
 
 export async function POST(request: NextRequest) {
@@ -135,36 +143,18 @@ export async function POST(request: NextRequest) {
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const supabase = getSupabaseAdmin();
-  const isTestSession = session.id.startsWith('cs_test_');
-  const customerEmail = session.customer_details?.email || '';
-  const supabaseUserId = session.metadata?.user_id || null;
+  const customerEmail = session.customer_details?.email;
+  const supabaseUserId = session.metadata?.userId;
 
-  let sessionWithItems = session;
-
-  // Only retrieve expanded session from Stripe for real events
-  if (!isTestSession) {
-    try {
-      await addWebhookLog('info', `Retrieving full session with line items`, { sessionId: session.id });
-      sessionWithItems = await stripe.checkout.sessions.retrieve(
-        session.id,
-        { expand: ['line_items.data.price.product'] }
-      );
-    } catch (error: any) {
-      await addWebhookLog('error', `Error retrieving session details`, { 
-        sessionId: session.id,
-        error: error.message
-      });
-      throw new Error(`Cannot process webhook: unable to retrieve session ${session.id}`);
-    }
+  if (!customerEmail) {
+    await addWebhookLog('error', 'No customer email found in session', { sessionId: session.id });
+    return;
   }
 
-  const lineItems = sessionWithItems.line_items?.data || [];
-  if (lineItems.length === 0) {
-    await addWebhookLog('error', 'No line items found in session', { sessionId: session.id });
-    throw new Error('No line items found in session');
-  }
+  // Get line items
+  const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
 
-  for (const item of lineItems) {
+  for (const item of lineItems.data) {
     try {
       // Get product data
       const product = item.price?.product as Stripe.Product;
@@ -175,118 +165,79 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
       const trackId = product.metadata?.track_id || product.metadata?.itemId || generateUUID();
       const trackName = product.name || 'Unknown Track';
-      const licenseType = product.metadata?.licenseType || 'Standard';
-
-      // Create order record first
-      const orderData = {
-        id: generateUUID(),
-        user_id: isValidUUID(supabaseUserId || '') ? supabaseUserId! : generateUUID(),
-        track_id: isValidUUID(trackId) ? trackId : generateUUID(),
-        track_name: trackName,
-        license: licenseType,
-        total_amount: (item.amount_total || 0) / 100,
-        order_date: new Date().toISOString(),
-        status: 'completed',
-        stripe_session_id: session.id,
-        customer_email: customerEmail,
-        currency: session.currency?.toUpperCase() || 'USD'
-      };
-
-      // Insert order into Supabase
-      const { data: orderResult, error: orderError } = await supabase
-        .from('orders')
-        .insert(orderData)
-        .select()
-        .single();
-
-      if (orderError) {
-        throw new Error(`Failed to insert order: ${orderError.message}`);
-      }
-
-      console.log(`→ Inserted order record ${orderResult.id}`);
-      await addWebhookLog('success', 'Inserted order record', {
-        orderId: orderResult.id,
-        sessionId: session.id
-      });
+      const licenseType = (product.metadata?.licenseType || 'Standard') as LicenseType;
 
       // Create transaction record
       const transactionData = {
         id: generateUUID(),
-        order_id: orderResult.id,
-        user_id: orderData.user_id,
-        amount: orderData.total_amount,
-        currency: orderData.currency,
+        user_id: isValidUUID(supabaseUserId || '') ? supabaseUserId! : generateUUID(),
+        order_id: null,
+        amount: (item.amount_total || 0) / 100,
+        currency: session.currency?.toUpperCase() || 'USD',
         transaction_type: 'payment',
-        status: 'completed' as const,
-        stripe_transaction_id: session.payment_intent || session.id,
+        status: 'completed',
+        stripe_transaction_id: session.payment_intent as string,
+        stripe_session_id: session.id,
         customer_email: customerEmail,
+        license_type: licenseType,
         metadata: {
           track_id: trackId,
           track_name: trackName,
-          license_type: licenseType
+          license_file: null
         }
       };
 
       // Insert transaction into Supabase
-      const { error: insertError } = await supabase
+      const { data: transactionResult, error: transactionError } = await supabase
         .from('transactions')
-        .insert(transactionData);
+        .insert(transactionData)
+        .select()
+        .single();
 
-      if (insertError) {
-        throw new Error(`Failed to insert transaction: ${insertError.message}`);
+      if (transactionError) {
+        throw new Error(`Failed to insert transaction: ${transactionError.message}`);
       }
 
-      console.log(`→ Inserted transaction for session ${session.id}`);
+      console.log(`→ Inserted transaction record ${transactionResult.id}`);
       await addWebhookLog('success', 'Inserted transaction record', {
-        transactionId: transactionData.id,
+        transactionId: transactionResult.id,
         sessionId: session.id
       });
 
-      // Generate and store license if needed
-      if (licenseType !== 'Standard') {
+      // Generate and store license file if needed
+      if (transactionResult.status === 'completed') {
         try {
-          const effectiveDate = new Date().toLocaleString('en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-          });
-
           const licenseFile = await generateLicensePDF({
             trackTitle: trackName,
-            licenseType: licenseType as LicenseType,
-            effectiveDate,
-            orderId: orderResult.id
+            licenseType,
+            effectiveDate: new Date().toISOString(),
+            orderId: transactionResult.id
           });
 
-          // Update order with license file
+          // Update transaction with license file
           const { error: updateError } = await supabase
-            .from('orders')
-            .update({ license_file: licenseFile })
-            .eq('id', orderResult.id);
+            .from('transactions')
+            .update({
+              metadata: {
+                ...transactionResult.metadata,
+                license_file: licenseFile
+              }
+            })
+            .eq('id', transactionResult.id);
 
           if (updateError) {
-            throw new Error(`Failed to update order with license: ${updateError.message}`);
+            console.error('Failed to update transaction with license file:', updateError);
           }
-
-          await addWebhookLog('success', 'Generated and stored license file', {
-            orderId: orderResult.id
-          });
-        } catch (error: any) {
-          await addWebhookLog('error', `Failed to generate/store license: ${error.message}`, {
-            orderId: orderResult.id
-          });
-          // Continue processing - license generation failure shouldn't block the transaction
+        } catch (licenseError) {
+          console.error('Failed to generate license:', licenseError);
         }
       }
-    } catch (error: any) {
-      await addWebhookLog('error', `Error processing line item: ${error.message}`, {
-        itemId: item.id,
+    } catch (error) {
+      console.error('Error processing line item:', error);
+      await addWebhookLog('error', 'Failed to process line item', {
+        error: (error as Error).message,
         sessionId: session.id
       });
-      throw error; // Re-throw to be caught by the main handler
     }
   }
 } 
