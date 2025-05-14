@@ -6,34 +6,22 @@ import { useRouter } from 'next/navigation'
 import { supabase, type Profile } from '../../lib/supabase'
 import { FaDownload, FaFileAlt } from 'react-icons/fa'
 import { licenses } from '../../lib/licenses'
-
-interface Order {
-  id: string
-  user_id: string
-  track_name: string
-  license: string
-  order_date: string
-  license_file: string | null
-  total_amount: number
-  currency: string
-  status: string
-}
+import { Transaction } from '../../lib/getOrders'
 
 export default function AccountPage() {
   const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [orders, setOrders] = useState<Order[]>([])
+  const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [generatingLicenses, setGeneratingLicenses] = useState(false)
-  const [generatingLicenseForOrder, setGeneratingLicenseForOrder] = useState<string | null>(null)
+  const [generatingLicenseForTransaction, setGeneratingLicenseForTransaction] = useState<string | null>(null)
   const [generationError, setGenerationError] = useState<string | null>(null)
 
-  const generateMissingLicenses = async (ordersWithoutLicenses: Order[]) => {
-    console.log('Starting license generation for orders:', ordersWithoutLicenses)
+  const generateMissingLicenses = async (transactionsWithoutLicenses: Transaction[]) => {
+    console.log('Starting license generation for transactions:', transactionsWithoutLicenses)
     setGeneratingLicenses(true)
     try {
-      // Get the session for authentication
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       
       if (sessionError || !session) {
@@ -43,86 +31,94 @@ export default function AccountPage() {
 
       console.log('Got session for user:', session.user.id)
 
-      for (const order of ordersWithoutLicenses) {
-        console.log(`Generating license for order ${order.id}:`, {
-          orderId: order.id,
-          userId: order.user_id,
+      for (const transaction of transactionsWithoutLicenses) {
+        if (!transaction.metadata?.track_name || !transaction.license_type) {
+          console.log(`Skipping transaction ${transaction.id} - missing track name or license type`)
+          continue
+        }
+
+        console.log(`Generating license for transaction ${transaction.id}:`, {
+          transactionId: transaction.id,
+          userId: transaction.user_id,
           sessionUserId: session.user.id
         })
 
-        // Call our license generation API
         const response = await fetch('/api/generate-license', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`
-                },
-                body: JSON.stringify({
-            orderId: order.id,
-            trackTitle: order.track_name,
-            licenseType: order.license,
+          },
+          body: JSON.stringify({
+            transactionId: transaction.id,
+            trackTitle: transaction.metadata.track_name,
+            licenseType: transaction.license_type,
           }),
         })
 
         const responseText = await response.text()
-        console.log(`License generation response for order ${order.id}:`, {
+        console.log(`License generation response for transaction ${transaction.id}:`, {
           status: response.status,
           ok: response.ok,
           response: responseText,
           requestBody: {
-            orderId: order.id,
-            trackTitle: order.track_name,
-            licenseType: order.license,
+            transactionId: transaction.id,
+            trackTitle: transaction.metadata.track_name,
+            licenseType: transaction.license_type,
           }
         })
 
         if (!response.ok) {
-          console.error(`Failed to generate license for order ${order.id}:`, responseText)
+          console.error(`Failed to generate license for transaction ${transaction.id}:`, responseText)
           continue
         }
 
         let result
         try {
           result = JSON.parse(responseText)
-      } catch (err) {
+        } catch (err) {
           console.error('Failed to parse response JSON:', err)
           continue
         }
         
-        console.log(`Successfully generated license for order ${order.id}:`, result)
+        console.log(`Successfully generated license for transaction ${transaction.id}:`, result)
         
         // Update the local state with the new license file
-        setOrders(prevOrders => 
-          prevOrders.map(o => 
-            o.id === order.id 
-              ? { ...o, license_file: result.fileName }
-              : o
+        setTransactions(prevTransactions => 
+          prevTransactions.map(t => 
+            t.id === transaction.id 
+              ? { ...t, metadata: { ...t.metadata, license_file: result.fileName } }
+              : t
           )
         )
       }
-      } catch (err) {
+    } catch (err) {
       console.error('Error generating licenses:', err)
     } finally {
       setGeneratingLicenses(false)
     }
   }
 
-  const handleManualGenerateLicense = async (order: Order) => {
-    setGeneratingLicenseForOrder(order.id)
+  const handleManualGenerateLicense = async (transaction: Transaction) => {
+    if (!transaction.metadata?.track_name || !transaction.license_type) {
+      setGenerationError('Missing track name or license type')
+      return
+    }
+
+    setGeneratingLicenseForTransaction(transaction.id)
     setGenerationError(null)
     try {
-      console.log(`Manually generating license for order ${order.id}`)
+      console.log(`Manually generating license for transaction ${transaction.id}`)
       
-      // Call the license generation API directly without authentication
       const response = await fetch('/api/generate-license', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          orderId: order.id,
-          trackTitle: order.track_name,
-          licenseType: order.license,
+          transactionId: transaction.id,
+          trackTitle: transaction.metadata.track_name,
+          licenseType: transaction.license_type,
         }),
       })
 
@@ -145,11 +141,11 @@ export default function AccountPage() {
       }
       
       // Update the local state with the new license file
-      setOrders(prevOrders => 
-        prevOrders.map(o => 
-          o.id === order.id 
-            ? { ...o, license_file: result.fileName }
-            : o
+      setTransactions(prevTransactions => 
+        prevTransactions.map(t => 
+          t.id === transaction.id 
+            ? { ...t, metadata: { ...t.metadata, license_file: result.fileName } }
+            : t
         )
       )
 
@@ -158,14 +154,13 @@ export default function AccountPage() {
       console.error('Error generating license:', err)
       setGenerationError(err instanceof Error ? err.message : String(err))
     } finally {
-      setGeneratingLicenseForOrder(null)
+      setGeneratingLicenseForTransaction(null)
     }
   }
 
   useEffect(() => {
-    const fetchProfileAndOrders = async () => {
+    const fetchProfileAndTransactions = async () => {
       try {
-        // Check if user is authenticated
         const { data: { user }, error: authError } = await supabase.auth.getUser()
 
         if (authError || !user) {
@@ -175,47 +170,53 @@ export default function AccountPage() {
 
         // Get user profile
         const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
+          .from('profiles')
+          .select('*')
           .eq('id', user.id)
-        .single()
+          .single()
 
         if (profileError) {
           throw profileError
         }
 
-        // Get user's orders
-        const { data: ordersData, error: ordersError } = await supabase
-          .from('orders')
+        // Get user's transactions
+        const { data: transactionsData, error: transactionsError } = await supabase
+          .from('transactions')
           .select('*')
           .eq('user_id', user.id)
-          .order('order_date', { ascending: false })
+          .eq('transaction_type', 'payment')
+          .order('created_at', { ascending: false })
 
-        if (ordersError) {
-          throw ordersError
+        if (transactionsError) {
+          throw transactionsError
         }
 
-        console.log('Fetched orders:', ordersData)
+        console.log('Fetched transactions:', transactionsData)
 
         setProfile(profileData)
-        setOrders(ordersData || [])
+        setTransactions(transactionsData || [])
 
-        // Check for orders without licenses and generate them
-        const ordersWithoutLicenses = (ordersData || []).filter(order => {
-          const needsLicense = order.status === 'completed' && !order.license_file
-          console.log(`Order ${order.id} needs license:`, needsLicense, {
-            status: order.status,
-            license_file: order.license_file
+        // Check for transactions without licenses and generate them
+        const transactionsWithoutLicenses = (transactionsData || []).filter(transaction => {
+          const needsLicense = transaction.status === 'completed' && 
+            !transaction.metadata?.license_file && 
+            transaction.license_type && 
+            transaction.metadata?.track_name
+          console.log(`Transaction ${transaction.id} needs license:`, needsLicense, {
+            status: transaction.status,
+            license_file: transaction.metadata?.license_file,
+            license_type: transaction.license_type,
+            track_name: transaction.metadata?.track_name
           })
           return needsLicense
         })
 
-        console.log('Orders without licenses:', ordersWithoutLicenses)
+        console.log('Transactions without licenses:', transactionsWithoutLicenses)
 
-        if (ordersWithoutLicenses.length > 0) {
-          await generateMissingLicenses(ordersWithoutLicenses)
+        if (transactionsWithoutLicenses.length > 0) {
+          await generateMissingLicenses(transactionsWithoutLicenses)
         }
-    } catch (err) {
+      } catch (err) {
         console.error('Error fetching data:', err)
         setError(err instanceof Error ? err.message : 'Failed to load profile')
       } finally {
@@ -223,12 +224,12 @@ export default function AccountPage() {
       }
     }
 
-    fetchProfileAndOrders()
+    fetchProfileAndTransactions()
   }, [router])
 
-  const handleDownload = async (orderId: string) => {
+  const handleDownload = async (transactionId: string) => {
     try {
-      const response = await fetch(`/api/download/${orderId}`)
+      const response = await fetch(`/api/download/${transactionId}`)
       if (!response.ok) throw new Error('Failed to download file')
       
       const blob = await response.blob()
@@ -246,23 +247,21 @@ export default function AccountPage() {
     }
   }
 
-  const handleViewLicense = async (orderId: string, licenseFile: string | null) => {
+  const handleViewLicense = async (transactionId: string, licenseFile: string | null) => {
     try {
       if (!licenseFile) {
         throw new Error('No license file available')
       }
 
-      // Get the signed URL for the license file from Supabase storage
       const { data, error: urlError } = await supabase
         .storage
         .from('licenses')
-        .createSignedUrl(licenseFile, 60) // URL valid for 60 seconds
+        .createSignedUrl(licenseFile, 60)
 
       if (urlError || !data?.signedUrl) {
         throw new Error('Failed to get license file URL')
       }
 
-      // Open the license in a new tab
       window.open(data.signedUrl, '_blank')
     } catch (err) {
       console.error('License view error:', err)
@@ -296,13 +295,13 @@ export default function AccountPage() {
         <div className="max-w-4xl mx-auto">
           <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 p-4 rounded">
             <p>No profile found. Please sign in again.</p>
+          </div>
         </div>
-      </div>
       </div>
     )
   }
 
-    return (
+  return (
     <div className="min-h-screen bg-black py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-4xl font-bold mb-6 text-white">My Account</h1>
@@ -337,13 +336,13 @@ export default function AccountPage() {
             {/* Account Actions */}
             <div className="border-t border-zinc-800 pt-6 mt-6">
               <div className="space-x-4">
-            <button
+                <button
                   onClick={() => router.push('/account/edit')}
                   className="inline-block py-2 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg"
-            >
+                >
                   Edit Profile
-            </button>
-              <button
+                </button>
+                <button
                   onClick={async () => {
                     await supabase.auth.signOut()
                     router.push('/')
@@ -352,7 +351,7 @@ export default function AccountPage() {
                   className="inline-block py-2 px-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg"
                 >
                   Sign Out
-              </button>
+                </button>
               </div>
             </div>
           </div>
@@ -361,7 +360,7 @@ export default function AccountPage() {
           <div className="bg-[#111111] rounded-lg p-8">
             <h2 className="text-2xl font-semibold text-white mb-6">My Downloads</h2>
             
-            {orders.length === 0 ? (
+            {transactions.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-gray-400">You haven't purchased any beats yet.</p>
                 <Link 
@@ -370,83 +369,83 @@ export default function AccountPage() {
                 >
                   Browse Beats
                 </Link>
-          </div>
+              </div>
             ) : (
               <div className="space-y-4">
-                {orders.map((order) => (
+                {transactions.map((transaction) => (
                   <div 
-                    key={order.id}
+                    key={transaction.id}
                     className="bg-zinc-900 rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
                   >
                     <div className="flex-1">
-                      <h3 className="text-white font-medium">{order.track_name}</h3>
+                      <h3 className="text-white font-medium">{transaction.metadata?.track_name || 'Unknown Track'}</h3>
                       <div className="mt-1 space-y-1">
                         <p className="text-sm text-gray-400">
-                          {order.license} License • {new Date(order.order_date).toLocaleDateString()}
+                          {transaction.license_type} License • {new Date(transaction.created_at).toLocaleDateString()}
                         </p>
                         <p className="text-sm text-gray-400">
-                          {order.total_amount} {order.currency}
+                          {transaction.amount} {transaction.currency}
                         </p>
                         <p className="text-sm text-gray-400">
-                          Order ID: {order.id.substring(0, 8)}...
+                          Transaction ID: {transaction.id.substring(0, 8)}...
                         </p>
                         <p className="text-sm text-gray-400">
-                          Status: {order.status} • License File: {order.license_file ? 'Available' : 'Not available'}
+                          Status: {transaction.status} • License File: {transaction.metadata?.license_file ? 'Available' : 'Not available'}
                         </p>
-                        {generationError && generatingLicenseForOrder === order.id && (
+                        {generationError && generatingLicenseForTransaction === transaction.id && (
                           <p className="text-sm text-red-400">
                             Error: {generationError}
                           </p>
                         )}
-        </div>
-      </div>
+                      </div>
+                    </div>
                     <div className="flex flex-col gap-3 w-full md:w-auto">
                       <div className="flex gap-3 w-full">
-                <button
-                          onClick={() => handleDownload(order.id)}
+                        <button
+                          onClick={() => handleDownload(transaction.id)}
                           className="flex-1 md:flex-none flex items-center justify-center gap-2 py-2 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg"
-                >
+                        >
                           <FaDownload />
                           <span>Download</span>
-                </button>
-                  <button
-                          onClick={() => handleViewLicense(order.id, order.license_file)}
+                        </button>
+                        <button
+                          onClick={() => handleViewLicense(transaction.id, transaction.metadata?.license_file || null)}
                           className="flex-1 md:flex-none flex items-center justify-center gap-2 py-2 px-4 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                          disabled={!order.license_file || generatingLicenses}
+                          disabled={!transaction.metadata?.license_file || generatingLicenses}
                           title={
                             generatingLicenses 
                               ? 'Generating license...' 
-                              : order.license_file 
+                              : transaction.metadata?.license_file 
                                 ? 'View License' 
                                 : 'License not available'
                           }
                         >
                           <FaFileAlt />
                           <span>{generatingLicenses ? 'Generating...' : 'License'}</span>
-                  </button>
+                        </button>
                       </div>
-                      {!order.license_file && (
-                  <button
-                          onClick={() => handleManualGenerateLicense(order)}
+                      {!transaction.metadata?.license_file && transaction.license_type && (
+                        <button
+                          onClick={() => handleManualGenerateLicense(transaction)}
                           className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-green-700 hover:bg-green-800 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                          disabled={generatingLicenseForOrder === order.id}
+                          disabled={generatingLicenseForTransaction === transaction.id}
                         >
                           <FaFileAlt />
                           <span>
-                            {generatingLicenseForOrder === order.id 
+                            {generatingLicenseForTransaction === transaction.id 
                               ? 'Generating...' 
                               : 'Generate License'}
                           </span>
-                  </button>
-              )}
-            </div>
+                        </button>
+                      )}
                     </div>
+                  </div>
                 ))}
               </div>
             )}
           </div>
-          </div>
         </div>
       </div>
+    </div>
   )
 } 

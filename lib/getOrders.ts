@@ -1,69 +1,72 @@
-export interface Order {
+export interface Transaction {
   id: string;          // UUID in database
   user_id: string;     // UUID in database
-  track_id: string;    // UUID in database
-  track_name: string;
-  license: string;
-  total_amount: number;
-  discount?: number;
-  order_date: string;
+  order_id: string | null;    // UUID in database
+  amount: number;
+  currency: string;
+  transaction_type: 'payment' | 'refund' | 'chargeback';
   status: 'pending' | 'completed' | 'failed';
-  stripe_session_id?: string;
-  customer_email?: string;
-  created_at?: string;
-  updated_at?: string;
-  currency?: string;
-  license_file?: string;
+  stripe_transaction_id: string | null;
+  stripe_session_id: string | null;
+  customer_email: string | null;
+  license_type: string | null;
+  metadata: {
+    track_id?: string;
+    track_name?: string;
+    license_file?: string;
+  } | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // Always use the real endpoints, regardless of environment
 // This will ensure we're always fetching from the database
 const USE_TEST_ENDPOINT = false;
 
-export async function getUserOrders(userId: string): Promise<Order[]> {
+export async function getUserTransactions(userId: string): Promise<Transaction[]> {
   try {
     // In case no userId is provided
     if (!userId) {
-      console.warn('getUserOrders called without a userId');
+      console.warn('getUserTransactions called without a userId');
       return [];
     }
     
     const endpoint = USE_TEST_ENDPOINT 
-      ? `/api/test-orders?userId=${userId}`
-      : `/api/orders?userId=${userId}`;
+      ? `/api/test-transactions?userId=${userId}`
+      : `/api/transactions?userId=${userId}`;
       
-    console.log(`Fetching user orders from: ${endpoint}`);
+    console.log(`Fetching user transactions from: ${endpoint}`);
     const response = await fetch(endpoint);
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Failed to fetch orders: ${response.status} ${errorText}`);
+      throw new Error(`Failed to fetch transactions: ${response.status} ${errorText}`);
     }
-    const orders: Order[] = await response.json();
-    console.log(`Fetched ${orders.length} orders for user ${userId}`);
-    return orders;
+    const transactions: Transaction[] = await response.json();
+    console.log(`Fetched ${transactions.length} transactions for user ${userId}`);
+    return transactions;
   } catch (error) {
-    console.error('Error fetching orders:', error);
+    console.error('Error fetching transactions:', error);
     return [];
   }
 }
 
-export async function getAllOrders(): Promise<Order[]> {
+export async function getAllTransactions(): Promise<Transaction[]> {
   try {
     const endpoint = USE_TEST_ENDPOINT 
-      ? `/api/test-orders?admin=true`
-      : `/api/orders?admin=true`;
+      ? `/api/test-transactions?admin=true`
+      : `/api/transactions?admin=true`;
       
-    console.log(`Fetching all orders from: ${endpoint}`);
+    console.log(`Fetching all transactions from: ${endpoint}`);
     const response = await fetch(endpoint);
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Failed to fetch all orders: ${response.status} ${errorText}`);
+      throw new Error(`Failed to fetch all transactions: ${response.status} ${errorText}`);
     }
-    const orders: Order[] = await response.json();
-    console.log(`Fetched ${orders.length} total orders`);
-    return orders;
+    const transactions: Transaction[] = await response.json();
+    console.log(`Fetched ${transactions.length} total transactions`);
+    return transactions;
   } catch (error) {
-    console.error('Error fetching all orders:', error);
+    console.error('Error fetching all transactions:', error);
     return [];
   }
 } 
