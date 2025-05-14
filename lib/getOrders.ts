@@ -1,3 +1,5 @@
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+
 export interface Transaction {
   id: string;          // UUID in database
   user_id: string;     // UUID in database
@@ -30,13 +32,22 @@ export async function getUserTransactions(userId: string): Promise<Transaction[]
       console.warn('getUserTransactions called without a userId');
       return [];
     }
+
+    const supabase = createClientComponentClient()
+    const { data: { session } } = await supabase.auth.getSession()
     
     const endpoint = USE_TEST_ENDPOINT 
       ? `/api/test-transactions?userId=${userId}`
       : `/api/transactions?userId=${userId}`;
       
     console.log(`Fetching user transactions from: ${endpoint}`);
-    const response = await fetch(endpoint);
+    const response = await fetch(endpoint, {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`
+      }
+    });
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`Failed to fetch transactions: ${response.status} ${errorText}`);
@@ -52,15 +63,23 @@ export async function getUserTransactions(userId: string): Promise<Transaction[]
 
 export async function getAllTransactions(): Promise<Transaction[]> {
   try {
+    const supabase = createClientComponentClient()
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (!session?.access_token) {
+      throw new Error('No authentication token found')
+    }
+    
     const endpoint = USE_TEST_ENDPOINT 
       ? `/api/test-transactions?admin=true`
       : `/api/transactions?admin=true`;
       
     console.log(`Fetching all transactions from: ${endpoint}`);
     const response = await fetch(endpoint, {
-      credentials: 'include',  // Include cookies for authentication
+      credentials: 'include',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
       }
     });
     if (!response.ok) {

@@ -9,6 +9,15 @@ export async function GET(request: Request) {
     const cookieStore = cookies()
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
+    // Get the auth token from the request headers
+    const authHeader = request.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Missing or invalid authorization header' },
+        { status: 401 }
+      )
+    }
+
     // Check if user is authenticated
     const { data: { session }, error: authError } = await supabase.auth.getSession()
     if (authError) {
