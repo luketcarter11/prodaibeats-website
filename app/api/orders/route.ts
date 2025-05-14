@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { Order } from '../../../lib/getOrders';
+import { Transaction } from '../../../lib/getOrders';
 
 // Set the runtime to edge for better performance
 export const runtime = 'edge';
