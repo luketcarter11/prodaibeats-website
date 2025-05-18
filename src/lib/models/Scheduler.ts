@@ -1,10 +1,15 @@
 import { v4 as uuidv4 } from 'uuid'
 import { r2Storage } from '@/lib/r2Storage'
 
-// Check if we're in a build environment
-const isBuildTime = process.env.VERCEL_ENV === 'development' || 
+// More reliable build time detection
+const isBuildTime = process.env.IS_BUILD_TIME === 'true' || 
+  process.env.DISABLE_SCHEDULER === 'true' ||
+  process.env.VERCEL_ENV === 'development' || 
   process.env.NODE_ENV === 'development' ||
   process.env.CI === 'true';
+
+console.log('🔧 Scheduler module - Build time check:', isBuildTime ? 'YES' : 'NO');
+console.log('🔧 DISABLE_SCHEDULER:', process.env.DISABLE_SCHEDULER || 'not set');
 
 // Only log migration notice at runtime, not during build
 if (!isBuildTime) {
