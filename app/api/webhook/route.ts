@@ -1,12 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { generateLicensePDF, type LicenseType } from '../../../lib/generateLicense';
 import { isValidUUID } from '../../../lib/utils';
 import { stripe } from '../../../lib/stripe';
 import type { Stripe } from 'stripe';
 
+// Import the license type but not the function directly
+import type { LicenseType } from '../../../lib/generateLicense';
+
 // Set the runtime to edge for better performance
 export const runtime = 'edge';
+
+// Handle different parts of license generation
+const generateLicense = async (params: {
+  trackTitle: string,
+  licenseType: LicenseType,
+  effectiveDate: string,
+  orderId: string
+}) => {
+  try {
+    // Dynamically import the license generator only when needed
+    const { generateLicensePDF } = await import('../../../lib/generateLicense');
+    return await generateLicensePDF(params);
+  } catch (error) {
+    console.error('Error generating license:', error);
+    return null;
+  }
+};
 
 // Validate required environment variables
 const requiredEnvVars = {
@@ -207,26 +226,28 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       // Generate and store license file if needed
       if (transactionResult.status === 'completed') {
         try {
-          const licenseFile = await generateLicensePDF({
+          const licenseFile = await generateLicense({
             trackTitle: trackName,
             licenseType,
             effectiveDate: new Date().toISOString(),
             orderId: transactionResult.id
           });
 
-          // Update transaction with license file
-          const { error: updateError } = await supabase
-            .from('transactions')
-            .update({
-              metadata: {
-                ...transactionResult.metadata,
-                license_file: licenseFile
-              }
-            })
-            .eq('id', transactionResult.id);
+          if (licenseFile) {
+            // Update transaction with license file
+            const { error: updateError } = await supabase
+              .from('transactions')
+              .update({
+                metadata: {
+                  ...transactionResult.metadata,
+                  license_file: licenseFile
+                }
+              })
+              .eq('id', transactionResult.id);
 
-          if (updateError) {
-            console.error('Failed to update transaction with license file:', updateError);
+            if (updateError) {
+              console.error('Failed to update transaction with license file:', updateError);
+            }
           }
         } catch (licenseError) {
           console.error('Failed to generate license:', licenseError);
