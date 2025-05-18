@@ -7,6 +7,7 @@ import { supabase, type Profile } from '../../lib/supabase'
 import { FaDownload, FaFileAlt } from 'react-icons/fa'
 import { licenses } from '../../lib/licenses'
 import { Transaction } from '../../lib/getOrders'
+import AuthModal from '../../src/components/auth/AuthModal'
 
 export default function AccountPage() {
   const router = useRouter()
@@ -14,6 +15,7 @@ export default function AccountPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showAuthModal, setShowAuthModal] = useState(false)
   const [generatingLicenses, setGeneratingLicenses] = useState(false)
   const [generatingLicenseForTransaction, setGeneratingLicenseForTransaction] = useState<string | null>(null)
   const [generationError, setGenerationError] = useState<string | null>(null)
@@ -164,7 +166,7 @@ export default function AccountPage() {
         const { data: { user }, error: authError } = await supabase.auth.getUser()
 
         if (authError || !user) {
-          router.push('/auth/signin')
+          setShowAuthModal(true)
           return
         }
 
@@ -176,7 +178,19 @@ export default function AccountPage() {
           .single()
 
         if (profileError) {
+          if (profileError.code === 'PGRST116') {
+            // Profile not found
+            setShowAuthModal(true)
+            await supabase.auth.signOut() // Sign out since profile is missing
+            return
+          }
           throw profileError
+        }
+
+        if (!profileData) {
+          setShowAuthModal(true)
+          await supabase.auth.signOut() // Sign out since profile is missing
+          return
         }
 
         // Get user's transactions
@@ -191,8 +205,6 @@ export default function AccountPage() {
           throw transactionsError
         }
 
-        console.log('Fetched transactions:', transactionsData)
-
         setProfile(profileData)
         setTransactions(transactionsData || [])
 
@@ -202,16 +214,8 @@ export default function AccountPage() {
             !transaction.metadata?.license_file && 
             transaction.license_type && 
             transaction.metadata?.track_name
-          console.log(`Transaction ${transaction.id} needs license:`, needsLicense, {
-            status: transaction.status,
-            license_file: transaction.metadata?.license_file,
-            license_type: transaction.license_type,
-            track_name: transaction.metadata?.track_name
-          })
           return needsLicense
         })
-
-        console.log('Transactions without licenses:', transactionsWithoutLicenses)
 
         if (transactionsWithoutLicenses.length > 0) {
           await generateMissingLicenses(transactionsWithoutLicenses)
@@ -219,6 +223,7 @@ export default function AccountPage() {
       } catch (err) {
         console.error('Error fetching data:', err)
         setError(err instanceof Error ? err.message : 'Failed to load profile')
+        setShowAuthModal(true)
       } finally {
         setLoading(false)
       }
@@ -271,12 +276,26 @@ export default function AccountPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black py-12 px-4 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="text-white text-center">
+          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p>Loading your account...</p>
+        </div>
       </div>
     )
   }
-      
+
+  if (showAuthModal) {
+    return (
+      <AuthModal
+        isOpen={true}
+        onClose={() => router.push('/')}
+        defaultView="sign-in"
+        initialError={error}
+      />
+    )
+  }
+
   if (error) {
     return (
       <div className="min-h-screen bg-black py-12 px-4">

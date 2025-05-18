@@ -1,60 +1,67 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '../../../lib/supabase'
+import { supabase } from '@/lib/supabase'
 
-export default function AuthCallback() {
+export default function AuthCallbackPage() {
   const router = useRouter()
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const handleEmailConfirmation = async () => {
-      try {
-        // Get the session from URL
-        const { error } = await supabase.auth.getSession()
-        
-        if (error) throw error
+    const handleAuthCallback = async () => {
+      const { searchParams } = new URL(window.location.href)
+      const code = searchParams.get('code')
 
-        // Redirect to account page
-        router.push('/account')
-      } catch (err) {
-        console.error('Error confirming email:', err)
-        setError(err instanceof Error ? err.message : 'Failed to confirm email')
+      if (code) {
+        try {
+          // Exchange the code for a session
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+          if (error) throw error
+
+          // Get the stored profile data
+          const pendingProfileString = localStorage.getItem('pendingProfile')
+          if (pendingProfileString && data.session) {
+            const pendingProfile = JSON.parse(pendingProfileString)
+            
+            // Create the profile
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .insert([
+                {
+                  id: data.session.user.id,
+                  ...pendingProfile
+                }
+              ])
+              .select()
+
+            if (profileError) {
+              console.error('Error creating profile:', profileError)
+              // Don't throw here - we still want to clean up and redirect
+            }
+
+            // Clean up the stored profile data
+            localStorage.removeItem('pendingProfile')
+          }
+          
+          // Redirect to account page
+          router.push('/account')
+        } catch (error) {
+          console.error('Error exchanging code for session:', error)
+          router.push('/auth/signin?error=verification_failed')
+        }
+      } else {
+        router.push('/')
       }
     }
 
-    handleEmailConfirmation()
+    handleAuthCallback()
   }, [router])
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="max-w-md w-full space-y-8 p-8 bg-[#111111] rounded-lg">
-          <div>
-            <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
-              Verification Failed
-            </h2>
-            <p className="mt-2 text-center text-sm text-red-400">
-              {error}
-            </p>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-black">
-      <div className="max-w-md w-full space-y-8 p-8 bg-[#111111] rounded-lg">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
-            Verifying Email
-          </h2>
-          <div className="mt-4 flex justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
-          </div>
-        </div>
+      <div className="text-white text-center">
+        <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p>Setting up your account...</p>
       </div>
     </div>
   )

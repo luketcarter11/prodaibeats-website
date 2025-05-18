@@ -1,35 +1,67 @@
 'use client'
 
-import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import AuthModal from '../../../src/components/auth/AuthModal'
 
-export default function SignIn() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-black">
-      <div className="max-w-md w-full space-y-8 p-8 bg-[#111111] rounded-lg">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
-            Authentication System
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-400">
-            The authentication system is currently being rebuilt from scratch.
-          </p>
-        </div>
-        
-        <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 px-4 py-3 rounded relative mt-4">
-          <p className="block sm:inline">
-            This page is a placeholder. The sign-in functionality will be implemented soon.
-          </p>
-        </div>
-        
-        <div className="mt-8">
-          <Link 
-            href="/"
-            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none"
-          >
-            Return to Home Page
-          </Link>
+export default function SignInPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // Check for error parameter in URL
+    const errorParam = searchParams.get('error')
+    if (errorParam) {
+      setError(errorParam)
+    }
+
+    // Check if user is already logged in
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          // If there's an error parameter, sign out
+          if (errorParam === 'profile_load_failed') {
+            await supabase.auth.signOut()
+            setError('Failed to load profile. Please sign in again.')
+          } else {
+            router.push('/account')
+          }
+        }
+      } catch (error) {
+        console.error('Auth check error:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    checkAuth()
+  }, [router, searchParams])
+
+  const handleClose = () => {
+    router.push('/')
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="text-white text-center">
+          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p>Loading...</p>
         </div>
       </div>
-    </div>
+    )
+  }
+
+  return (
+    <AuthModal 
+      isOpen={true} 
+      onClose={handleClose} 
+      defaultView="sign-in"
+      initialError={error}
+    />
   )
 } 
