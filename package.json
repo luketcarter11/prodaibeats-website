@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "mkdir -p data && touch data/scheduler.json && echo '{\"active\":false,\"nextRun\":null,\"sources\":[],\"logs\":[]}' > data/scheduler.json && next build",
+    "build": "mkdir -p data && touch data/scheduler.json && echo '{\"active\":false,\"nextRun\":null,\"sources\":[],\"logs\":[]}' > data/scheduler.json && SKIP_R2_INIT=true next build",
     "build:vercel": "SKIP_R2_INIT=true next build",
     "test:build": "node scripts/test-build.js",
     "start": "next start",
