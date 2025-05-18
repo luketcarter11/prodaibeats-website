@@ -270,8 +270,11 @@ export async function getScheduler(options: { fresh?: boolean } = {}): Promise<S
   return schedulerInstance
 }
 
-// Initialize scheduler but don't export the promise
-const initScheduler = getScheduler()
+// Only initialize the scheduler when explicitly called, not at module load time
+// const initScheduler = getScheduler()
+// export const getInitializedScheduler = () => initScheduler
 
-// Export a function to get the initialized scheduler
-export const getInitializedScheduler = () => initScheduler
+// Export a lazy initialization function that only runs when called 
+export const getInitializedScheduler = () => {
+  return getScheduler()
+}
