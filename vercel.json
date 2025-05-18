@@ -12,7 +12,7 @@
   ],
   "env": {
     "NODE_ENV": "production",
-    "SKIP_R2_INIT": "true"
+    "SKIP_R2_INIT": "false"
   },
   "buildCommand": "mkdir -p data && touch data/scheduler.json && echo '{\"active\":false,\"nextRun\":null,\"sources\":[],\"logs\":[]}' > data/scheduler.json && NODE_OPTIONS='--max_old_space_size=4096' SKIP_R2_INIT=false next build",
   "devCommand": "next dev",
