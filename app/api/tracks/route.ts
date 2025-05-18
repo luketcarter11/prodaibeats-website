@@ -5,7 +5,8 @@ import { getTracksData } from '@/lib/data';
 const usePublicFallback = process.env.NODE_ENV !== 'production';
 const storageBaseUrl = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://cdn.prodaibeats.com';
 
-// Mark the route as dynamic to ensure it doesn't get cached
+// Make this route public - no authentication required
+export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 /**
@@ -44,9 +45,36 @@ export async function GET(request: NextRequest) {
       console.log(`📊 Quality check: ${untitledTracks} untitled, ${unknownArtistTracks} unknown artist, ${zeroDurationTracks} zero duration`);
     }
 
-    return NextResponse.json(tracks);
+    // Add headers to prevent Vercel authentication and enable CORS
+    return NextResponse.json(tracks, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'x-middleware-bypass': '1'
+      }
+    });
   } catch (error) {
     console.error('❌ Error loading tracks in API route:', error);
-    return NextResponse.json({ error: 'Failed to load tracks' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to load tracks' }, { 
+      status: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'x-middleware-bypass': '1'
+      }
+    });
   }
+}
+
+// Add OPTIONS method to support CORS preflight requests
+export async function OPTIONS(request: NextRequest) {
+  return NextResponse.json({}, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'x-middleware-bypass': '1'
+    }
+  });
 } 
