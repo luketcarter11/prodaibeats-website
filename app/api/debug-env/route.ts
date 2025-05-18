@@ -4,33 +4,34 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest) {
-  // Only allow this in development mode for security
-  if (process.env.NODE_ENV !== 'development') {
-    return NextResponse.json(
-      { error: 'This endpoint is only available in development mode' },
-      { status: 403 }
-    );
-  }
+// An API route to check environment variables (masked for security)
+export async function GET(request: NextRequest) {
+  // Only show partial values for security
+  const maskSecret = (secret?: string) => {
+    if (!secret) return 'undefined';
+    if (secret.length <= 4) return '****';
+    return secret.substring(0, 2) + '****' + secret.substring(secret.length - 2);
+  };
 
-  // URL parameters for authentication
-  const { searchParams } = new URL(req.url);
-  const token = searchParams.get('token');
-  
-  // Very basic security - compare with a fixed value
-  // This is not secure for production, but helps avoid casual access
-  if (token !== 'debug-prodai-2024') {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    );
-  }
-  
+  const envVars = {
+    NODE_ENV: process.env.NODE_ENV || 'undefined',
+    VERCEL: process.env.VERCEL || 'undefined',
+    VERCEL_ENV: process.env.VERCEL_ENV || 'undefined',
+    SKIP_R2_INIT: process.env.SKIP_R2_INIT || 'undefined',
+    // R2 config (masked)
+    R2_ACCESS_KEY_ID: maskSecret(process.env.R2_ACCESS_KEY_ID),
+    R2_SECRET_ACCESS_KEY: maskSecret(process.env.R2_SECRET_ACCESS_KEY),
+    R2_ENDPOINT: process.env.R2_ENDPOINT ? 'Present' : 'undefined',
+    R2_BUCKET: process.env.R2_BUCKET || 'undefined',
+    NEXT_PUBLIC_STORAGE_BASE_URL: process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'undefined',
+    // Other configs
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Present' : 'undefined',
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: maskSecret(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+  };
+
   return NextResponse.json({
-    status: 'unavailable',
-    message: 'The authentication system is currently being rebuilt. This debug API will be restored once the new authentication system is in place.',
-    NODE_ENV: process.env.NODE_ENV,
-    timestamp: new Date().toISOString()
+    environment: envVars,
+    message: 'Environment variables check (masked for security)',
   });
 }
 
