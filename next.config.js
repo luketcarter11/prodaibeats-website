@@ -1,12 +1,6 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  env: {
-    IS_BUILD_TIME: 'true',
-  },
-  experimental: {
-    serverComponentsExternalPackages: ['sharp', 'canvas', 'jsdom', 'jspdf', '@aws-sdk/client-s3'],
-  },
-  // Any other existing configuration
-}
+// Import CommonJS module in ESM context
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const config = require('./next.config.cjs');
 
-module.exports = nextConfig 
+export default config; 
