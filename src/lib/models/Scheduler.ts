@@ -1,19 +1,14 @@
 import { v4 as uuidv4 } from 'uuid'
 import { r2Storage } from '@/lib/r2Storage'
 
-// More reliable build time detection
-const isBuildTime = process.env.IS_BUILD_TIME === 'true' || 
-  process.env.DISABLE_SCHEDULER === 'true' ||
-  process.env.VERCEL_ENV === 'development' || 
-  process.env.NODE_ENV === 'development' ||
-  process.env.CI === 'true';
+// Check if we should skip scheduler initialization (used during Vercel builds)
+const skipSchedulerInit = process.env.SKIP_R2_INIT === 'true';
 
-console.log('🔧 Scheduler module - Build time check:', isBuildTime ? 'YES' : 'NO');
-console.log('🔧 DISABLE_SCHEDULER:', process.env.DISABLE_SCHEDULER || 'not set');
-
-// Only log migration notice at runtime, not during build
-if (!isBuildTime) {
+// Only log migration notice if not skipping initialization
+if (!skipSchedulerInit) {
   console.log('🔄 Scheduler now using Cloudflare R2 for storage')
+} else {
+  console.log('⏩ Skipping Scheduler initialization due to SKIP_R2_INIT flag')
 }
 
 // R2 storage path for scheduler data
@@ -64,8 +59,8 @@ export class Scheduler {
       console.log('🔧 Initializing Scheduler...')
       
       // Skip R2 operations during build time
-      if (isBuildTime) {
-        console.log('🏗️ Build environment detected, using mock Scheduler state')
+      if (skipSchedulerInit) {
+        console.log('��️ Build environment detected, using mock Scheduler state')
         this.state = DEFAULT_STATE
         return
       }

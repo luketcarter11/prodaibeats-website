@@ -8,13 +8,17 @@ import dotenv from 'dotenv';
 // Load environment variables from .env file
 dotenv.config();
 
-// More reliable build time detection
-const isBuildTime = process.env.IS_BUILD_TIME === 'true' || 
-  process.env.VERCEL_ENV === 'development' || 
+// Check if we should skip R2 initialization (used during Vercel builds)
+const skipR2Init = process.env.SKIP_R2_INIT === 'true';
+
+if (skipR2Init) {
+  console.log('⏩ SKIP_R2_INIT flag detected in r2Config, using mock configuration');
+}
+
+// Check if we're in a build environment
+const isBuildTime = process.env.VERCEL_ENV === 'development' || 
   process.env.NODE_ENV === 'development' ||
   process.env.CI === 'true';
-
-console.log('🔧 R2Config initialization - Build time check:', isBuildTime ? 'YES' : 'NO');
 
 // Use the exact S3 Compatible API endpoint for Cloudflare R2
 export const R2_ENDPOINT = process.env.R2_ENDPOINT || 'https://1992471ec8cc52388f80797e15a0529.r2.cloudflarestorage.com';
@@ -31,12 +35,11 @@ export const CDN_BASE_URL = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https:/
 // Environment detection
 export const isProd = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
 
-// Create a completely mocked S3 client during build
+// Create a simple mock client if skipping R2 initialization
 class MockS3Client {
   async send() {
-    console.log('📦 Mock S3Client.send() called during build');
+    console.log('📦 Mock S3Client.send() called');
     return {
-      // Mock response properties
       Body: {
         transformToString: () => JSON.stringify({ mockData: true }),
       },
@@ -45,8 +48,8 @@ class MockS3Client {
 }
 
 // Create a properly configured S3 client for R2
-export const r2Client = isBuildTime 
-  ? new MockS3Client() as unknown as S3Client // Return mock client during build
+export const r2Client = skipR2Init
+  ? (new MockS3Client() as unknown as S3Client)
   : new S3Client({
       region: 'auto', // Required, even though R2 ignores it
       endpoint: R2_ENDPOINT,
@@ -58,9 +61,9 @@ export const r2Client = isBuildTime
 
 // Check if R2 is properly configured with credentials and bucket
 export const hasR2Credentials = async (): Promise<boolean> => {
-  if (isBuildTime) {
-    console.log('📦 Build environment detected in hasR2Credentials, returning false');
-    return false; // Always return false during build
+  if (skipR2Init) {
+    console.log('⏩ Skipping R2 credentials check due to SKIP_R2_INIT flag');
+    return false;
   }
   
   try {

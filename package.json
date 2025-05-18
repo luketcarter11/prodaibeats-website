@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "mkdir -p data && touch data/scheduler.json && echo '{\"active\":false,\"nextRun\":null,\"sources\":[],\"logs\":[]}' > data/scheduler.json && cross-env DISABLE_SCHEDULER=true next build",
+    "build": "mkdir -p data && touch data/scheduler.json && echo '{\"active\":false,\"nextRun\":null,\"sources\":[],\"logs\":[]}' > data/scheduler.json && next build",
+    "build:vercel": "SKIP_R2_INIT=true next build",
+    "test:build": "node scripts/test-build.js",
     "start": "next start",
     "lint": "next lint",
     "formatjs": "npx prettier --write 'src/**/*.js'",
@@ -61,7 +63,6 @@
     "@types/react-dom": "^18.2.0",
     "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.17",
-    "cross-env": "^7.0.3",
     "dotenv": "^16.5.0",
     "file-loader": "^6.2.0",
     "node-fetch": "^3.3.2",
