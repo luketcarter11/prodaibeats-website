@@ -4,7 +4,6 @@ import { generateLicensePDF, type LicenseType } from '../../../lib/generateLicen
 import { isValidUUID } from '../../../lib/utils';
 import { stripe } from '../../../lib/stripe';
 import type { Stripe } from 'stripe';
-import { addWebhookLog } from '../../../lib/webhook-logger';
 
 // Set the runtime to edge for better performance
 export const runtime = 'edge';
@@ -37,6 +36,15 @@ const getSupabaseAdmin = () => {
   }
 
   return createClient(supabaseUrl, supabaseServiceKey);
+};
+
+// Simple logging function (to avoid import issues)
+const addWebhookLog = async (
+  level: 'info' | 'error' | 'success',
+  message: string,
+  metadata?: Record<string, any>
+) => {
+  console.log(`[Webhook ${level.toUpperCase()}] ${message}`, metadata || '');
 };
 
 // Generate UUID using Web Crypto API
