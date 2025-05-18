@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { generateLicensePDF, type LicenseType } from '../../../lib/generateLicense';
 import { isValidUUID } from '../../../lib/utils';
-import { getSupabaseAdmin } from '../../../lib/supabase-admin';
-import { addWebhookLog } from '../../../lib/webhook-logger';
 import { stripe } from '../../../lib/stripe';
 import type { Stripe } from 'stripe';
+import { addWebhookLog } from '../../../lib/webhook-logger';
 
 // Set the runtime to edge for better performance
 export const runtime = 'edge';
@@ -23,6 +22,22 @@ Object.entries(requiredEnvVars).forEach(([key, value]) => {
     throw new Error(`Missing required environment variable: ${key}`);
   }
 });
+
+// Initialize Supabase admin client
+const getSupabaseAdmin = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+  if (!supabaseUrl || supabaseUrl === 'https://placeholder-url.supabase.co') {
+    throw new Error('Supabase URL is not defined or is a placeholder');
+  }
+
+  if (!supabaseServiceKey) {
+    throw new Error('Supabase service role key is not defined');
+  }
+
+  return createClient(supabaseUrl, supabaseServiceKey);
+};
 
 // Generate UUID using Web Crypto API
 const generateUUID = () => {
