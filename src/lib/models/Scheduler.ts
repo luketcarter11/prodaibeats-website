@@ -1,8 +1,15 @@
 import { v4 as uuidv4 } from 'uuid'
 import { r2Storage } from '@/lib/r2Storage'
 
-// Log migration notice
-console.log('🔄 Scheduler now using Cloudflare R2 for storage')
+// Check if we're in a build environment
+const isBuildTime = process.env.VERCEL_ENV === 'development' || 
+  process.env.NODE_ENV === 'development' ||
+  process.env.CI === 'true';
+
+// Only log migration notice at runtime, not during build
+if (!isBuildTime) {
+  console.log('🔄 Scheduler now using Cloudflare R2 for storage')
+}
 
 // R2 storage path for scheduler data
 const SCHEDULER_KEY = 'scheduler/scheduler.json'
@@ -50,6 +57,13 @@ export class Scheduler {
   public async initialize(): Promise<void> {
     try {
       console.log('🔧 Initializing Scheduler...')
+      
+      // Skip R2 operations during build time
+      if (isBuildTime) {
+        console.log('🏗️ Build environment detected, using mock Scheduler state')
+        this.state = DEFAULT_STATE
+        return
+      }
       
       // Wait for R2Storage to be ready
       await r2Storage.waitForReady()

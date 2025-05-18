@@ -16,6 +16,11 @@ if (typeof window === 'undefined' && process.env.NODE_ENV !== 'production') {
 // Load environment variables from .env file
 dotenv.config();
 
+// Check if we're in a build environment (used to prevent R2 connections during build)
+const isBuildTime = process.env.VERCEL_ENV === 'development' || 
+  process.env.NODE_ENV === 'development' ||
+  process.env.CI === 'true';
+
 /**
  * R2-based storage system for saving application state to JSON files in Cloudflare R2
  * Falls back to local file storage when R2 is not available
@@ -37,6 +42,13 @@ export class R2Storage {
 
   private async initialize(): Promise<void> {
     try {
+      // Skip R2 initialization during build
+      if (isBuildTime) {
+        console.log('🏗️ Build environment detected, using mock R2Storage.');
+        this.isReady = false;
+        return;
+      }
+      
       // Check if all required credentials are present
       const missingVars = [];
       

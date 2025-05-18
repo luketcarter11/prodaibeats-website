@@ -8,6 +8,11 @@ import dotenv from 'dotenv';
 // Load environment variables from .env file
 dotenv.config();
 
+// Check if we're in a build environment
+const isBuildTime = process.env.VERCEL_ENV === 'development' || 
+  process.env.NODE_ENV === 'development' ||
+  process.env.CI === 'true';
+
 // Use the exact S3 Compatible API endpoint for Cloudflare R2
 export const R2_ENDPOINT = process.env.R2_ENDPOINT || 'https://1992471ec8cc52388f80797e15a0529.r2.cloudflarestorage.com';
 
@@ -24,17 +29,23 @@ export const CDN_BASE_URL = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https:/
 export const isProd = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
 
 // Create a properly configured S3 client for R2
-export const r2Client = new S3Client({
-  region: 'auto', // Required, even though R2 ignores it
-  endpoint: R2_ENDPOINT,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-});
+export const r2Client = isBuildTime 
+  ? {} as S3Client  // Return empty object during build
+  : new S3Client({
+      region: 'auto', // Required, even though R2 ignores it
+      endpoint: R2_ENDPOINT,
+      credentials: {
+        accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+      },
+    });
 
 // Check if R2 is properly configured with credentials and bucket
 export const hasR2Credentials = async (): Promise<boolean> => {
+  if (isBuildTime) {
+    return false; // Always return false during build
+  }
+  
   try {
     // Check if all required credentials are present
     const missingVars = [];
