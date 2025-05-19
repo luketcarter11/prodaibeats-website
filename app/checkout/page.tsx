@@ -86,7 +86,7 @@ export default function CheckoutPage() {
       }
 
       // Navigate immediately after transaction is created
-      router.replace(`/crypto-payment?transaction=${transactionData.id}`)
+      router.replace(`/crypto-payment?transaction=${transactionData.id}&method=direct`)
     } catch (error: any) {
       console.error('Checkout error:', error)
       setError({

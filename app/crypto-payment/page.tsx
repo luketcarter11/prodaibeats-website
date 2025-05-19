@@ -960,35 +960,141 @@ export default function CryptoPaymentPage() {
           return { data: rpcData[0], source: 'rpc' };
         }
         
-        // Try direct fetch
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/transactions?id=eq.${transactionId}&user_id=eq.${userId}`,
-          {
+        // Try multiple fetch approaches with different headers
+        // This is necessary because the Accept header requirements can vary between environments
+        
+        // Approach 1: Simple array fetch (most compatible)
+        try {
+          const { data: arrayData, error: arrayError } = await supabase
+            .from('transactions')
+            .select('*')
+            .eq('id', transactionId)
+            .eq('user_id', userId);
+            
+          if (!arrayError && arrayData && arrayData.length > 0) {
+            return { data: arrayData[0], source: 'array-fetch' };
+          }
+        } catch (err) {
+          console.log('Array fetch approach failed:', err);
+        }
+        
+        // Approach 2: Direct fetch with accept: application/json
+        try {
+          const response1 = await fetch(
+            `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/transactions?id=eq.${transactionId}&user_id=eq.${userId}`,
+            {
+              method: 'GET',
+              headers: {
+                'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+                'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}`,
+                'Accept': 'application/json',
+                'Accept-Profile': 'public'
+              }
+            }
+          );
+
+          if (response1.ok) {
+            const directData1 = await response1.json();
+            if (directData1 && directData1.length > 0) {
+              return { data: directData1[0], source: 'direct-json' };
+            }
+          }
+        } catch (err) {
+          console.log('Direct fetch with application/json failed:', err);
+        }
+        
+        // Approach 3: Direct fetch with accept: */*
+        try {
+          const response2 = await fetch(
+            `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/transactions?id=eq.${transactionId}&user_id=eq.${userId}`,
+            {
+              method: 'GET',
+              headers: {
+                'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+                'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}`,
+                'Accept': '*/*',
+                'Accept-Profile': 'public'
+              }
+            }
+          );
+
+          if (response2.ok) {
+            const directData2 = await response2.json();
+            if (directData2 && directData2.length > 0) {
+              return { data: directData2[0], source: 'direct-any' };
+            }
+          }
+        } catch (err) {
+          console.log('Direct fetch with */* failed:', err);
+        }
+        
+        // Approach 4: Using correct modified single item headers - targets 406 error
+        try {
+          // This URL specifically avoids using .single() which requires a specific Accept header
+          const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/transactions?id=eq.${transactionId}&user_id=eq.${userId}&limit=1`;
+          
+          console.log('Trying special approach for 406 error with URL:', url);
+          
+          const response3 = await fetch(url, {
+            method: 'GET',
             headers: {
               'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
               'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}`,
+              // Use array response format instead of single object
               'Accept': 'application/json',
-              'Content-Type': 'application/json'
+              'Accept-Profile': 'public',
+              'X-Client-Info': 'crypto-payment-page'
             }
+          });
+          
+          console.log('406 approach status:', response3.status);
+          
+          if (response3.ok) {
+            const directData3 = await response3.json();
+            console.log('406 approach data shape:', Array.isArray(directData3), directData3?.length);
+            
+            if (directData3 && directData3.length > 0) {
+              return { data: directData3[0], source: 'direct-406-fix' };
+            }
+          } else {
+            console.log('406 approach error:', response3.status, response3.statusText);
           }
-        );
-
-        if (response.ok) {
-          const directData = await response.json();
-          if (directData && directData.length > 0) {
-            return { data: directData[0], source: 'direct' };
-          }
+        } catch (err) {
+          console.log('406 error specific approach failed:', err);
         }
         
-        // Try fallback method
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('transactions')
-          .select('*')
-          .eq('id', transactionId)
-          .eq('user_id', userId);
+        // Approach 5: Using exact Accept header from the failing request
+        try {
+          // Using the exact Accept header that's in the request headers
+          const response4 = await fetch(
+            `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/transactions?id=eq.${transactionId}&user_id=eq.${userId}`,
+            {
+              method: 'GET',
+              headers: {
+                'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+                'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}`,
+                'Accept': 'application/vnd.pgrst.object+json', // This is the header from the error
+                'Accept-Profile': 'public'
+              }
+            }
+          );
           
-        if (!fallbackError && fallbackData && fallbackData.length > 0) {
-          return { data: fallbackData[0], source: 'fallback' };
+          console.log('Exact header approach status:', response4.status);
+          
+          if (response4.ok) {
+            const directData4 = await response4.json();
+            // This approach might return a single object not in an array
+            if (directData4) {
+              if (Array.isArray(directData4) && directData4.length > 0) {
+                return { data: directData4[0], source: 'exact-header-array' };
+              } else if (directData4.id) {
+                // It might be a direct object
+                return { data: directData4, source: 'exact-header-object' };
+              }
+            }
+          }
+        } catch (err) {
+          console.log('Exact header approach failed:', err);
         }
         
         // If all methods failed and we have retries left, wait and try again
@@ -1033,6 +1139,9 @@ export default function CryptoPaymentPage() {
         let transactionId = searchParams.get('transaction');
         let usingRecoveredId = false;
         
+        // Get method parameter (if specified)
+        const method = searchParams.get('method');
+        
         // If no transaction ID in URL or it's undefined, try to recover from localStorage
         if (!transactionId || transactionId === 'undefined') {
           console.log('No valid transaction ID in URL, checking localStorage for recovery...');
@@ -1066,10 +1175,56 @@ export default function CryptoPaymentPage() {
           return;
         }
 
-        console.log(`Attempting to load transaction: ${transactionId}${usingRecoveredId ? ' (recovered)' : ''}`);
+        console.log(`Attempting to load transaction: ${transactionId}${usingRecoveredId ? ' (recovered)' : ''}${method ? ` using method: ${method}` : ''}`);
 
         // Use the retry function instead of direct calls
         try {
+          // If method is specified, we'll try tailored approaches first
+          if (method === 'direct') {
+            console.log('Using direct approach as specified in URL');
+            // Try direct array fetch first
+            try {
+              const { data: arrayData, error: arrayError } = await supabase
+                .from('transactions')
+                .select('*')
+                .eq('id', transactionId)
+                .eq('user_id', user.id);
+                
+              if (!arrayError && arrayData && arrayData.length > 0) {
+                if (!mounted) return;
+                console.log('Direct array fetch successful', arrayData[0].id);
+                setTransaction(arrayData[0]);
+                
+                // If we used a recovered ID, update the URL to match (without reloading)
+                if (usingRecoveredId && typeof window !== 'undefined') {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('transaction', transactionId);
+                  window.history.replaceState({}, '', url.toString());
+                }
+                
+                // Load saved state if available
+                const savedState = loadStateFromLocalStorage(transactionId);
+                if (savedState?.status && savedState.status !== 'awaiting_payment') {
+                  if (!mounted) return;
+                  
+                  if (savedState.selectedCrypto) setSelectedCrypto(savedState.selectedCrypto);
+                  if (savedState.convertedAmount) setConvertedAmount(savedState.convertedAmount);
+                  if (savedState.foundTransaction) setFoundTransaction(savedState.foundTransaction);
+                  if (savedState.timeRemaining) setTimeRemaining(savedState.timeRemaining);
+                  if (savedState.showPaymentInstructions !== undefined) {
+                    setShowPaymentInstructions(savedState.showPaymentInstructions);
+                  }
+                  
+                  setTransactionStatus(savedState.status);
+                }
+                return;
+              }
+            } catch (directError) {
+              console.error('Direct array fetch failed:', directError);
+            }
+          }
+          
+          // Fall back to the regular retry approach
           const result = await loadTransactionWithRetry(transactionId, user.id);
           
           if (!mounted) return;
@@ -1131,8 +1286,18 @@ export default function CryptoPaymentPage() {
           }
         }
         
-        setError(error.message || 'Failed to load transaction');
-        setTimeout(() => router.push('/checkout'), 3000);
+        // Add a special diagnostic message for 406 errors
+        const errorMessage = error.message || 'Failed to load transaction';
+        const is406Error = errorMessage.includes('406') || 
+                           (typeof window !== 'undefined' && window.location.href.includes('406'));
+        
+        const enhancedError = is406Error
+          ? "Transaction loading error (406). This is likely a temporary issue with the database connection."
+          : errorMessage;
+        
+        setError(enhancedError);
+        // Don't redirect immediately on 406, give more time to retry
+        setTimeout(() => router.push('/checkout'), is406Error ? 10000 : 3000);
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -1538,7 +1703,14 @@ export default function CryptoPaymentPage() {
             <FaExclamationTriangle className="h-8 w-8" />
           </div>
           <h1 className="text-2xl font-bold text-white mb-4 text-center">Error</h1>
-          <p className="text-red-400 mb-6 text-center">{error || 'Transaction not found'}</p>
+          <p className="text-red-400 mb-6 text-center">
+            {error || 'Transaction not found'}
+            {error && error.includes('Transaction not found') && (
+              <span className="block mt-2 text-sm text-gray-400">
+                This may be due to a temporary network issue or database delay.
+              </span>
+            )}
+          </p>
           <div className="flex flex-col sm:flex-row gap-3">
             <button
               onClick={() => window.location.reload()}
