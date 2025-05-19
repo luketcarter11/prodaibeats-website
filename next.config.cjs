@@ -29,6 +29,11 @@ const nextConfig = {
   // Set a custom output directory
   distDir: '.next',
   
+  // Make environment variables available to the browser
+  env: {
+    NEXT_PUBLIC_HELIUS_API_KEY: process.env.NEXT_PUBLIC_HELIUS_API_KEY || '',
+  },
+  
   // Production settings
   typescript: {
     // Don't fail the build if there are TypeScript errors

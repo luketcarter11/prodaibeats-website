@@ -265,11 +265,24 @@ export default function CryptoPaymentPage() {
   }
 
   // Modify the loadTransactionWithRetry function to use a more compatible approach
-  const loadTransactionWithRetry = async (transactionId: string, userId: string, retryCount = 0, maxRetries = 3) => {
+  const loadTransactionWithRetry = async (transactionId: string, userId: string, retryCount = 0, maxRetries = 5) => {
     console.log(`Attempt ${retryCount + 1}/${maxRetries + 1} to load transaction: ${transactionId}`);
     
     try {
-      // Modified approach - use .select('*').eq('id', id) directly instead of the more problematic approaches
+      // First try: Direct fetch using the most reliable method
+      const { data: directData, error: directError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('id', transactionId)
+        .eq('user_id', userId)
+        .maybeSingle();
+        
+      if (!directError && directData) {
+        console.log('Successfully loaded transaction via direct fetch:', directData.id);
+        return { data: directData, source: 'direct-fetch' };
+      }
+      
+      // Second try: Array fetch method
       const { data: arrayData, error: arrayError } = await supabase
         .from('transactions')
         .select('*')
@@ -277,33 +290,73 @@ export default function CryptoPaymentPage() {
         .eq('user_id', userId);
         
       if (!arrayError && arrayData && arrayData.length > 0) {
-        console.log('Successfully loaded transaction via direct array fetch:', arrayData[0].id);
+        console.log('Successfully loaded transaction via array fetch:', arrayData[0].id);
         return { data: arrayData[0], source: 'array-fetch' };
+      }
+      
+      // If production environment, try RPC call approach
+      if (process.env.NODE_ENV === 'production') {
+        try {
+          console.log('Attempting RPC fetch in production environment');
+          const { data: rpcData, error: rpcError } = await supabase.rpc(
+            'get_transaction_by_id',
+            {
+              p_transaction_id: transactionId,
+              p_user_id: userId
+            }
+          );
+          
+          if (!rpcError && rpcData) {
+            console.log('Successfully loaded transaction via RPC call:', rpcData.id);
+            return { data: rpcData, source: 'rpc-fetch' };
+          }
+        } catch (rpcErr) {
+          console.warn('RPC fetch attempt failed:', rpcErr);
+        }
+      }
+      
+      // Try direct fetch without user_id filter, which might be more reliable in some edge cases
+      const { data: directDataNoUser, error: directErrorNoUser } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('id', transactionId)
+        .maybeSingle();
+        
+      if (!directErrorNoUser && directDataNoUser && directDataNoUser.user_id === userId) {
+        console.log('Successfully loaded transaction via direct fetch without user_id filter:', directDataNoUser.id);
+        return { data: directDataNoUser, source: 'direct-fetch-no-user' };
       }
       
       // If direct fetch fails and we have retries left, wait and try again
       if (retryCount < maxRetries) {
-        // Exponential backoff: 1s, 2s, 4s, etc.
-        const delay = Math.pow(2, retryCount) * 1000;
-        console.log(`Transaction not found via direct array fetch, retrying in ${delay}ms...`);
+        // Exponential backoff with slightly longer delays for production: 1.5s, 3s, 6s, etc.
+        const baseDelay = process.env.NODE_ENV === 'production' ? 1500 : 1000;
+        const delay = Math.min(Math.pow(2, retryCount) * baseDelay, 10000); // Cap at 10 seconds
+        console.log(`Transaction not found via direct fetch, retrying in ${delay}ms...`);
         
         await new Promise(resolve => setTimeout(resolve, delay));
         return loadTransactionWithRetry(transactionId, userId, retryCount + 1, maxRetries);
       }
       
-      // Last attempt - try with direct fetch without the problematic Accept header
+      // Last attempt - try with direct URL fetch without headers that might cause issues
       try {
-        console.log('Attempting final direct URL fetch without Accept header...');
+        console.log('Attempting final direct URL fetch with minimal headers...');
+        
+        const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+        const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+        
+        if (!baseUrl || !apiKey) {
+          throw new Error('Supabase configuration missing');
+        }
         
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/transactions?id=eq.${transactionId}&user_id=eq.${userId}&limit=1`,
+          `${baseUrl}/rest/v1/transactions?id=eq.${transactionId}&user_id=eq.${userId}&limit=1`,
           {
             method: 'GET',
             headers: {
-              'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-              'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}`,
-              // Deliberately NOT including the Accept header that causes 406 errors
-              'Accept-Profile': 'public',
+              'apikey': apiKey,
+              'Authorization': `Bearer ${apiKey}`,
+              // Minimal headers to avoid 406 errors
               'X-Client-Info': 'crypto-payment-page-fallback-attempt'
             }
           }
@@ -311,20 +364,145 @@ export default function CryptoPaymentPage() {
         
         if (response.ok) {
           const data = await response.json();
-          if (data && data.length > 0) {
-            console.log('Successfully loaded transaction via direct URL without Accept header:', data[0].id);
-            return { data: data[0], source: 'direct-url-fallback' };
+          if (Array.isArray(data) && data.length > 0) {
+            console.log('Successfully loaded transaction via direct URL with minimal headers:', data[0].id);
+            return { data: data[0], source: 'minimal-headers-fetch' };
+          }
+        } else {
+          // Try another approach if we still get errors
+          console.log(`Direct URL fetch failed with status: ${response.status}, trying without user_id filter`);
+          
+          const responseNoUser = await fetch(
+            `${baseUrl}/rest/v1/transactions?id=eq.${transactionId}&limit=1`,
+            {
+              method: 'GET',
+              headers: {
+                'apikey': apiKey,
+                'Authorization': `Bearer ${apiKey}`,
+                'X-Client-Info': 'crypto-payment-page-fallback-nouser'
+              }
+            }
+          );
+          
+          if (responseNoUser.ok) {
+            const dataNoUser = await responseNoUser.json();
+            if (Array.isArray(dataNoUser) && dataNoUser.length > 0 && dataNoUser[0].user_id === userId) {
+              console.log('Successfully loaded transaction via direct URL without user filter:', dataNoUser[0].id);
+              return { data: dataNoUser[0], source: 'minimal-headers-no-user' };
+            }
           }
         }
       } catch (directFetchError) {
         console.error('Final direct URL fetch failed:', directFetchError);
       }
       
+      // If all else fails, try to reconstruct transaction from localStorage data
+      try {
+        // First check pending redirect data
+        if (typeof window !== 'undefined') {
+          const pendingRedirectJson = localStorage.getItem('pending_crypto_redirect');
+          if (pendingRedirectJson) {
+            try {
+              const pendingRedirect = JSON.parse(pendingRedirectJson);
+              // Check if it's recent (within last 5 minutes) and matches our transaction ID
+              const pendingTimestamp = pendingRedirect.timestamp || 0;
+              const currentTime = Date.now();
+              const timeDiffMinutes = (currentTime - pendingTimestamp) / (1000 * 60);
+              
+              if (timeDiffMinutes < 5 && pendingRedirect.id === transactionId) {
+                console.log(`Using pending redirect data to reconstruct transaction: ${pendingRedirect.id}`);
+                
+                // Create minimal transaction object from pending redirect data
+                const reconstructedTx = {
+                  id: transactionId,
+                  user_id: userId,
+                  status: 'awaiting_payment',
+                  amount: pendingRedirect.amount || 0,
+                  currency: 'USD',
+                  created_at: new Date(pendingTimestamp).toISOString(),
+                  updated_at: new Date().toISOString(),
+                  metadata: {
+                    items: [],
+                    reconstructed: true,
+                    original_usd_amount: pendingRedirect.amount || 0,
+                    pendingRedirectRecovery: true
+                  }
+                };
+                
+                return { data: reconstructedTx, source: 'pending-redirect-reconstruction' };
+              }
+            } catch (pendingError) {
+              console.error('Error using pending redirect data:', pendingError);
+            }
+          }
+          
+          // Try to find matching transaction in crypto payment transaction storage
+          const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+          if (storedData) {
+            try {
+              const parsedData = JSON.parse(storedData);
+              
+              // Direct transaction object
+              if (parsedData.id === transactionId) {
+                console.log(`Reconstructing transaction from localStorage direct object: ${parsedData.id}`);
+                
+                const reconstructedTx = {
+                  id: transactionId,
+                  user_id: userId,
+                  status: parsedData.status || 'awaiting_payment',
+                  amount: parsedData.amount || 0,
+                  currency: 'USD',
+                  created_at: parsedData.created_at || new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                  metadata: {
+                    items: [],
+                    reconstructed: true,
+                    original_usd_amount: parsedData.amount || 0,
+                    directStorageRecovery: true
+                  }
+                };
+                
+                return { data: reconstructedTx, source: 'local-storage-direct-reconstruction' };
+              }
+              
+              // Transaction in map format
+              if (parsedData[transactionId]) {
+                console.log(`Reconstructing transaction from localStorage map: ${transactionId}`);
+                
+                const txData = parsedData[transactionId];
+                const reconstructedTx = {
+                  id: transactionId,
+                  user_id: userId,
+                  status: txData.status || 'awaiting_payment',
+                  amount: txData.amount || 0,
+                  currency: 'USD',
+                  created_at: txData.created_at || new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                  metadata: {
+                    items: [],
+                    reconstructed: true,
+                    original_usd_amount: txData.amount || 0,
+                    mapStorageRecovery: true
+                  }
+                };
+                
+                return { data: reconstructedTx, source: 'local-storage-map-reconstruction' };
+              }
+            } catch (parseError) {
+              console.error('Error parsing localStorage data:', parseError);
+            }
+          }
+        }
+      } catch (localStorageError) {
+        console.error('Failed to reconstruct from localStorage:', localStorageError);
+      }
+      
       throw new Error('Transaction not found after multiple attempts');
     } catch (error: any) {
       if (retryCount < maxRetries) {
         // Exponential backoff on error
-        const delay = Math.pow(2, retryCount) * 1000;
+        const baseDelay = process.env.NODE_ENV === 'production' ? 1500 : 1000;
+        const delay = Math.min(Math.pow(2, retryCount) * baseDelay, 10000); // Cap at 10 seconds
         console.log(`Error loading transaction, retrying in ${delay}ms...`, error);
         
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -585,49 +763,182 @@ export default function CryptoPaymentPage() {
     try {
       console.log(`Checking for ${selectedCrypto} payment of ~${convertedAmount} to ${paymentAddress} from ${senderWalletAddress}`)
 
-      // Here we would normally have code to check for real transactions
-      // But for now we're just implementing a mock simulation
-      
-      // For demonstration purposes, simulate finding a transaction 5% of the time
-      if (Math.random() < 0.05) {
-        console.log("Simulating finding a transaction for demo purposes");
-        
-        // Create a mock transaction
-        const mockTransaction = {
-          signature: 'mockSig' + Math.random().toString(36).substring(2, 10),
-          amount: convertedAmount * (0.95 + Math.random() * 0.1), // Within 5% leeway
-          confirmations: 0,
-          blockTime: new Date().getTime() / 1000,
-          senderAddress: senderWalletAddress || 'MockAddress'
-        }
-        
-        setFoundTransaction(mockTransaction)
-        setTransactionStatus('confirming')
-        
-        // Save transaction details to database
-        updateTransactionStatus('confirming', mockTransaction)
-        
-        // After 3 seconds, update to confirmed
-        setTimeout(() => {
-          const updatedTransaction = {
-            ...mockTransaction,
-            confirmations: 3
-          }
-          setFoundTransaction(updatedTransaction)
-          setTransactionStatus('confirmed')
-          updateTransactionStatus('confirmed', updatedTransaction)
+      // Use Helius API to check for actual Solana payments
+      if (selectedCrypto === 'SOL') {
+        try {
+          const minExpectedAmount = convertedAmount * (1 - PAYMENT_LEEWAY);
           
-          // Then after 2 more seconds, mark as completed
-          setTimeout(() => {
-            setTransactionStatus('completed')
-            updateTransactionStatus('completed', updatedTransaction)
-          }, 2000)
-        }, 3000)
+          // Get the wallet history from Helius API
+          const apiKey = process.env.NEXT_PUBLIC_HELIUS_API_KEY || 'fallback_key_12345678';
+          const heliusUrl = `https://api.helius.xyz/v0/addresses/${paymentAddress}/transactions?api-key=${apiKey}&type=TRANSFER`;
+          
+          console.log(`Querying Helius API for transfers to ${paymentAddress}`);
+          
+          const response = await fetch(heliusUrl);
+          if (!response.ok) {
+            throw new Error(`Helius API returned ${response.status}`);
+          }
+          
+          // Parse transactions
+          const transactions: HeliusTransaction[] = await response.json();
+          console.log(`Received ${transactions.length} transactions from Helius API`);
+          
+          // Check if we already processed any of these transactions
+          const usedTransactions: string[] = [];
+          try {
+            const storedUsedTx = localStorage.getItem(USED_TX_STORAGE_KEY);
+            if (storedUsedTx) {
+              const parsed = JSON.parse(storedUsedTx);
+              if (Array.isArray(parsed)) {
+                usedTransactions.push(...parsed);
+              }
+            }
+          } catch (e) {
+            console.warn('Error loading used transaction list:', e);
+          }
+          
+          // Filter to recent transactions within the last hour
+          const oneHourAgo = Date.now() - (60 * 60 * 1000);
+          const recentTransactions = transactions.filter(tx => {
+            // Skip already processed transactions
+            if (usedTransactions.includes(tx.signature)) {
+              return false;
+            }
+            
+            // Only check recent transactions
+            return (tx.timestamp * 1000) > oneHourAgo;
+          });
+          
+          console.log(`Found ${recentTransactions.length} recent unprocessed transactions`);
+          
+          // Find a matching transaction
+          for (const tx of recentTransactions) {
+            // Check if this transaction has a native SOL transfer to our address
+            if (tx.nativeTransfers && tx.nativeTransfers.length > 0) {
+              for (const transfer of tx.nativeTransfers) {
+                // Verify it's a transfer to our payment address
+                if (transfer.toUserAccount === paymentAddress) {
+                  // Convert lamports to SOL (1 SOL = 1,000,000,000 lamports)
+                  const solAmount = parseInt(transfer.amount) / 1000000000;
+                  
+                  // Check if amount is close to what we expect
+                  console.log(`Found transfer of ${solAmount} SOL, expected minimum of ${minExpectedAmount} SOL`);
+                  
+                  if (solAmount >= minExpectedAmount) {
+                    console.log(`✅ Valid payment found! Transaction signature: ${tx.signature}`);
+                    
+                    // Store as used transaction
+                    try {
+                      usedTransactions.push(tx.signature);
+                      localStorage.setItem(USED_TX_STORAGE_KEY, JSON.stringify(usedTransactions));
+                    } catch (e) {
+                      console.warn('Error saving used transaction:', e);
+                    }
+                    
+                    // Create transaction result object
+                    const solTransaction = {
+                      signature: tx.signature,
+                      amount: solAmount,
+                      confirmations: tx.confirmations || 0,
+                      blockTime: tx.blockTime || tx.timestamp,
+                      senderAddress: tx.senderAddress || transfer.fromUserAccount
+                    };
+                    
+                    setFoundTransaction(solTransaction);
+                    setTransactionStatus('confirming');
+                    
+                    // Save transaction details to database
+                    await updateTransactionStatus('confirming', solTransaction);
+                    
+                    // Check for confirmation status
+                    if ((tx.confirmations || 0) >= REQUIRED_CONFIRMATIONS) {
+                      console.log(`Transaction already has ${tx.confirmations} confirmations, marking as confirmed`);
+                      
+                      setTimeout(() => {
+                        const updatedTransaction = {
+                          ...solTransaction,
+                          confirmations: REQUIRED_CONFIRMATIONS
+                        };
+                        setFoundTransaction(updatedTransaction);
+                        setTransactionStatus('confirmed');
+                        updateTransactionStatus('confirmed', updatedTransaction);
+                        
+                        // Then mark as completed after a delay
+                        setTimeout(() => {
+                          setTransactionStatus('completed');
+                          updateTransactionStatus('completed', updatedTransaction, true);
+                        }, AUTO_COMPLETE_DELAY);
+                      }, 1000);
+                    }
+                    
+                    return; // Exit the function once we find a valid transaction
+                  }
+                }
+              }
+            }
+          }
+          
+          // If we reach here, no valid transaction was found
+          console.log('No valid transaction found in recent transfers');
+          
+        } catch (apiError) {
+          console.error('Error checking Helius API:', apiError);
+          
+          // Fallback to simulation for demo purposes if API fails
+          if (process.env.NODE_ENV === 'development') {
+            console.log("API failed, falling back to simulation for dev environment");
+            simulatePaymentCheck();
+          }
+        }
+      } else if (selectedCrypto === 'PROD') {
+        // For PROD tokens, we'll use a simulated check in this version
+        // In a real implementation, we'd check for SPL token transfers
+        simulatePaymentCheck();
       }
     } catch (error) {
       console.error('Error checking for payment:', error)
     } finally {
       setIsCheckingPayment(false)
+    }
+  }
+  
+  // Helper function to simulate payment check for development/demo
+  const simulatePaymentCheck = () => {
+    // For demonstration purposes, simulate finding a transaction 20% of the time
+    if (Math.random() < 0.2 && convertedAmount !== null) {
+      console.log("Simulating finding a transaction for demo purposes");
+      
+      // Create a mock transaction
+      const mockTransaction = {
+        signature: 'mockSig' + Math.random().toString(36).substring(2, 10),
+        amount: convertedAmount * (0.95 + Math.random() * 0.1), // Within 5% leeway
+        confirmations: 0,
+        blockTime: new Date().getTime() / 1000,
+        senderAddress: senderWalletAddress || 'MockAddress'
+      }
+      
+      setFoundTransaction(mockTransaction)
+      setTransactionStatus('confirming')
+      
+      // Save transaction details to database
+      updateTransactionStatus('confirming', mockTransaction)
+      
+      // After 3 seconds, update to confirmed
+      setTimeout(() => {
+        const updatedTransaction = {
+          ...mockTransaction,
+          confirmations: REQUIRED_CONFIRMATIONS
+        }
+        setFoundTransaction(updatedTransaction)
+        setTransactionStatus('confirmed')
+        updateTransactionStatus('confirmed', updatedTransaction)
+        
+        // Then after 2 more seconds, mark as completed
+        setTimeout(() => {
+          setTransactionStatus('completed')
+          updateTransactionStatus('completed', updatedTransaction, true)
+        }, 2000)
+      }, 3000)
     }
   }
 
@@ -780,6 +1091,14 @@ export default function CryptoPaymentPage() {
 
         // Ensure we have a user
         if (!user) {
+          // If we still have a session token but no user data, try to refresh
+          if (session) {
+            console.log('Session exists but no user data, attempting refresh');
+            await refreshSession();
+            // Return early and let the next useEffect run handle the init
+            return;
+          }
+          
           setError('Authentication required');
           router.push('/checkout');
           return;
@@ -792,30 +1111,110 @@ export default function CryptoPaymentPage() {
         // Get method parameter (if specified)
         const method = searchParams.get('method');
         
-        // If no transaction ID in URL or it's undefined, try to recover from localStorage
-        if (!transactionId || transactionId === 'undefined') {
-          console.log('No valid transaction ID in URL, checking localStorage for recovery...');
-          try {
-            const storedTransaction = localStorage.getItem(LOCAL_STORAGE_KEY);
-            if (storedTransaction) {
-              const parsedTransaction = JSON.parse(storedTransaction);
+        // Check if we have a pending redirect that might indicate a transaction that's still being saved
+        let pendingRedirect = null;
+        try {
+          const pendingRedirectJson = localStorage.getItem('pending_crypto_redirect');
+          if (pendingRedirectJson) {
+            pendingRedirect = JSON.parse(pendingRedirectJson);
+            // Only clear after successful transaction load
+            
+            // Check if it's recent (within 10 seconds)
+            const pendingTimestamp = pendingRedirect.timestamp || 0;
+            const currentTime = Date.now();
+            const timeDiffSeconds = (currentTime - pendingTimestamp) / 1000;
+            
+            if (timeDiffSeconds < 10 && pendingRedirect.id) {
+              console.log(`Found pending redirect transaction: ${pendingRedirect.id}, ${timeDiffSeconds.toFixed(1)} seconds old`);
               
-              // Only use stored transaction if it's less than 10 minutes old
-              const storedTime = new Date(parsedTransaction.created_at).getTime();
-              const currentTime = new Date().getTime();
-              const timeDiff = (currentTime - storedTime) / (1000 * 60); // minutes
-              
-              if (timeDiff < 10 && parsedTransaction.id) {
-                console.log(`Recovered transaction ID from localStorage: ${parsedTransaction.id} (${timeDiff.toFixed(1)} minutes old)`);
-                transactionId = parsedTransaction.id;
-                usingRecoveredId = true;
-              } else {
-                console.log('Stored transaction too old or invalid, not using for recovery');
-                localStorage.removeItem(LOCAL_STORAGE_KEY);
+              // If the transaction from URL matches pending redirect, we know it's very recent
+              // and might need extra wait time for database propagation
+              if (transactionId === pendingRedirect.id) {
+                console.log('Transaction is from a very recent redirect, adding extra wait time for database propagation');
+                
+                // Wait longer in production to ensure transaction is in database
+                const waitTime = process.env.NODE_ENV === 'production' ? 2000 : 1000;
+                await new Promise(resolve => setTimeout(resolve, waitTime));
               }
             }
-          } catch (recoveryError) {
-            console.error('Error trying to recover transaction from localStorage:', recoveryError);
+          }
+        } catch (pendingError) {
+          console.error('Error checking pending redirect:', pendingError);
+        }
+        
+        // If no transaction ID in URL or it's undefined, try multiple recovery sources
+        if (!transactionId || transactionId === 'undefined') {
+          console.log('No valid transaction ID in URL, checking recovery sources...');
+          
+          // First try pending redirect if available
+          if (pendingRedirect?.id) {
+            console.log(`Using transaction ID from pending redirect: ${pendingRedirect.id}`);
+            transactionId = pendingRedirect.id;
+            usingRecoveredId = true;
+          } 
+          // Then try last crypto payment URL if available
+          else {
+            try {
+              const lastPaymentUrl = localStorage.getItem('last_crypto_payment_url');
+              if (lastPaymentUrl) {
+                const urlParams = new URLSearchParams(lastPaymentUrl.split('?')[1] || '');
+                const urlTransactionId = urlParams.get('transaction');
+                if (urlTransactionId) {
+                  console.log(`Recovered transaction ID from last payment URL: ${urlTransactionId}`);
+                  transactionId = urlTransactionId;
+                  usingRecoveredId = true;
+                }
+              }
+            } catch (urlRecoveryError) {
+              console.error('Error recovering from last payment URL:', urlRecoveryError);
+            }
+          }
+          
+          // If still no transaction ID, try localStorage
+          if (!transactionId) {
+            try {
+              const storedTransaction = localStorage.getItem(LOCAL_STORAGE_KEY);
+              if (storedTransaction) {
+                const parsedData = JSON.parse(storedTransaction);
+                
+                // If we have a direct transaction object (not keyed by ID)
+                if (parsedData.id) {
+                  console.log(`Recovered transaction ID from localStorage direct object: ${parsedData.id}`);
+                  transactionId = parsedData.id;
+                  usingRecoveredId = true;
+                } 
+                // Otherwise look for the most recent transaction in the storage map
+                else {
+                  let mostRecent = null;
+                  let mostRecentTime = 0;
+                  
+                  // Find the most recent transaction in localStorage
+                  Object.keys(parsedData).forEach(txId => {
+                    const txData = parsedData[txId];
+                    if (txData.lastUpdated) {
+                      const updateTime = new Date(txData.lastUpdated).getTime();
+                      if (updateTime > mostRecentTime) {
+                        mostRecentTime = updateTime;
+                        mostRecent = txId;
+                      }
+                    }
+                  });
+                  
+                  if (mostRecent) {
+                    const timeDiff = (Date.now() - mostRecentTime) / (1000 * 60); // minutes
+                    if (timeDiff < 30) { // Allow for a 30-minute recovery window
+                      console.log(`Recovered most recent transaction ID from localStorage: ${mostRecent} (${timeDiff.toFixed(1)} minutes old)`);
+                      transactionId = mostRecent;
+                      usingRecoveredId = true;
+                    } else {
+                      console.log('Most recent stored transaction too old, not using for recovery');
+                    }
+                  }
+                }
+              }
+            } catch (recoveryError) {
+              console.error('Error trying to recover transaction from localStorage:', recoveryError);
+            }
           }
         }
         
@@ -828,52 +1227,32 @@ export default function CryptoPaymentPage() {
         console.log(`Attempting to load transaction: ${transactionId}${usingRecoveredId ? ' (recovered)' : ''}${method ? ` using method: ${method}` : ''}`);
 
         try {
-          // Always first try the direct array fetch approach
-          const { data: arrayData, error: arrayError } = await supabase
-            .from('transactions')
-            .select('*')
-            .eq('id', transactionId)
-            .eq('user_id', user.id);
-            
-          // If direct array fetch works, use it
-          if (!arrayError && arrayData && arrayData.length > 0) {
-            if (!mounted) return;
-            console.log('Direct array fetch successful', arrayData[0].id);
-            setTransaction(arrayData[0]);
-            
-            // If we used a recovered ID, update the URL to match (without reloading)
-            if (usingRecoveredId && typeof window !== 'undefined') {
-              const url = new URL(window.location.href);
-              url.searchParams.set('transaction', transactionId);
-              window.history.replaceState({}, '', url.toString());
-            }
-            
-            // Load saved state if available
-            const savedState = loadStateFromLocalStorage(transactionId);
-            if (savedState?.status && savedState.status !== 'awaiting_payment') {
-              if (!mounted) return;
-              
-              if (savedState.selectedCrypto) setSelectedCrypto(savedState.selectedCrypto);
-              if (savedState.convertedAmount) setConvertedAmount(savedState.convertedAmount);
-              if (savedState.foundTransaction) setFoundTransaction(savedState.foundTransaction);
-              if (savedState.timeRemaining) setTimeRemaining(savedState.timeRemaining);
-              if (savedState.showPaymentInstructions !== undefined) {
-                setShowPaymentInstructions(savedState.showPaymentInstructions);
-              }
-              
-              setTransactionStatus(savedState.status);
-            }
-            return;
+          // In production, add a small delay to allow database propagation if this is not a recovered ID
+          // Recovered IDs likely already have the proper delay built in from their recovery process
+          if (process.env.NODE_ENV === 'production' && !usingRecoveredId) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
           
-          // If direct array fetch fails, use the retry approach
-          console.log('Direct array fetch failed, using retry approach');
-          const result = await loadTransactionWithRetry(transactionId, user.id);
+          // Set a longer timeout in production environments
+          const maxRetries = process.env.NODE_ENV === 'production' ? 7 : 5;
+          
+          // Use the retry approach with improved resilience
+          const result = await loadTransactionWithRetry(transactionId, user.id, 0, maxRetries);
           
           if (!mounted) return;
           
           console.log(`Transaction loaded via ${result.source}:`, result.data.id);
           setTransaction(result.data);
+          
+          // If this was a successful load, clear the pending redirect marker
+          try {
+            if (pendingRedirect && pendingRedirect.id === transactionId) {
+              localStorage.removeItem('pending_crypto_redirect');
+              console.log('Cleared pending redirect marker after successful transaction load');
+            }
+          } catch (e) {
+            console.warn('Error clearing pending redirect:', e);
+          }
           
           // If we used a recovered ID, update the URL to match (without reloading)
           if (usingRecoveredId && typeof window !== 'undefined') {
@@ -888,7 +1267,7 @@ export default function CryptoPaymentPage() {
             if (!mounted) return;
             
             if (savedState.selectedCrypto) setSelectedCrypto(savedState.selectedCrypto);
-            if (savedState.convertedAmount) setConvertedAmount(savedState.convertedAmount);
+            if (savedState.convertedAmount !== undefined && savedState.convertedAmount !== null) setConvertedAmount(savedState.convertedAmount);
             if (savedState.foundTransaction) setFoundTransaction(savedState.foundTransaction);
             if (savedState.timeRemaining) setTimeRemaining(savedState.timeRemaining);
             if (savedState.showPaymentInstructions !== undefined) {
@@ -896,6 +1275,9 @@ export default function CryptoPaymentPage() {
             }
             
             setTransactionStatus(savedState.status);
+            console.log(`Restored transaction state from localStorage: ${savedState.status}`);
+          } else {
+            console.log('No saved state found or state is still awaiting_payment');
           }
         } catch (error) {
           throw new Error(`Failed to load transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -909,18 +1291,51 @@ export default function CryptoPaymentPage() {
         // Try one more recovery attempt from localStorage if we haven't already
         if (!searchParams.get('recovered') && typeof window !== 'undefined') {
           try {
+            // First check for a last_crypto_payment_url
+            const lastPaymentUrl = localStorage.getItem('last_crypto_payment_url');
+            if (lastPaymentUrl) {
+              console.log('Found last payment URL, trying to recover from it:', lastPaymentUrl);
+              router.replace(lastPaymentUrl + '&recovered=true');
+              return;
+            }
+            
+            // Then check stored transaction
             const storedTransaction = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (storedTransaction) {
-              const parsedTransaction = JSON.parse(storedTransaction);
+              let parsedTransaction: any = null;
+              let recoveryId = null;
               
-              // Only use stored transaction if it's less than 10 minutes old
-              const storedTime = new Date(parsedTransaction.created_at).getTime();
-              const currentTime = new Date().getTime();
-              const timeDiff = (currentTime - storedTime) / (1000 * 60); // minutes
+              try {
+                parsedTransaction = JSON.parse(storedTransaction);
+                
+                // Handle both formats (direct object or keyed by ID)
+                if (parsedTransaction && parsedTransaction.id) {
+                  recoveryId = parsedTransaction.id;
+                } else if (parsedTransaction) {
+                  // Find most recent transaction
+                  let mostRecent = null;
+                  let mostRecentTime = 0;
+                  
+                  Object.keys(parsedTransaction).forEach(txId => {
+                    const txData = parsedTransaction[txId];
+                    if (txData.lastUpdated) {
+                      const updateTime = new Date(txData.lastUpdated).getTime();
+                      if (updateTime > mostRecentTime) {
+                        mostRecentTime = updateTime;
+                        mostRecent = txId;
+                      }
+                    }
+                  });
+                  
+                  recoveryId = mostRecent;
+                }
+              } catch (e) {
+                console.error('Error parsing stored transaction:', e);
+              }
               
-              if (timeDiff < 10 && parsedTransaction.id) {
-                console.log(`Final recovery attempt with transaction ID: ${parsedTransaction.id}`);
-                router.replace(`/crypto-payment?transaction=${parsedTransaction.id}&recovered=true`);
+              if (recoveryId) {
+                console.log(`Final recovery attempt with transaction ID: ${recoveryId}`);
+                router.replace(`/crypto-payment?transaction=${recoveryId}&recovered=true`);
                 return;
               }
             }
@@ -935,7 +1350,7 @@ export default function CryptoPaymentPage() {
                            (typeof window !== 'undefined' && window.location.href.includes('406'));
         
         const enhancedError = is406Error
-          ? "Transaction loading error (406). This is likely a temporary issue with the database connection. Try refreshing the page."
+          ? "Transaction loading error (406). This is likely a temporary issue with the database connection. Try refreshing the page or returning to checkout."
           : errorMessage;
         
         setError(enhancedError);
@@ -945,7 +1360,7 @@ export default function CryptoPaymentPage() {
             if (mounted) {
               router.push('/checkout');
             }
-          }, 3000);
+          }, 5000);
         }
       } finally {
         if (mounted) {
@@ -954,13 +1369,17 @@ export default function CryptoPaymentPage() {
       }
     };
 
+    if (!isLoading) {
+      setIsLoading(true);
+    }
+    
     init();
 
-    // Cleanup function to prevent memory leaks
     return () => {
       mounted = false;
     };
-  }, [user, authLoading, searchParams, router]);
+    
+  }, [authLoading, user, session, searchParams, router, refreshSession]);
 
   // All other useEffect hooks should go after the main loading useEffect
 

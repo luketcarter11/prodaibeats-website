@@ -285,12 +285,84 @@ export default function CheckoutPage() {
 
       console.log('Successfully created transaction:', transactionData.id);
 
-      // Add a small delay to ensure transaction is properly saved in the database
+      // Add a larger delay in production to ensure transaction is properly saved in the database
       // This helps prevent the 406 errors when loading the transaction on the crypto-payment page
+      const redirectDelay = process.env.NODE_ENV === 'production' ? 2500 : 1000;
+      
+      console.log(`Waiting ${redirectDelay}ms before redirecting to ensure database consistency...`);
+      
+      // Store an additional flag to track redirect status
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('pending_crypto_redirect', JSON.stringify({
+            id: transactionData.id,
+            timestamp: Date.now(),
+            amount: transactionData.amount || cartTotal
+          }));
+          
+          // Also store in our recovery system
+          const storageKey = 'crypto_payment_transaction';
+          const transactionInfo = {
+            id: transactionData.id,
+            created_at: new Date().toISOString(),
+            amount: transactionData.amount || cartTotal,
+            user_id: user.id,
+            status: 'awaiting_payment'
+          };
+          localStorage.setItem(storageKey, JSON.stringify(transactionInfo));
+          
+          // Store the payment URL as well for recovery purposes
+          localStorage.setItem('last_crypto_payment_url', `/crypto-payment?transaction=${transactionData.id}&method=direct`);
+          
+          console.log(`Stored transaction ${transactionData.id} in multiple recovery systems`);
+        } catch (e) {
+          console.warn('Failed to store transaction data for recovery:', e);
+        }
+      }
+      
       setTimeout(() => {
-        // Navigate after small delay
-        router.replace(`/crypto-payment?transaction=${transactionData.id}&method=direct`)
-      }, 800)
+        // Additional database verification check before redirecting
+        const verifyTransaction = async () => {
+          try {
+            // Quick verification that transaction exists in database
+            const { data: verifyData, error: verifyError } = await supabase
+              .from('transactions')
+              .select('id, status')
+              .eq('id', transactionData.id)
+              .maybeSingle();
+              
+            if (verifyError) {
+              console.warn('Verification check failed, attempting alternative verification:', verifyError);
+              
+              // Try array fetch method if direct fetch fails
+              const { data: arrayData, error: arrayError } = await supabase
+                .from('transactions')
+                .select('id, status')
+                .eq('id', transactionData.id);
+                
+              if (arrayError || !arrayData || arrayData.length === 0) {
+                console.warn('Alternative verification failed, but continuing with redirect anyway');
+              } else {
+                console.log('Alternative verification successful:', arrayData[0].id);
+              }
+            } else if (verifyData) {
+              console.log('Final verification successful:', verifyData.id);
+            } else {
+              console.warn('Transaction not found in verification check, adding extra delay before redirect');
+              // Add extra delay if verification fails
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          } catch (e) {
+            console.warn('Error during final verification:', e);
+          }
+          
+          // Navigate after delay and verification
+          console.log(`Redirecting to crypto payment page with transaction: ${transactionData.id}`);
+          router.replace(`/crypto-payment?transaction=${transactionData.id}&method=direct`);
+        };
+        
+        verifyTransaction();
+      }, redirectDelay);
     } catch (error: any) {
       console.error('Checkout error:', error)
       setError({
