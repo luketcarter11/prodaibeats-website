@@ -66,11 +66,23 @@ export default function CheckoutPage() {
       setIsRedirecting(true)
       setError(null)
 
+      console.log('Starting checkout process with user:', user.id);
+
       // Create transaction first
       const transactionData = await createTransaction()
       
       if (!transactionData?.id) {
         throw new Error('No transaction data returned')
+      }
+
+      console.log('Successfully created transaction:', transactionData.id);
+
+      // Store transaction in localStorage to help with recovery
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('last_created_transaction', JSON.stringify({
+          id: transactionData.id,
+          created_at: new Date().toISOString()
+        }));
       }
 
       // Navigate immediately after transaction is created
@@ -87,6 +99,10 @@ export default function CheckoutPage() {
 
   // Separate transaction creation logic
   const createTransaction = async () => {
+    if (!user?.id || !user?.email) {
+      throw new Error('User authentication required');
+    }
+
     const cartItems = cart.map(item => ({
       id: item.id,
       title: item.title,
@@ -94,7 +110,13 @@ export default function CheckoutPage() {
       licenseType: item.licenseType
     }))
     const firstItem = cartItems[0] || {}
-    const metadata = { items: cartItems }
+    const metadata = { 
+      items: cartItems,
+      created_at: new Date().toISOString(),
+      client_info: {
+        userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'unknown'
+      }
+    }
 
     try {
       // Calculate the crypto amount correctly
@@ -105,12 +127,12 @@ export default function CheckoutPage() {
       console.log('Calculated SOL amount:', solAmount);
       
       console.log('Attempting to create transaction with data:', {
-        user_id: user!.id,
+        user_id: user.id,
         usd_amount: cartTotal,
         crypto_type: 'SOL',
         crypto_amount: solAmount,
         metadata,
-        customer_email: user!.email,
+        customer_email: user.email,
         license_type: firstItem.licenseType || null
       });
 
@@ -118,12 +140,12 @@ export default function CheckoutPage() {
       const { data: rpcData, error: rpcError } = await supabase.rpc(
         'create_crypto_transaction',
         {
-          p_user_id: user!.id,
+          p_user_id: user.id,
           p_usd_amount: cartTotal,
           p_crypto_type: 'SOL',
           p_crypto_amount: solAmount,
           p_metadata: metadata,
-          p_customer_email: user!.email,
+          p_customer_email: user.email,
           p_license_type: firstItem.licenseType || null
         }
       )
@@ -133,6 +155,24 @@ export default function CheckoutPage() {
       // If the RPC call is successful and returns data
       if (!rpcError && rpcData) {
         console.log('Using RPC data:', rpcData);
+        
+        // Verify the transaction exists by attempting to read it back
+        try {
+          const { data: verifyData, error: verifyError } = await supabase
+            .from('transactions')
+            .select('id')
+            .eq('id', rpcData.id)
+            .maybeSingle();
+            
+          if (verifyError || !verifyData) {
+            console.warn('Could not verify transaction creation, continuing anyway:', verifyError);
+          } else {
+            console.log('Transaction verified in database:', verifyData.id);
+          }
+        } catch (verifyError) {
+          console.warn('Error verifying transaction, continuing anyway:', verifyError);
+        }
+        
         return rpcData;
       }
       
@@ -148,7 +188,8 @@ export default function CheckoutPage() {
           type: 'SOL',
           expected_amount: solAmount,
           selected_at: new Date().toISOString()
-        }
+        },
+        fallback_method: 'direct_insert'
       };
       
       console.log('Enhanced metadata for direct insert:', enhancedMetadata);
@@ -156,13 +197,13 @@ export default function CheckoutPage() {
       const { data: insertData, error: insertError } = await supabase
         .from('transactions')
         .insert({
-          user_id: user!.id,
+          user_id: user.id,
           amount: cartTotal, // Store the original USD amount
           currency: 'USD',   // Store as USD
           status: 'awaiting_payment',
           transaction_type: 'crypto_purchase',
           payment_method: 'crypto_sol',
-          customer_email: user!.email,
+          customer_email: user.email,
           license_type: firstItem.licenseType || null,
           metadata: enhancedMetadata
         })
@@ -171,7 +212,32 @@ export default function CheckoutPage() {
 
       if (insertError) {
         console.error('Direct insert error:', insertError);
-        throw new Error('Failed to create transaction via direct insert');
+        
+        // Try one more time without .single() which sometimes causes issues
+        const { data: insertDataNoSingle, error: insertErrorNoSingle } = await supabase
+          .from('transactions')
+          .insert({
+            user_id: user.id,
+            amount: cartTotal,
+            currency: 'USD',
+            status: 'awaiting_payment',
+            transaction_type: 'crypto_purchase',
+            payment_method: 'crypto_sol',
+            customer_email: user.email,
+            license_type: firstItem.licenseType || null,
+            metadata: {
+              ...enhancedMetadata,
+              fallback_method: 'direct_insert_no_single'
+            }
+          })
+          .select();
+          
+        if (insertErrorNoSingle || !insertDataNoSingle || insertDataNoSingle.length === 0) {
+          throw new Error('Failed to create transaction via direct insert');
+        }
+        
+        console.log('Using direct insert (no single) data:', insertDataNoSingle[0]);
+        return insertDataNoSingle[0];
       }
 
       console.log('Using direct insert data:', insertData);

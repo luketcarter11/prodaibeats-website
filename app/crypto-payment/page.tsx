@@ -940,6 +940,80 @@ export default function CryptoPaymentPage() {
   // Load transaction on mount
   useEffect(() => {
     let mounted = true;
+    const LOCAL_TRANSACTION_KEY = 'last_created_transaction';
+    
+    // Add retry with backoff for transaction loading
+    const loadTransactionWithRetry = async (transactionId: string, userId: string, retryCount = 0, maxRetries = 3) => {
+      console.log(`Attempt ${retryCount + 1}/${maxRetries + 1} to load transaction: ${transactionId}`);
+      
+      try {
+        // Try RPC function first
+        const { data: rpcData, error: rpcError } = await supabase.rpc(
+          'get_transaction_by_id',
+          {
+            p_transaction_id: transactionId,
+            p_user_id: userId
+          }
+        );
+
+        if (!rpcError && rpcData && rpcData[0]) {
+          return { data: rpcData[0], source: 'rpc' };
+        }
+        
+        // Try direct fetch
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/transactions?id=eq.${transactionId}&user_id=eq.${userId}`,
+          {
+            headers: {
+              'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+              'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}`,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        if (response.ok) {
+          const directData = await response.json();
+          if (directData && directData.length > 0) {
+            return { data: directData[0], source: 'direct' };
+          }
+        }
+        
+        // Try fallback method
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('id', transactionId)
+          .eq('user_id', userId);
+          
+        if (!fallbackError && fallbackData && fallbackData.length > 0) {
+          return { data: fallbackData[0], source: 'fallback' };
+        }
+        
+        // If all methods failed and we have retries left, wait and try again
+        if (retryCount < maxRetries) {
+          // Exponential backoff: 1s, 2s, 4s, etc.
+          const delay = Math.pow(2, retryCount) * 1000;
+          console.log(`Transaction not found yet, retrying in ${delay}ms...`);
+          
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return loadTransactionWithRetry(transactionId, userId, retryCount + 1, maxRetries);
+        }
+        
+        throw new Error('Transaction not found after multiple attempts');
+      } catch (error: any) {
+        if (retryCount < maxRetries) {
+          // Exponential backoff on error
+          const delay = Math.pow(2, retryCount) * 1000;
+          console.log(`Error loading transaction, retrying in ${delay}ms...`, error);
+          
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return loadTransactionWithRetry(transactionId, userId, retryCount + 1, maxRetries);
+        }
+        throw error;
+      }
+    };
 
     const init = async () => {
       try {
@@ -956,70 +1030,60 @@ export default function CryptoPaymentPage() {
         }
 
         // Get and validate transaction ID
-        const transactionId = searchParams.get('transaction');
+        let transactionId = searchParams.get('transaction');
+        let usingRecoveredId = false;
+        
+        // If no transaction ID in URL or it's undefined, try to recover from localStorage
         if (!transactionId || transactionId === 'undefined') {
+          console.log('No valid transaction ID in URL, checking localStorage for recovery...');
+          try {
+            const storedTransaction = localStorage.getItem(LOCAL_TRANSACTION_KEY);
+            if (storedTransaction) {
+              const parsedTransaction = JSON.parse(storedTransaction);
+              
+              // Only use stored transaction if it's less than 10 minutes old
+              const storedTime = new Date(parsedTransaction.created_at).getTime();
+              const currentTime = new Date().getTime();
+              const timeDiff = (currentTime - storedTime) / (1000 * 60); // minutes
+              
+              if (timeDiff < 10 && parsedTransaction.id) {
+                console.log(`Recovered transaction ID from localStorage: ${parsedTransaction.id} (${timeDiff.toFixed(1)} minutes old)`);
+                transactionId = parsedTransaction.id;
+                usingRecoveredId = true;
+              } else {
+                console.log('Stored transaction too old or invalid, not using for recovery');
+                localStorage.removeItem(LOCAL_TRANSACTION_KEY);
+              }
+            }
+          } catch (recoveryError) {
+            console.error('Error trying to recover transaction from localStorage:', recoveryError);
+          }
+        }
+        
+        if (!transactionId) {
           setError('Invalid transaction ID');
           router.push('/checkout');
           return;
         }
 
-        // Try RPC function first
+        console.log(`Attempting to load transaction: ${transactionId}${usingRecoveredId ? ' (recovered)' : ''}`);
+
+        // Use the retry function instead of direct calls
         try {
-          const { data: rpcData, error: rpcError } = await supabase.rpc(
-            'get_transaction_by_id',
-            {
-              p_transaction_id: transactionId,
-              p_user_id: user.id
-            }
-          );
-
-          if (rpcError) {
-            throw rpcError;
-          }
-
-          if (!rpcData || !rpcData[0]) {
-            throw new Error('Transaction not found');
-          }
-
-          if (!mounted) return;
-
-          const transactionData = rpcData[0];
-          setTransaction(transactionData);
-
-          // Load saved state if available
-          const savedState = loadStateFromLocalStorage(transactionId);
-          if (savedState?.status && savedState.status !== 'awaiting_payment') {
-            if (!mounted) return;
-            
-            if (savedState.selectedCrypto) setSelectedCrypto(savedState.selectedCrypto);
-            if (savedState.convertedAmount) setConvertedAmount(savedState.convertedAmount);
-            if (savedState.foundTransaction) setFoundTransaction(savedState.foundTransaction);
-            if (savedState.timeRemaining) setTimeRemaining(savedState.timeRemaining);
-            if (savedState.showPaymentInstructions !== undefined) {
-              setShowPaymentInstructions(savedState.showPaymentInstructions);
-            }
-            
-            setTransactionStatus(savedState.status);
-          }
-        } catch (rpcError) {
-          console.error('RPC fetch failed, trying direct fetch:', rpcError);
+          const result = await loadTransactionWithRetry(transactionId, user.id);
           
-          // Fallback to direct fetch
-          const { data: directData, error: directError } = await supabase
-            .from('transactions')
-            .select('*')
-            .eq('id', transactionId)
-            .eq('user_id', user.id)
-            .single();
-
-          if (directError || !directData) {
-            throw new Error('Failed to load transaction');
-          }
-
           if (!mounted) return;
-
-          setTransaction(directData);
-
+          
+          console.log(`Transaction loaded via ${result.source}:`, result.data.id);
+          setTransaction(result.data);
+          
+          // If we used a recovered ID, update the URL to match (without reloading)
+          if (usingRecoveredId && typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            url.searchParams.set('transaction', transactionId);
+            window.history.replaceState({}, '', url.toString());
+          }
+          
           // Load saved state if available
           const savedState = loadStateFromLocalStorage(transactionId);
           if (savedState?.status && savedState.status !== 'awaiting_payment') {
@@ -1035,13 +1099,40 @@ export default function CryptoPaymentPage() {
             
             setTransactionStatus(savedState.status);
           }
+        } catch (error) {
+          throw new Error(`Failed to load transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
+        
       } catch (error: any) {
         if (!mounted) return;
         
         console.error('Error loading transaction:', error);
+        
+        // Try one more recovery attempt from localStorage if we haven't already
+        if (!searchParams.get('recovered') && typeof window !== 'undefined') {
+          try {
+            const storedTransaction = localStorage.getItem(LOCAL_TRANSACTION_KEY);
+            if (storedTransaction) {
+              const parsedTransaction = JSON.parse(storedTransaction);
+              
+              // Only use stored transaction if it's less than 10 minutes old
+              const storedTime = new Date(parsedTransaction.created_at).getTime();
+              const currentTime = new Date().getTime();
+              const timeDiff = (currentTime - storedTime) / (1000 * 60); // minutes
+              
+              if (timeDiff < 10 && parsedTransaction.id) {
+                console.log(`Final recovery attempt with transaction ID: ${parsedTransaction.id}`);
+                router.replace(`/crypto-payment?transaction=${parsedTransaction.id}&recovered=true`);
+                return;
+              }
+            }
+          } catch (finalRecoveryError) {
+            console.error('Final recovery attempt failed:', finalRecoveryError);
+          }
+        }
+        
         setError(error.message || 'Failed to load transaction');
-        setTimeout(() => router.push('/checkout'), 2000);
+        setTimeout(() => router.push('/checkout'), 3000);
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -1448,12 +1539,23 @@ export default function CryptoPaymentPage() {
           </div>
           <h1 className="text-2xl font-bold text-white mb-4 text-center">Error</h1>
           <p className="text-red-400 mb-6 text-center">{error || 'Transaction not found'}</p>
-          <button
-            onClick={() => router.push('/checkout')}
-            className="w-full bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors"
-          >
-            Return to Checkout
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors flex-1"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => router.push('/checkout')}
+              className="bg-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-purple-700 transition-colors flex-1"
+            >
+              Return to Checkout
+            </button>
+          </div>
+          <p className="mt-4 text-sm text-gray-400 text-center">
+            If you continue to experience issues, please contact support.
+          </p>
         </div>
       </div>
     )
