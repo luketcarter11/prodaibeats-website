@@ -34,7 +34,9 @@ export default function AccountPage() {
       console.log('Got session for user:', session.user.id)
 
       for (const transaction of transactionsWithoutLicenses) {
-        if (!transaction.metadata?.track_name || !transaction.license_type) {
+        const trackTitle = transaction.metadata?.items?.[0]?.title || transaction.metadata?.track_name;
+        
+        if (!trackTitle || !transaction.license_type) {
           console.log(`Skipping transaction ${transaction.id} - missing track name or license type`)
           continue
         }
@@ -53,7 +55,7 @@ export default function AccountPage() {
           },
           body: JSON.stringify({
             transactionId: transaction.id,
-            trackTitle: transaction.metadata.track_name,
+            trackTitle: trackTitle,
             licenseType: transaction.license_type,
           }),
         })
@@ -65,7 +67,7 @@ export default function AccountPage() {
           response: responseText,
           requestBody: {
             transactionId: transaction.id,
-            trackTitle: transaction.metadata.track_name,
+            trackTitle: trackTitle,
             licenseType: transaction.license_type,
           }
         })
@@ -102,7 +104,9 @@ export default function AccountPage() {
   }
 
   const handleManualGenerateLicense = async (transaction: Transaction) => {
-    if (!transaction.metadata?.track_name || !transaction.license_type) {
+    const trackTitle = transaction.metadata?.items?.[0]?.title || transaction.metadata?.track_name;
+    
+    if (!trackTitle || !transaction.license_type) {
       setGenerationError('Missing track name or license type')
       return
     }
@@ -119,7 +123,7 @@ export default function AccountPage() {
         },
         body: JSON.stringify({
           transactionId: transaction.id,
-          trackTitle: transaction.metadata.track_name,
+          trackTitle: trackTitle,
           licenseType: transaction.license_type,
         }),
       })
@@ -198,7 +202,8 @@ export default function AccountPage() {
           .from('transactions')
           .select('*')
           .eq('user_id', user.id)
-          .eq('transaction_type', 'payment')
+          .in('transaction_type', ['payment', 'crypto_purchase'])
+          .in('status', ['completed'])
           .order('created_at', { ascending: false })
 
         if (transactionsError) {
@@ -210,10 +215,11 @@ export default function AccountPage() {
 
         // Check for transactions without licenses and generate them
         const transactionsWithoutLicenses = (transactionsData || []).filter(transaction => {
+          const hasTrackName = transaction.metadata?.track_name || transaction.metadata?.items?.[0]?.title;
           const needsLicense = transaction.status === 'completed' && 
             !transaction.metadata?.license_file && 
             transaction.license_type && 
-            transaction.metadata?.track_name
+            hasTrackName;
           return needsLicense
         })
 
@@ -397,13 +403,15 @@ export default function AccountPage() {
                     className="bg-zinc-900 rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
                   >
                     <div className="flex-1">
-                      <h3 className="text-white font-medium">{transaction.metadata?.track_name || 'Unknown Track'}</h3>
+                      <h3 className="text-white font-medium">{transaction.metadata?.items?.[0]?.title || transaction.metadata?.track_name || 'Unknown Track'}</h3>
                       <div className="mt-1 space-y-1">
                         <p className="text-sm text-gray-400">
-                          {transaction.license_type} License • {new Date(transaction.created_at).toLocaleDateString()}
+                          {transaction.license_type || transaction.metadata?.items?.[0]?.licenseType || 'Standard'} License • {new Date(transaction.created_at).toLocaleDateString()}
                         </p>
                         <p className="text-sm text-gray-400">
-                          {transaction.amount} {transaction.currency}
+                          {transaction.currency === 'USD' 
+                            ? `$${transaction.amount.toFixed(2)}` 
+                            : `${parseFloat(transaction.amount.toFixed(3))} ${transaction.currency}`}
                         </p>
                         <p className="text-sm text-gray-400">
                           Transaction ID: {transaction.id.substring(0, 8)}...

@@ -1,0 +1,635 @@
+'use client'
+
+import { useState } from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
+import { motion } from 'framer-motion'
+
+export default function ProdTokenPage() {
+  const [email, setEmail] = useState('')
+  
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    // This would connect to your email service/API
+    alert(`Thanks for your interest! We'll send updates about $PROD to ${email}`)
+    setEmail('')
+  }
+
+  const fadeIn = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6 } }
+  }
+
+  return (
+    <div className="bg-black text-white min-h-screen">
+      {/* Hero Section */}
+      <section className="relative py-20 overflow-hidden">
+        <div className="absolute inset-0 z-0 opacity-20">
+          <div className="absolute inset-0 bg-gradient-to-b from-purple-900/40 to-black"></div>
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500 to-transparent"></div>
+        </div>
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <motion.div 
+            className="text-center"
+            initial="hidden"
+            animate="visible"
+            variants={fadeIn}
+          >
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-purple-600 mb-6">
+              $PROD AI
+            </h1>
+            <p className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto mb-0">
+              Join the future of music production and beat distribution with our innovative crypto token.
+            </p>
+          </motion.div>
+        </div>
+      </section>
+      
+      {/* About Token Section */}
+      <section id="about" className="py-20 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div 
+            className="grid md:grid-cols-2 gap-12 items-center"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeIn}
+          >
+            <div>
+              <h2 className="text-3xl md:text-4xl font-bold mb-6">What is <span className="text-purple-500">$PROD</span> Token?</h2>
+              <div className="space-y-3 text-gray-300">
+                <p>
+                  $PROD is the native token powering our AI-driven music production platform that automates beat creation, distribution, and licensing for both artists and producers.
+                </p>
+                <p>
+                  <span className="text-purple-400 font-medium">For artists:</span> Unlock exclusive beats, premium discounts, and streamlined licensing in one platform.
+                </p>
+                <p>
+                  <span className="text-purple-400 font-medium">For producers:</span> Enjoy lower fees, advanced monetization, and custom storefronts that connect directly with your audience.
+                </p>
+                <p>
+                  50% of all revenue fuels development, with the remaining 50% allocated to buybacks, liquidity, and token burns — all publicly documented for transparency.
+                </p>
+                <p className="font-medium text-purple-300">
+                  $PROD: The foundation for a fairer, faster, and smarter music future.
+                </p>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-br from-purple-900/20 to-black p-8 rounded-2xl border border-purple-900/50">
+              <h3 className="text-2xl font-semibold mb-6 text-center">Token Highlights</h3>
+              <ul className="space-y-4">
+                <li className="flex items-start gap-3">
+                  <div className="rounded-full bg-purple-500 p-1 mt-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span>Get Discounts with $PROD</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="rounded-full bg-purple-500 p-1 mt-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span>Unlock Exclusive Templates (Coming soon)</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="rounded-full bg-purple-500 p-1 mt-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span>Fuel Platform & Token Growth</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="rounded-full bg-purple-500 p-1 mt-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span>Power the Ecosystem</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="rounded-full bg-purple-500 p-1 mt-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span>Community Utility, Not Governance</span>
+                </li>
+              </ul>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+      
+      {/* Tokenomics Section */}
+      <section className="py-20 bg-gradient-to-b from-black to-purple-950/20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div 
+            className="text-center mb-16"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeIn}
+          >
+            <h2 className="text-3xl md:text-4xl font-bold mb-6">Tokenomics</h2>
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+              Our token distribution is designed for long-term sustainability and community growth.
+            </p>
+          </motion.div>
+          
+          <div className="grid md:grid-cols-4 gap-6">
+            <motion.div 
+              className="bg-black/50 p-6 rounded-xl border border-purple-800/30 backdrop-blur-sm"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={fadeIn}
+            >
+              <div className="text-purple-500 text-4xl font-bold mb-2">40%</div>
+              <h3 className="text-xl font-semibold mb-2">Community & Ecosystem</h3>
+              <p className="text-gray-400">Allocated to users, artists, and platform growth initiatives.</p>
+            </motion.div>
+            
+            <motion.div 
+              className="bg-black/50 p-6 rounded-xl border border-purple-800/30 backdrop-blur-sm"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-100px" }}
+              variants={fadeIn}
+            >
+              <div className="text-purple-500 text-4xl font-bold mb-2">25%</div>
+              <h3 className="text-xl font-semibold mb-2">Team & Development</h3>
+              <p className="text-gray-400">Supporting ongoing platform development and team incentives.</p>
+            </motion.div>
+            
+            <motion.div 
+              className="bg-black/50 p-6 rounded-xl border border-purple-800/30 backdrop-blur-sm"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-150px" }}
+              variants={fadeIn}
+            >
+              <div className="text-purple-500 text-4xl font-bold mb-2">20%</div>
+              <h3 className="text-xl font-semibold mb-2">Liquidity & Reserves</h3>
+              <p className="text-gray-400">Ensuring market stability and availability of tokens.</p>
+            </motion.div>
+            
+            <motion.div 
+              className="bg-black/50 p-6 rounded-xl border border-purple-800/30 backdrop-blur-sm"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-200px" }}
+              variants={fadeIn}
+            >
+              <div className="text-purple-500 text-4xl font-bold mb-2">15%</div>
+              <h3 className="text-xl font-semibold mb-2">Marketing & Partnerships</h3>
+              <p className="text-gray-400">Growing awareness and strategic collaborations.</p>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+      
+      {/* How We Use the Funds Section */}
+      <section className="py-20 bg-gradient-to-b from-black to-purple-950/20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div 
+            className="text-center mb-16"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeIn}
+          >
+            <h2 className="text-3xl md:text-4xl font-bold mb-6">How We Use the Funds</h2>
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+              We're committed to transparency. Here's exactly how funds from $PROD are allocated to create sustainable value.
+            </p>
+          </motion.div>
+          
+          <div className="grid md:grid-cols-4 gap-6">
+            <motion.div 
+              className="bg-black/50 p-6 rounded-xl border border-purple-800/30 backdrop-blur-sm"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={fadeIn}
+            >
+              <div className="text-purple-500 text-4xl font-bold mb-2">50%</div>
+              <h3 className="text-xl font-semibold mb-2">Development</h3>
+              <p className="text-gray-400">Funding the team building AI tools, beat generation systems, and platform improvements.</p>
+            </motion.div>
+            
+            <motion.div 
+              className="bg-black/50 p-6 rounded-xl border border-purple-800/30 backdrop-blur-sm"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-100px" }}
+              variants={fadeIn}
+            >
+              <div className="text-purple-500 text-4xl font-bold mb-2">16%</div>
+              <h3 className="text-xl font-semibold mb-2">Token Buybacks</h3>
+              <p className="text-gray-400">Strategically purchasing tokens from the market to support value and reduce supply.</p>
+            </motion.div>
+            
+            <motion.div 
+              className="bg-black/50 p-6 rounded-xl border border-purple-800/30 backdrop-blur-sm"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-150px" }}
+              variants={fadeIn}
+            >
+              <div className="text-purple-500 text-4xl font-bold mb-2">17%</div>
+              <h3 className="text-xl font-semibold mb-2">Liquidity</h3>
+              <p className="text-gray-400">Providing market stability and ensuring tokens are always available for trading.</p>
+            </motion.div>
+            
+            <motion.div 
+              className="bg-black/50 p-6 rounded-xl border border-purple-800/30 backdrop-blur-sm"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-200px" }}
+              variants={fadeIn}
+            >
+              <div className="text-purple-500 text-4xl font-bold mb-2">17%</div>
+              <h3 className="text-xl font-semibold mb-2">Token Burns</h3>
+              <p className="text-gray-400">Permanently removing tokens from circulation to reduce supply and increase scarcity.</p>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+      
+      {/* How to Invest Section */}
+      <section id="invest" className="py-12 sm:py-16 md:py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div 
+            className="text-center mb-8 sm:mb-12 md:mb-16"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeIn}
+          >
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 sm:mb-6">How to Invest in $PROD</h2>
+            <p className="text-lg sm:text-xl text-gray-300 max-w-3xl mx-auto">
+              Getting involved is simple. Follow these steps to become part of the $PROD community.
+            </p>
+          </motion.div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+            <motion.div 
+              className="relative"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={fadeIn}
+            >
+              <div className="absolute -left-3 sm:-left-4 -top-3 sm:-top-4 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-purple-600 text-white text-lg sm:text-xl font-bold flex items-center justify-center">1</div>
+              <div className="bg-black/50 p-5 sm:p-6 md:p-8 rounded-xl border border-purple-800/30 backdrop-blur-sm h-full">
+                <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 pt-2 sm:pt-4">Create a Crypto Wallet</h3>
+                <p className="text-gray-400 mb-4 text-sm sm:text-base">
+                  Download and set up a compatible wallet like Phantom to store your $PROD tokens securely and head to a Decrentralized Exchange (DEX).
+                </p>
+                <Link href="https://axiom.trade/@lt/" target="_blank" className="text-purple-400 hover:text-purple-300 flex items-center text-sm sm:text-base">
+                  Go to Axiom
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </Link>
+              </div>
+            </motion.div>
+            
+            <motion.div 
+              className="relative"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-50px" }}
+              variants={fadeIn}
+            >
+              <div className="absolute -left-3 sm:-left-4 -top-3 sm:-top-4 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-purple-600 text-white text-lg sm:text-xl font-bold flex items-center justify-center">2</div>
+              <div className="bg-black/50 p-5 sm:p-6 md:p-8 rounded-xl border border-purple-800/30 backdrop-blur-sm h-full">
+                <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 pt-2 sm:pt-4">Trade on DEX</h3>
+                <p className="text-gray-400 mb-4 text-sm sm:text-base">
+                  Find our $PROD token on your favorite decentralized exchange using the contract address below. Add it to your wallet and start trading.
+                </p>
+                <div className="flex flex-col space-y-3">
+                  <div className="bg-black/70 p-2 sm:p-3 rounded-lg border border-purple-800/50 flex items-center justify-between">
+                    <code className="text-purple-300 text-xs sm:text-sm font-mono overflow-x-auto whitespace-nowrap pr-2 scrollbar-hide">FwqCgnf1H46XtPU2B1aDQRyKMhUpqaWkyuQ4yQ1ibouN</code>
+                    <button 
+                      onClick={() => {navigator.clipboard.writeText('FwqCgnf1H46XtPU2B1aDQRyKMhUpqaWkyuQ4yQ1ibouN')}}
+                      className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
+                      aria-label="Copy contract address"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                        <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+                      </svg>
+                    </button>
+                  </div>
+                  <Link href="https://axiom.trade/@lt/" target="_blank" className="text-purple-400 hover:text-purple-300 flex items-center text-sm sm:text-base">
+                    Trade $PROD on Axiom
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
+            
+            <motion.div 
+              className="relative sm:col-span-2 lg:col-span-1"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-100px" }}
+              variants={fadeIn}
+            >
+              <div className="absolute -left-3 sm:-left-4 -top-3 sm:-top-4 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-purple-600 text-white text-lg sm:text-xl font-bold flex items-center justify-center">3</div>
+              <div className="bg-black/50 p-5 sm:p-6 md:p-8 rounded-xl border border-purple-800/30 backdrop-blur-sm h-full">
+                <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 pt-2 sm:pt-4">Follow Our Progress</h3>
+                <p className="text-gray-400 mb-4 text-sm sm:text-base">
+                  Stay updated with the latest developments, announcements, and community events by following our official X account.
+                </p>
+                <Link href="https://x.com/prodaibeats" target="_blank" className="text-purple-400 hover:text-purple-300 flex items-center text-sm sm:text-base">
+                  Follow @prodaibeats on X
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </Link>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+      
+      {/* Roadmap Section */}
+      <section className="py-20 bg-gradient-to-b from-purple-950/20 to-black">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div 
+            className="text-center mb-16"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeIn}
+          >
+            <h2 className="text-3xl md:text-4xl font-bold mb-6">$PROD Roadmap</h2>
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+              Our vision for the future of $PROD and the ecosystem we're building.
+            </p>
+          </motion.div>
+          
+          <div className="relative">
+            {/* Connector Line */}
+            <div className="absolute left-1/2 transform -translate-x-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-purple-600 to-purple-900 md:block hidden"></div>
+            
+            <div className="space-y-18">
+              <motion.div 
+                className="relative grid md:grid-cols-2 gap-8 items-center"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={fadeIn}
+              >
+                <div className="md:text-right order-2 md:order-1">
+                  <h3 className="text-2xl font-semibold mb-3">Phase 1</h3>
+                  <div className="bg-black/50 p-6 rounded-xl border border-purple-800/30 backdrop-blur-sm">
+                    <h4 className="text-xl text-purple-500 mb-3">🔧 Core Infrastructure</h4>
+                    <ul className="space-y-2 text-gray-300">
+                      <li className="flex md:justify-end">
+                        <span>Launch $PROD token</span>
+                      </li>
+                      <li className="flex md:justify-end">
+                        <span>Finalize beat store website (Stripe + SOL/$PROD checkout)</span>
+                      </li>
+                      <li className="flex md:justify-end">
+                        <span>Automate delivery + licensing with every payment</span>
+                      </li>
+                      <li className="flex md:justify-end">
+                        <span>Integrate scheduled AI beat generation</span>
+                      </li>
+                      <li className="flex md:justify-end">
+                        <span>Auto-upload beats to streaming platforms</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                <div className="md:hidden h-12 w-full flex justify-center">
+                  <div className="h-full w-px bg-gradient-to-b from-purple-600 to-purple-900"></div>
+                </div>
+                <div className="hidden md:flex justify-center items-center order-1 md:order-2">
+                  <div className="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                  </div>
+                </div>
+              </motion.div>
+              
+              <motion.div 
+                className="relative grid md:grid-cols-2 gap-8 items-center"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={fadeIn}
+              >
+                <div className="hidden md:flex justify-center items-center">
+                  <div className="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="md:hidden h-12 w-full flex justify-center">
+                  <div className="h-full w-px bg-gradient-to-b from-purple-600 to-purple-900"></div>
+                </div>
+                <div className="md:text-left">
+                  <h3 className="text-2xl font-semibold mb-3">Phase 2</h3>
+                  <div className="bg-black/50 p-6 rounded-xl border border-purple-800/30 backdrop-blur-sm">
+                    <h4 className="text-xl text-purple-500 mb-3">🧩 Utility & Ecosystem</h4>
+                    <ul className="space-y-2 text-gray-300">
+                      <li className="flex">
+                        <span>Offer site templates for producers with Stripe + $PROD integration</span>
+                      </li>
+                      <li className="flex">
+                        <span>50% template discount for producers offering $PROD-based customer discounts</span>
+                      </li>
+                      <li className="flex">
+                        <span>$500–$1,000 pricing for non-discounted templates</span>
+                      </li>
+                    </ul>
+                    
+                    <div className="mt-4 pt-4 border-t border-purple-800/30">
+                      <h5 className="font-semibold mb-2">Revenue Split:</h5>
+                      <ul className="space-y-2 text-gray-300">
+                        <li>50% to development/founder</li>
+                        <li>50% split equally across:
+                          <ul className="pl-6 mt-2 space-y-1">
+                            <li>Buybacks</li>
+                            <li>Market making</li>
+                            <li>Token burns</li>
+                          </ul>
+                        </li>
+                      </ul>
+                      <p className="mt-4">
+                        <span>Every action transparently documented on X</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+              
+              <motion.div 
+                className="relative grid md:grid-cols-2 gap-8 items-center"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={fadeIn}
+              >
+                <div className="md:text-right order-2 md:order-1">
+                  <h3 className="text-2xl font-semibold mb-3">Phase 3</h3>
+                  <div className="bg-black/50 p-6 rounded-xl border border-purple-800/30 backdrop-blur-sm">
+                    <h4 className="text-xl text-purple-500 mb-3">📈 Growth & Adoption</h4>
+                    <ul className="space-y-2 text-gray-300">
+                      <li className="flex md:justify-end">
+                        <span>Outreach to 100s of producers</span>
+                      </li>
+                      <li className="flex md:justify-end">
+                        <span>Target: Onboard 100+ producers to the $PROD ecosystem</span>
+                      </li>
+                      <li className="flex md:justify-end">
+                        <span>Auto-generate & upload "type beat" videos to YouTube</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                <div className="md:hidden h-12 w-full flex justify-center">
+                  <div className="h-full w-px bg-gradient-to-b from-purple-600 to-purple-900"></div>
+                </div>
+                <div className="hidden md:flex justify-center items-center order-1 md:order-2">
+                  <div className="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                  </div>
+                </div>
+              </motion.div>
+              
+              <motion.div 
+                className="relative grid md:grid-cols-2 gap-8 items-center"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={fadeIn}
+              >
+                <div className="hidden md:flex justify-center items-center">
+                  <div className="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="md:hidden h-12 w-full flex justify-center">
+                  <div className="h-full w-px bg-gradient-to-b from-purple-600 to-purple-900"></div>
+                </div>
+                <div className="md:text-left">
+                  <h3 className="text-2xl font-semibold mb-3">Phase 4</h3>
+                  <div className="bg-black/50 p-6 rounded-xl border border-purple-800/30 backdrop-blur-sm">
+                    <h4 className="text-xl text-purple-500 mb-3">🛠️ Tools & Premium Features</h4>
+                    <ul className="space-y-2 text-gray-300">
+                      <li className="flex">
+                        <span>Build exclusive plugins for producers and audio engineers (paid in $PROD)</span>
+                      </li>
+                      <li className="flex">
+                        <span>Offer beat generation as a premium paid service</span>
+                      </li>
+                      <li className="flex">
+                        <span>Enable white-label storefronts using $PROD as primary utility</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </motion.div>
+              
+              <motion.div 
+                className="relative grid md:grid-cols-2 gap-8 items-center"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={fadeIn}
+              >
+                <div className="md:text-right order-2 md:order-1">
+                  <h3 className="text-2xl font-semibold mb-3">Ongoing</h3>
+                  <div className="bg-black/50 p-6 rounded-xl border border-purple-800/30 backdrop-blur-sm">
+                    <h4 className="text-xl text-purple-500 mb-3">⚡ Ongoing Commitments</h4>
+                    <ul className="space-y-2 text-gray-300">
+                      <li className="flex md:justify-end">
+                        <span>Public tracking of all buybacks, burns, and treasury usage</span>
+                      </li>
+                      <li className="flex md:justify-end">
+                        <span>Transparent financial disclosures on X</span>
+                      </li>
+                      <li className="flex md:justify-end">
+                        <span>Continuous development of tools to support producers</span>
+                      </li>
+                      <li className="flex md:justify-end">
+                        <span>Expand utility and demand for $PROD across the music space</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                <div className="md:hidden h-12 w-full flex justify-center">
+                  <div className="h-full w-px bg-gradient-to-b from-purple-600 to-purple-900"></div>
+                </div>
+                <div className="hidden md:flex justify-center items-center order-1 md:order-2">
+                  <div className="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      {/* Newsletter Section */}
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div 
+            className="bg-gradient-to-r from-purple-900/30 to-black p-8 md:p-12 rounded-2xl border border-purple-800/30 text-center"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeIn}
+          >
+            <h2 className="text-3xl md:text-4xl font-bold mb-6">Stay Updated</h2>
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-8">
+              Get the latest news about $PROD token launches, features, and exclusive opportunities.
+            </p>
+            
+            <form onSubmit={handleSubmit} className="max-w-md mx-auto">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <input 
+                  type="email" 
+                  placeholder="Your email address" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="flex-grow px-4 py-3 rounded-full bg-black/80 text-white border border-purple-800/50 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                />
+                <button 
+                  type="submit"
+                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-800 rounded-full text-white font-medium hover:from-purple-700 hover:to-purple-900 transition duration-300 shadow-lg shadow-purple-900/30"
+                >
+                  Subscribe
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      </section>
+    </div>
+  )
+} 

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import Image from 'next/image'
 
 export default function Footer() {
   const [email, setEmail] = useState('')
@@ -108,10 +109,116 @@ export default function Footer() {
           {/* Social Column */}
           <div>
             <h3 className="font-bold mb-4">FOLLOW US</h3>
-            <ul className="space-y-2">
-              <li><a href="https://x.com/prodaibeats" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white">Twitter</a></li>
+            <ul className="space-y-4">
+              <li>
+                <a 
+                  href="https://x.com/prodaibeats" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-gray-400 hover:text-white flex items-center gap-2"
+                  aria-label="Follow us on X (Twitter)"
+                >
+                  <svg 
+                    className="w-5 h-5" 
+                    viewBox="0 0 24 24" 
+                    fill="currentColor"
+                  >
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                  <span>X (Twitter)</span>
+                </a>
+              </li>
+              <li>
+                <a 
+                  href="https://open.spotify.com/artist/6rtcV1PtuVS90XXBUrATdl" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-gray-400 hover:text-white flex items-center gap-2"
+                  aria-label="Listen to our music on Spotify"
+                >
+                  <img 
+                    src="/platforms/spotify.svg" 
+                    alt="Spotify logo" 
+                    className="w-5 h-5"
+                  />
+                  <span>Spotify</span>
+                </a>
+              </li>
+              <li>
+                <a 
+                  href="https://music.apple.com/gb/artist/prod-ai/1805435269" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-gray-400 hover:text-white flex items-center gap-2"
+                  aria-label="Listen to our music on Apple Music"
+                >
+                  <img 
+                    src="/platforms/apple-music.svg" 
+                    alt="Apple Music logo" 
+                    className="w-5 h-5"
+                  />
+                  <span>Apple Music</span>
+                </a>
+              </li>
+              <li>
+                <a 
+                  href="https://music.amazon.co.uk/artists/B0F3199RHN/prod-ai" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-gray-400 hover:text-white flex items-center gap-2"
+                  aria-label="Listen to our music on Amazon Music"
+                >
+                  <img 
+                    src="/platforms/amazon-music.svg" 
+                    alt="Amazon Music logo" 
+                    className="w-5 h-5 brightness-0 invert"
+                  />
+                  <span>Amazon Music</span>
+                </a>
+              </li>
             </ul>
           </div>
+        </div>
+      </div>
+
+      {/* Crypto Section */}
+      <div className="max-w-6xl mx-auto px-6 py-10 text-center">
+        <div className="bg-black/50 p-6 rounded-xl border border-purple-800/30 backdrop-blur-sm max-w-3xl mx-auto">
+          <div className="flex items-center justify-center mb-4">
+            <img 
+              src="/images/$PRODcrypto.png" 
+              alt="$PROD token" 
+              className="w-10 h-10 mr-3"
+            />
+            <h3 className="text-xl font-bold">$PROD <span className="text-purple-400">TOKEN</span></h3>
+          </div>
+          <p className="text-gray-400 mb-4 text-sm">
+            Our native token powering AI-driven music production & licensing
+          </p>
+          <div className="bg-black/70 p-2 rounded-lg border border-purple-800/50 flex items-center justify-between max-w-md mx-auto mb-4">
+            <code className="text-purple-300 text-xs font-mono overflow-x-auto whitespace-nowrap pr-2">FwqCgnf1H46XtPU2B1aDQRyKMhUpqaWkyuQ4yQ1ibouN</code>
+            <button 
+              onClick={() => {navigator.clipboard.writeText('FwqCgnf1H46XtPU2B1aDQRyKMhUpqaWkyuQ4yQ1ibouN')}}
+              className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
+              aria-label="Copy contract address"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+              </svg>
+            </button>
+          </div>
+          <a 
+            href="https://axiom.trade/@lt/" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="inline-flex items-center text-purple-400 hover:text-purple-300 text-sm"
+          >
+            Trade $PROD on Axiom
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </a>
         </div>
       </div>
 

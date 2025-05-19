@@ -1,25 +1,25 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCart } from '@/context/CartContext'
-import { FaArrowLeft, FaSpinner, FaExclamationCircle } from 'react-icons/fa'
+import { useAuth } from '@/context/AuthContext'
+import { FaArrowLeft, FaSpinner } from 'react-icons/fa'
 import { supabase } from '@/lib/supabaseClient'
-import { discountService, DiscountCode } from '@/services/discountService'
-import { getStripe } from '../../lib/stripe'
 import SignInPopup from '@/components/SignInPopup'
 import SignUpPopup from '@/components/SignUpPopup'
 
-// Use environment variable for CDN base URL
 const CDN = process.env.NEXT_PUBLIC_STORAGE_BASE_URL || 'https://pub-c059baad842f471aaaa2a1bbb935e98d.r2.dev';
 
-interface AppliedDiscount {
-  code: string
-  amount: number
-  type: 'percentage' | 'fixed'
-}
+// Fallback prices in USD for when price feed is unavailable
+const FALLBACK_PRICES = {
+  SOL: 171.37, // More accurate SOL price (as of May 2025)
+  PROD: 0.00003 // PROD token price
+} as const;
+
+type CryptoType = keyof typeof FALLBACK_PRICES;
 
 interface ErrorMessage {
   message: string;
@@ -27,407 +27,297 @@ interface ErrorMessage {
 }
 
 export default function CheckoutPage() {
-  const { cart, cartTotal, isLoading } = useCart()
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [userEmail, setUserEmail] = useState('')
-  const [discountCode, setDiscountCode] = useState('')
-  const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscount | null>(null)
+  const { cart, cartTotal, isLoading: cartLoading } = useCart()
+  const { user, session, isLoading: authLoading, refreshSession } = useAuth()
   const [isRedirecting, setIsRedirecting] = useState(false)
-  const [isApplyingDiscount, setIsApplyingDiscount] = useState(false)
   const [error, setError] = useState<ErrorMessage | null>(null)
-  const [discountError, setDiscountError] = useState<string | null>(null)
-  const [discountedTotal, setDiscountedTotal] = useState(cartTotal)
   const [isSignInOpen, setIsSignInOpen] = useState(false)
   const [isSignUpOpen, setIsSignUpOpen] = useState(false)
   const router = useRouter()
 
-  // Check authentication status and get user email on mount
+  // Check session status on component mount
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        setIsAuthenticated(true)
-        setUserEmail(user.email || '')
-      }
+    if (user && !session) {
+      // User state exists but no session, try to refresh
+      const attemptSessionRefresh = async () => {
+        await refreshSession();
+      };
+      attemptSessionRefresh();
     }
-    checkAuth()
+  }, [user, session, refreshSession]);
+
+  // Handle successful authentication
+  const handleAuthSuccess = () => {
+    setIsSignInOpen(false)
+    setIsSignUpOpen(false)
+    setError(null)
+  }
+
+  // Handle checkout process
+  const handleCheckout = useCallback(async () => {
+    if (isRedirecting) return
+
+    try {
+      if (!user?.id || !user?.email) {
+        setIsSignInOpen(true)
+        return
+      }
+
+      setIsRedirecting(true)
+      setError(null)
+
+      // Create transaction first
+      const transactionData = await createTransaction()
+      
+      if (!transactionData?.id) {
+        throw new Error('No transaction data returned')
+      }
+
+      // Navigate immediately after transaction is created
+      router.replace(`/crypto-payment?transaction=${transactionData.id}`)
+    } catch (error: any) {
+      console.error('Checkout error:', error)
+      setError({
+        message: error.message || 'Failed to process checkout. Please try again.',
+        field: 'checkout'
+      })
+      setIsRedirecting(false)
+    }
+  }, [isRedirecting, user, router])
+
+  // Separate transaction creation logic
+  const createTransaction = async () => {
+    const cartItems = cart.map(item => ({
+      id: item.id,
+      title: item.title,
+      price: item.price,
+      licenseType: item.licenseType
+    }))
+    const firstItem = cartItems[0] || {}
+    const metadata = { items: cartItems }
+
+    try {
+      // Calculate the crypto amount correctly
+      const solAmount = cartTotal / FALLBACK_PRICES['SOL'];
+      
+      console.log('Cart total amount in USD:', cartTotal);
+      console.log('SOL price used for conversion:', FALLBACK_PRICES['SOL']);
+      console.log('Calculated SOL amount:', solAmount);
+      
+      console.log('Attempting to create transaction with data:', {
+        user_id: user!.id,
+        usd_amount: cartTotal,
+        crypto_type: 'SOL',
+        crypto_amount: solAmount,
+        metadata,
+        customer_email: user!.email,
+        license_type: firstItem.licenseType || null
+      });
+
+      // Try RPC function first
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
+        'create_crypto_transaction',
+        {
+          p_user_id: user!.id,
+          p_usd_amount: cartTotal,
+          p_crypto_type: 'SOL',
+          p_crypto_amount: solAmount,
+          p_metadata: metadata,
+          p_customer_email: user!.email,
+          p_license_type: firstItem.licenseType || null
+        }
+      )
+
+      console.log('RPC Response:', { rpcData, rpcError });
+
+      // If the RPC call is successful and returns data
+      if (!rpcError && rpcData) {
+        console.log('Using RPC data:', rpcData);
+        return rpcData;
+      }
+      
+      // If we get here, either there was an error or no data was returned
+      // Try the direct insert approach as a fallback
+      console.log('RPC call failed, trying direct insert as fallback');
+      
+      // Create enhanced metadata with original USD amount
+      const enhancedMetadata = {
+        ...metadata,
+        original_usd_amount: cartTotal,
+        crypto: {
+          type: 'SOL',
+          expected_amount: solAmount,
+          selected_at: new Date().toISOString()
+        }
+      };
+      
+      console.log('Enhanced metadata for direct insert:', enhancedMetadata);
+      
+      const { data: insertData, error: insertError } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: user!.id,
+          amount: cartTotal, // Store the original USD amount
+          currency: 'USD',   // Store as USD
+          status: 'awaiting_payment',
+          transaction_type: 'crypto_purchase',
+          payment_method: 'crypto_sol',
+          customer_email: user!.email,
+          license_type: firstItem.licenseType || null,
+          metadata: enhancedMetadata
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Direct insert error:', insertError);
+        throw new Error('Failed to create transaction via direct insert');
+      }
+
+      console.log('Using direct insert data:', insertData);
+      return insertData;
+      
+    } catch (error) {
+      console.error('Transaction creation error:', error);
+      throw new Error('Failed to create transaction. Please try again.');
+    }
+  };
+
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      setIsRedirecting(false)
+      setError(null)
+    }
   }, [])
 
-  // Calculate discounted total whenever appliedDiscount changes
-  // (only when not already set by the API response)
-  useEffect(() => {
-    // Skip recalculation if already handled directly in the discount application code
-    if (appliedDiscount && discountedTotal !== cartTotal) {
-      // We've already set the discounted total from the API
-      return;
-    }
-    
-    if (appliedDiscount) {
-      const newTotal = appliedDiscount.type === 'percentage'
-        ? cartTotal * (1 - appliedDiscount.amount / 100)
-        : cartTotal - appliedDiscount.amount;
-      setDiscountedTotal(Math.max(0.50, newTotal));
-    } else {
-      setDiscountedTotal(cartTotal);
-    }
-  }, [appliedDiscount, cartTotal, discountedTotal]);
-
-  const handleAuthSuccess = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      setIsAuthenticated(true)
-      setUserEmail(user.email || '')
-    }
-  }
-
-  const handleApplyDiscount = async () => {
-    if (!discountCode.trim() || isApplyingDiscount) return;
-
-    setIsApplyingDiscount(true);
-    setDiscountError(null);
-    setError(null);
-
-    try {
-      console.log('Applying discount code:', discountCode);
-      const response = await fetch('/api/validate-discount', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: discountCode, total: cartTotal })
-      });
-
-      const data = await response.json();
-      console.log('Discount validation response:', data);
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to apply discount code');
-      }
-
-      if (data.isValid) {
-        // Use the finalAmount directly from the API if available
-        if (data.finalAmount !== undefined && data.finalAmount < 0.50) {
-          setDiscountError('The total amount after discount must be at least $0.50');
-          setAppliedDiscount(null);
-          setDiscountedTotal(cartTotal);
-        } else {
-          // Apply the discount
-          setAppliedDiscount({
-            code: data.code.code,
-            amount: data.code.amount,
-            type: data.code.type
-          });
-          
-          // Set the discounted total directly from API if available
-          if (data.finalAmount !== undefined) {
-            setDiscountedTotal(data.finalAmount);
-          }
-          
-          // Display confirmation message
-          console.log(`Discount of ${data.discountAmount?.toFixed(2) || 'unknown'} applied. New total: ${data.finalAmount?.toFixed(2) || 'calculated locally'}`);
-        }
-      } else {
-        setDiscountError(data.error || 'Invalid discount code');
-        setAppliedDiscount(null);
-      }
-    } catch (error: any) {
-      console.error('Error applying discount:', error);
-      setDiscountError(error.message || 'Failed to apply discount code');
-      setAppliedDiscount(null);
-    } finally {
-      setIsApplyingDiscount(false);
-    }
-  };
-
-  const handleCheckout = async () => {
-    if (isRedirecting) return;
-    if (!isAuthenticated) {
-      setError({
-        message: 'Please sign in or create an account to complete your purchase.',
-        field: 'auth'
-      });
-      return;
-    }
-    
-    setIsRedirecting(true);
-    setError(null);
-
-    try {
-      const response = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cart,
-          email: userEmail,
-          discountCode: appliedDiscount?.code
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create checkout session');
-      }
-
-      // If we have a direct URL, use it
-      if (data.sessionUrl) {
-        window.location.href = data.sessionUrl;
-        return;
-      }
-
-      // Otherwise, use Stripe's redirect
-      const stripe = await getStripe();
-      if (!stripe) {
-        throw new Error('Failed to load Stripe');
-      }
-
-      const { error } = await stripe.redirectToCheckout({
-        sessionId: data.sessionId
-      });
-
-      if (error) {
-        throw error;
-      }
-    } catch (error: any) {
-      console.error('Checkout error:', error);
-      setError({ 
-        message: error.message || 'Failed to process checkout',
-        field: 'checkout'
-      });
-      setIsRedirecting(false);
-    }
-  };
-
-  // Show loading state while cart is being initialized
-  if (isLoading) {
+  // Loading state
+  if (cartLoading || authLoading) {
     return (
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 min-h-screen flex items-center justify-center">
-        <div className="flex items-center space-x-4" role="status" aria-label="Loading cart">
-          <FaSpinner className="animate-spin h-8 w-8 text-purple-500" aria-hidden="true" />
-          <span className="text-white">Loading cart...</span>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <FaSpinner className="animate-spin h-8 w-8 text-purple-500" />
       </div>
-    );
+    )
   }
 
-  // Redirect to beats page if cart is empty
-  if (!isLoading && (!cart || cart.length === 0)) {
-    router.push('/beats');
-    return null;
+  // Empty cart redirect
+  if (!cart || cart.length === 0) {
+    router.push('/beats')
+    return null
   }
-
-  // Update the display of discount amount in the UI
-  const displayDiscountAmount = appliedDiscount
-    ? appliedDiscount.type === 'percentage'
-      ? (cartTotal * appliedDiscount.amount) / 100
-      : appliedDiscount.amount
-    : 0;
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 min-h-screen">
-      <nav aria-label="Breadcrumb">
-        <Link 
-          href="/cart" 
-          className="inline-flex items-center text-gray-400 hover:text-white mb-8 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-lg px-2 py-1"
-        >
-          <FaArrowLeft className="mr-2" aria-hidden="true" />
-          Back to Cart
-        </Link>
-      </nav>
-      
-      <div className="flex flex-col space-y-8">
+      {/* Back to Cart Link */}
+      <Link 
+        href="/cart" 
+        className="inline-flex items-center text-gray-400 hover:text-white mb-8"
+      >
+        <FaArrowLeft className="mr-2" />
+        Back to Cart
+      </Link>
+
+      <div className="space-y-8">
         {/* Order Summary */}
-        <section 
-          className="bg-zinc-900/80 rounded-xl p-6 md:p-8 w-full"
-          aria-labelledby="order-heading"
-        >
-          <h1 id="order-heading" className="text-2xl font-bold text-white mb-6">Checkout</h1>
+        <section className="bg-zinc-900/80 rounded-xl p-6 md:p-8">
+          <h1 className="text-2xl font-bold text-white mb-6">Order Summary</h1>
           
-          <div className="mb-8">
-            <h2 className="text-xl font-bold text-white mb-4">Order Summary</h2>
-            <div className="space-y-4">
-              {cart.map((item) => {
-                const coverSrc = item.coverUrl && item.coverUrl.includes('://')
-                  ? item.coverUrl
-                  : `${CDN}/covers/${item.id}.jpg`;
-                
-                return (
-                  <div key={item.id} className="flex items-start space-x-4">
-                    <div className="relative w-16 h-16 md:w-20 md:h-20 flex-shrink-0">
-                      <Image
-                        src={coverSrc}
-                        alt={item.title ?? 'Untitled Track'}
-                        fill
-                        unoptimized={true}
-                        className="object-cover rounded"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex justify-between">
-                        <h3 className="text-white font-medium">{item.title ?? 'Untitled Track'}</h3>
-                        <p className="text-white font-medium">${item.price?.toFixed(2) ?? '0.00'}</p>
-                      </div>
-                      <p className="text-gray-400 text-sm">{item.artist}</p>
-                      <div className="flex justify-between items-center mt-1">
-                        <span className="text-sm text-gray-400">
-                          {item.licenseType} License
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          
-          {/* Discount Code Section */}
-          <div className="mt-6 mb-4">
-            <div className="flex space-x-2">
-              <input
-                type="text"
-                value={discountCode}
-                onChange={(e) => setDiscountCode(e.target.value)}
-                placeholder="Enter discount code"
-                className="flex-1 px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-              <button
-                onClick={handleApplyDiscount}
-                disabled={isApplyingDiscount || !discountCode.trim()}
-                className="bg-purple-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 flex items-center"
-              >
-                {isApplyingDiscount ? (
-                  <>
-                    <FaSpinner className="animate-spin mr-2" />
-                    Applying...
-                  </>
-                ) : (
-                  'Apply'
-                )}
-              </button>
-            </div>
-            
-            {discountError && (
-              <div className="mt-2 text-red-400 text-sm">
-                {discountError}
-              </div>
-            )}
-            
-            {appliedDiscount && (
-              <div className="mt-2 flex items-center">
-                <span className="bg-green-900/50 text-green-400 px-3 py-1 rounded-full text-sm font-medium">
-                  Discount applied: {appliedDiscount.type === 'percentage' ? `${appliedDiscount.amount}%` : `$${appliedDiscount.amount}`} off
-                </span>
-              </div>
-            )}
-          </div>
-          
-          <div className="border-t border-white/10 pt-4">
-            <dl>
-              <div className="flex justify-between text-white mb-2">
-                <dt>Subtotal</dt>
-                <dd>${cartTotal.toFixed(2)}</dd>
-              </div>
-              {appliedDiscount && (
-                <div className="flex justify-between text-green-400 mb-2">
-                  <dt>Discount ({appliedDiscount.type === 'percentage' ? `${appliedDiscount.amount}%` : `$${appliedDiscount.amount}`})</dt>
-                  <dd>-${(cartTotal - discountedTotal).toFixed(2)}</dd>
+          <div className="space-y-4">
+            {cart.map((item) => (
+              <div key={item.id} className="flex items-start space-x-4">
+                <div className="relative w-16 h-16 md:w-20 md:h-20 flex-shrink-0">
+                  <Image
+                    src={item.coverUrl || `${CDN}/covers/${item.id}.jpg`}
+                    alt={item.title || 'Track'}
+                    fill
+                    className="object-cover rounded"
+                  />
                 </div>
-              )}
-              <div className="flex justify-between text-white font-bold text-xl mt-4 pt-4 border-t border-white/10">
-                <dt>Total</dt>
-                <dd>${discountedTotal.toFixed(2)}</dd>
+                <div className="flex-1">
+                  <div className="flex justify-between">
+                    <h3 className="text-white font-medium">{item.title}</h3>
+                    <p className="text-white">${item.price?.toFixed(2)}</p>
+                  </div>
+                  <p className="text-gray-400 text-sm">{item.licenseType} License</p>
+                </div>
               </div>
-            </dl>
+            ))}
+          </div>
+
+          <div className="mt-6 pt-6 border-t border-white/10">
+            <div className="flex justify-between text-white text-xl font-bold">
+              <span>Total</span>
+              <span>${cartTotal.toFixed(2)}</span>
+            </div>
           </div>
         </section>
-        
+
         {/* Payment Section */}
-        <section 
-          className="bg-zinc-900/80 rounded-xl p-6 md:p-8 w-full"
-          aria-labelledby="payment-heading"
-        >
-          <h2 id="payment-heading" className="text-xl font-bold text-white mb-6">Payment Details</h2>
-          
+        <section className="bg-zinc-900/80 rounded-xl p-6 md:p-8">
+          <h2 className="text-xl font-bold text-white mb-6">Payment</h2>
+
           {error && (
-            <div 
-              className={`mb-6 p-4 rounded-lg flex items-start ${
-                error.field === 'discountCode' ? 'bg-red-900/50 border-red-500' : 'bg-yellow-900/50 border-yellow-500'
-              } border`}
-              role="alert"
-            >
-              <FaExclamationCircle 
-                className={`mt-1 mr-3 ${error.field === 'discountCode' ? 'text-red-500' : 'text-yellow-500'}`}
-                aria-hidden="true"
-              />
-              <p className="text-white flex-1">{error.message}</p>
+            <div className="mb-6 p-4 bg-red-900/50 border border-red-500 rounded-lg">
+              <p className="text-white">{error.message}</p>
             </div>
           )}
 
-          <div className="space-y-4">
-            {!isAuthenticated ? (
-              <div className="bg-purple-900/30 border border-purple-500/30 rounded-lg p-4 mb-6">
-                <h3 className="text-white font-medium mb-2">Sign In Required</h3>
-                <p className="text-gray-300 text-sm mb-4">
-                  Please sign in or create an account to complete your purchase. This helps you track your orders and access your beats.
-                </p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setIsSignInOpen(true)}
-                    className="inline-flex items-center justify-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
-                  >
-                    Sign In
-                  </button>
-                  <button
-                    onClick={() => setIsSignUpOpen(true)}
-                    className="inline-flex items-center justify-center px-4 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors text-sm font-medium"
-                  >
-                    Create Account
-                  </button>
-                </div>
+          {!user ? (
+            <div className="bg-purple-900/30 border border-purple-500/30 rounded-lg p-4 mb-6">
+              <h3 className="text-white font-medium mb-2">Sign In Required</h3>
+              <p className="text-gray-300 text-sm mb-4">
+                Please sign in or create an account to complete your purchase.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setIsSignInOpen(true)}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => setIsSignUpOpen(true)}
+                  className="bg-zinc-800 text-white px-4 py-2 rounded-lg hover:bg-zinc-700"
+                >
+                  Create Account
+                </button>
               </div>
-            ) : (
-              <div className="bg-zinc-800/50 rounded-lg p-4 mb-4">
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="bg-zinc-800/50 rounded-lg p-4">
                 <p className="text-gray-300 text-sm">
-                  Signed in as <span className="text-white font-medium">{userEmail}</span>
+                  Signed in as <span className="text-white">{user.email}</span>
                 </p>
+                {!session && (
+                  <p className="text-amber-400 text-xs mt-1">
+                    Session expired. Click Pay to refresh.
+                  </p>
+                )}
               </div>
-            )}
 
-            <button
-              onClick={handleCheckout}
-              disabled={isRedirecting || !isAuthenticated || cart.length === 0}
-              className="w-full bg-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-            >
-              {isRedirecting ? (
-                <>
-                  <FaSpinner className="animate-spin -ml-1 mr-2 h-5 w-5" />
-                  Redirecting to Checkout...
-                </>
-              ) : (
-                'Complete Purchase'
-              )}
-            </button>
-          </div>
-          
-          <p className="text-center text-gray-400 text-sm mt-6">
-            By completing your purchase, you agree to our{' '}
-            <Link 
-              href="/terms-of-use" 
-              className="text-purple-400 hover:text-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 rounded"
-            >
-              Terms of Service
-            </Link>
-          </p>
+              <button
+                onClick={handleCheckout}
+                disabled={isRedirecting}
+                className="w-full bg-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {isRedirecting ? (
+                  <>
+                    <FaSpinner className="animate-spin mr-2" />
+                    Processing...
+                  </>
+                ) : (
+                  'Pay with Crypto'
+                )}
+              </button>
+            </div>
+          )}
         </section>
       </div>
 
-      {error && error.field === 'checkout' && (
-        <div className="mt-4 p-4 bg-red-900/50 border border-red-500 rounded-lg">
-          <p className="text-white text-sm">{error.message}</p>
-        </div>
-      )}
-
-      {/* Sign In/Up Popups */}
+      {/* Auth Popups */}
       <SignInPopup 
-        isOpen={isSignInOpen} 
+        isOpen={isSignInOpen}
         onClose={() => setIsSignInOpen(false)}
         onSuccess={handleAuthSuccess}
       />

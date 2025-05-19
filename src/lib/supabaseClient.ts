@@ -4,13 +4,66 @@
 console.warn('Note: Supabase Storage features have been moved to local file storage');
 console.warn('Database operations continue to use Supabase');
 
+import { createBrowserClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { Database } from '@/types/supabase'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseKey)
+// Create a single instance of the browser client
+let supabaseInstance: ReturnType<typeof createBrowserClient<Database>>
+
+function getSupabaseBrowserClient() {
+  if (supabaseInstance) return supabaseInstance
+
+  supabaseInstance = createBrowserClient<Database>(
+    supabaseUrl,
+    supabaseKey,
+    {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        flowType: 'pkce',
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+      },
+      cookies: {
+        get(name: string) {
+          if (typeof document === 'undefined') return ''
+          return document.cookie
+            .split('; ')
+            .find((row) => row.startsWith(`${name}=`))
+            ?.split('=')[1]
+        },
+        set(name: string, value: string, options: { path?: string; maxAge?: number }) {
+          if (typeof document === 'undefined') return
+          document.cookie = `${name}=${value}; path=${options.path || '/'}; max-age=${options.maxAge || 31536000}`
+        },
+        remove(name: string, options: { path?: string }) {
+          if (typeof document === 'undefined') return
+          document.cookie = `${name}=; path=${options.path || '/'}; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+        },
+      },
+    }
+  )
+
+  return supabaseInstance
+}
+
+export const supabase = getSupabaseBrowserClient()
+
+// Create a single instance of the admin client
+export const supabaseAdmin = createClient<Database>(
+  supabaseUrl,
+  process.env.SUPABASE_SERVICE_KEY || supabaseKey,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  }
+)
 
 // The old implementation below is only for file storage compatibility
 // and will be removed once all file storage operations are migrated

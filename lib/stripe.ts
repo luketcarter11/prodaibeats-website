@@ -1,14 +1,15 @@
+// NOTE: Stripe implementation temporarily commented out for cryptocurrency payment implementation
+/*
 import Stripe from 'stripe';
 import { loadStripe, Stripe as StripeClient } from '@stripe/stripe-js';
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('STRIPE_SECRET_KEY is not defined');
-}
-
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-04-30.basil',
-  typescript: true,
-});
+// Only initialize Stripe with secret key on the server side
+export const stripe = typeof window === 'undefined' && process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2025-04-30.basil',
+      typescript: true,
+    })
+  : null;
 
 let stripePromise: Promise<StripeClient | null>;
 
@@ -31,3 +32,8 @@ export const getStripe = () => {
   }
   return stripePromise;
 }; 
+*/
+
+// Temporary placeholder for crypto payment implementation
+export const getStripe = () => null;
+export const stripe = null; 

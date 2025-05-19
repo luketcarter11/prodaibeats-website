@@ -6,8 +6,8 @@ export interface Transaction {
   order_id: string | null;    // UUID in database
   amount: number;
   currency: string;
-  transaction_type: 'payment' | 'refund' | 'chargeback';
-  status: 'pending' | 'completed' | 'failed';
+  transaction_type: 'payment' | 'refund' | 'chargeback' | 'crypto_purchase';
+  status: 'pending' | 'completed' | 'failed' | 'awaiting_payment';
   stripe_transaction_id: string | null;
   stripe_session_id: string | null;
   customer_email: string | null;
@@ -16,6 +16,28 @@ export interface Transaction {
     track_id?: string;
     track_name?: string;
     license_file?: string;
+    items?: Array<{
+      id: string;
+      title: string;
+      price: number;
+      licenseType: string;
+      coverImage?: string;
+    }>;
+    crypto?: {
+      type: string;
+      address?: string;
+      selected_at: string;
+      expected_amount?: number;
+      transaction_signature?: string;
+    };
+    payment_details?: {
+      amount: number;
+      blockTime: number;
+      signature: string;
+      confirmations: number;
+      senderAddress: string;
+    };
+    original_usd_amount?: number;
   } | null;
   created_at: string;
   updated_at: string;
