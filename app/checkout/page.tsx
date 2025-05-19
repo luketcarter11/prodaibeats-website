@@ -77,14 +77,6 @@ export default function CheckoutPage() {
 
       console.log('Successfully created transaction:', transactionData.id);
 
-      // Store transaction in localStorage to help with recovery
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('last_created_transaction', JSON.stringify({
-          id: transactionData.id,
-          created_at: new Date().toISOString()
-        }));
-      }
-
       // Navigate immediately after transaction is created
       router.replace(`/crypto-payment?transaction=${transactionData.id}&method=direct`)
     } catch (error: any) {
@@ -173,6 +165,24 @@ export default function CheckoutPage() {
           console.warn('Error verifying transaction, continuing anyway:', verifyError);
         }
         
+        // Store transaction in localStorage to help with recovery
+        if (typeof window !== 'undefined' && rpcData.id) {
+          const storageKey = 'last_created_transaction';
+          const transactionInfo = {
+            id: rpcData.id,
+            created_at: new Date().toISOString(),
+            amount: cartTotal,
+            method: 'crypto'
+          };
+          
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(transactionInfo));
+            console.log(`Saved transaction ${rpcData.id} to localStorage for recovery`);
+          } catch (storageError) {
+            console.warn('Failed to save transaction to localStorage:', storageError);
+          }
+        }
+        
         return rpcData;
       }
       
@@ -237,10 +247,48 @@ export default function CheckoutPage() {
         }
         
         console.log('Using direct insert (no single) data:', insertDataNoSingle[0]);
+        
+        // Store transaction in localStorage to help with recovery
+        if (typeof window !== 'undefined' && insertDataNoSingle[0]?.id) {
+          const storageKey = 'last_created_transaction';
+          const transactionInfo = {
+            id: insertDataNoSingle[0].id,
+            created_at: new Date().toISOString(),
+            amount: cartTotal,
+            method: 'crypto'
+          };
+          
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(transactionInfo));
+            console.log(`Saved transaction ${insertDataNoSingle[0].id} to localStorage for recovery`);
+          } catch (storageError) {
+            console.warn('Failed to save transaction to localStorage:', storageError);
+          }
+        }
+        
         return insertDataNoSingle[0];
       }
 
       console.log('Using direct insert data:', insertData);
+      
+      // Store transaction in localStorage to help with recovery
+      if (typeof window !== 'undefined' && insertData?.id) {
+        const storageKey = 'last_created_transaction';
+        const transactionInfo = {
+          id: insertData.id,
+          created_at: new Date().toISOString(),
+          amount: cartTotal,
+          method: 'crypto'
+        };
+        
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(transactionInfo));
+          console.log(`Saved transaction ${insertData.id} to localStorage for recovery`);
+        } catch (storageError) {
+          console.warn('Failed to save transaction to localStorage:', storageError);
+        }
+      }
+      
       return insertData;
       
     } catch (error) {

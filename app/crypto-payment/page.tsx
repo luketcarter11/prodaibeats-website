@@ -937,190 +937,80 @@ export default function CryptoPaymentPage() {
     }
   }
 
-  // Load transaction on mount
-  useEffect(() => {
-    let mounted = true;
-    const LOCAL_TRANSACTION_KEY = 'last_created_transaction';
+  // Modify the loadTransactionWithRetry function to use a more compatible approach
+  const loadTransactionWithRetry = async (transactionId: string, userId: string, retryCount = 0, maxRetries = 3) => {
+    console.log(`Attempt ${retryCount + 1}/${maxRetries + 1} to load transaction: ${transactionId}`);
     
-    // Add retry with backoff for transaction loading
-    const loadTransactionWithRetry = async (transactionId: string, userId: string, retryCount = 0, maxRetries = 3) => {
-      console.log(`Attempt ${retryCount + 1}/${maxRetries + 1} to load transaction: ${transactionId}`);
+    try {
+      // Modified approach - use .select('*').eq('id', id) directly instead of the more problematic approaches
+      const { data: arrayData, error: arrayError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('id', transactionId)
+        .eq('user_id', userId);
+        
+      if (!arrayError && arrayData && arrayData.length > 0) {
+        console.log('Successfully loaded transaction via direct array fetch:', arrayData[0].id);
+        return { data: arrayData[0], source: 'array-fetch' };
+      }
       
+      // If direct fetch fails and we have retries left, wait and try again
+      if (retryCount < maxRetries) {
+        // Exponential backoff: 1s, 2s, 4s, etc.
+        const delay = Math.pow(2, retryCount) * 1000;
+        console.log(`Transaction not found via direct array fetch, retrying in ${delay}ms...`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return loadTransactionWithRetry(transactionId, userId, retryCount + 1, maxRetries);
+      }
+      
+      // Last attempt - try with direct fetch without the problematic Accept header
       try {
-        // Try RPC function first
-        const { data: rpcData, error: rpcError } = await supabase.rpc(
-          'get_transaction_by_id',
+        console.log('Attempting final direct URL fetch without Accept header...');
+        
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/transactions?id=eq.${transactionId}&user_id=eq.${userId}&limit=1`,
           {
-            p_transaction_id: transactionId,
-            p_user_id: userId
-          }
-        );
-
-        if (!rpcError && rpcData && rpcData[0]) {
-          return { data: rpcData[0], source: 'rpc' };
-        }
-        
-        // Try multiple fetch approaches with different headers
-        // This is necessary because the Accept header requirements can vary between environments
-        
-        // Approach 1: Simple array fetch (most compatible)
-        try {
-          const { data: arrayData, error: arrayError } = await supabase
-            .from('transactions')
-            .select('*')
-            .eq('id', transactionId)
-            .eq('user_id', userId);
-            
-          if (!arrayError && arrayData && arrayData.length > 0) {
-            return { data: arrayData[0], source: 'array-fetch' };
-          }
-        } catch (err) {
-          console.log('Array fetch approach failed:', err);
-        }
-        
-        // Approach 2: Direct fetch with accept: application/json
-        try {
-          const response1 = await fetch(
-            `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/transactions?id=eq.${transactionId}&user_id=eq.${userId}`,
-            {
-              method: 'GET',
-              headers: {
-                'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-                'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}`,
-                'Accept': 'application/json',
-                'Accept-Profile': 'public'
-              }
-            }
-          );
-
-          if (response1.ok) {
-            const directData1 = await response1.json();
-            if (directData1 && directData1.length > 0) {
-              return { data: directData1[0], source: 'direct-json' };
-            }
-          }
-        } catch (err) {
-          console.log('Direct fetch with application/json failed:', err);
-        }
-        
-        // Approach 3: Direct fetch with accept: */*
-        try {
-          const response2 = await fetch(
-            `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/transactions?id=eq.${transactionId}&user_id=eq.${userId}`,
-            {
-              method: 'GET',
-              headers: {
-                'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-                'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}`,
-                'Accept': '*/*',
-                'Accept-Profile': 'public'
-              }
-            }
-          );
-
-          if (response2.ok) {
-            const directData2 = await response2.json();
-            if (directData2 && directData2.length > 0) {
-              return { data: directData2[0], source: 'direct-any' };
-            }
-          }
-        } catch (err) {
-          console.log('Direct fetch with */* failed:', err);
-        }
-        
-        // Approach 4: Using correct modified single item headers - targets 406 error
-        try {
-          // This URL specifically avoids using .single() which requires a specific Accept header
-          const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/transactions?id=eq.${transactionId}&user_id=eq.${userId}&limit=1`;
-          
-          console.log('Trying special approach for 406 error with URL:', url);
-          
-          const response3 = await fetch(url, {
             method: 'GET',
             headers: {
               'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
               'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}`,
-              // Use array response format instead of single object
-              'Accept': 'application/json',
+              // Deliberately NOT including the Accept header that causes 406 errors
               'Accept-Profile': 'public',
-              'X-Client-Info': 'crypto-payment-page'
-            }
-          });
-          
-          console.log('406 approach status:', response3.status);
-          
-          if (response3.ok) {
-            const directData3 = await response3.json();
-            console.log('406 approach data shape:', Array.isArray(directData3), directData3?.length);
-            
-            if (directData3 && directData3.length > 0) {
-              return { data: directData3[0], source: 'direct-406-fix' };
-            }
-          } else {
-            console.log('406 approach error:', response3.status, response3.statusText);
-          }
-        } catch (err) {
-          console.log('406 error specific approach failed:', err);
-        }
-        
-        // Approach 5: Using exact Accept header from the failing request
-        try {
-          // Using the exact Accept header that's in the request headers
-          const response4 = await fetch(
-            `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/transactions?id=eq.${transactionId}&user_id=eq.${userId}`,
-            {
-              method: 'GET',
-              headers: {
-                'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-                'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}`,
-                'Accept': 'application/vnd.pgrst.object+json', // This is the header from the error
-                'Accept-Profile': 'public'
-              }
-            }
-          );
-          
-          console.log('Exact header approach status:', response4.status);
-          
-          if (response4.ok) {
-            const directData4 = await response4.json();
-            // This approach might return a single object not in an array
-            if (directData4) {
-              if (Array.isArray(directData4) && directData4.length > 0) {
-                return { data: directData4[0], source: 'exact-header-array' };
-              } else if (directData4.id) {
-                // It might be a direct object
-                return { data: directData4, source: 'exact-header-object' };
-              }
+              'X-Client-Info': 'crypto-payment-page-fallback-attempt'
             }
           }
-        } catch (err) {
-          console.log('Exact header approach failed:', err);
-        }
+        );
         
-        // If all methods failed and we have retries left, wait and try again
-        if (retryCount < maxRetries) {
-          // Exponential backoff: 1s, 2s, 4s, etc.
-          const delay = Math.pow(2, retryCount) * 1000;
-          console.log(`Transaction not found yet, retrying in ${delay}ms...`);
-          
-          await new Promise(resolve => setTimeout(resolve, delay));
-          return loadTransactionWithRetry(transactionId, userId, retryCount + 1, maxRetries);
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.length > 0) {
+            console.log('Successfully loaded transaction via direct URL without Accept header:', data[0].id);
+            return { data: data[0], source: 'direct-url-fallback' };
+          }
         }
-        
-        throw new Error('Transaction not found after multiple attempts');
-      } catch (error: any) {
-        if (retryCount < maxRetries) {
-          // Exponential backoff on error
-          const delay = Math.pow(2, retryCount) * 1000;
-          console.log(`Error loading transaction, retrying in ${delay}ms...`, error);
-          
-          await new Promise(resolve => setTimeout(resolve, delay));
-          return loadTransactionWithRetry(transactionId, userId, retryCount + 1, maxRetries);
-        }
-        throw error;
+      } catch (directFetchError) {
+        console.error('Final direct URL fetch failed:', directFetchError);
       }
-    };
+      
+      throw new Error('Transaction not found after multiple attempts');
+    } catch (error: any) {
+      if (retryCount < maxRetries) {
+        // Exponential backoff on error
+        const delay = Math.pow(2, retryCount) * 1000;
+        console.log(`Error loading transaction, retrying in ${delay}ms...`, error);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return loadTransactionWithRetry(transactionId, userId, retryCount + 1, maxRetries);
+      }
+      throw error;
+    }
+  };
 
+  // Load transaction on mount
+  useEffect(() => {
+    let mounted = true;
+    
     const init = async () => {
       try {
         // Wait for auth to be ready
@@ -1146,7 +1036,7 @@ export default function CryptoPaymentPage() {
         if (!transactionId || transactionId === 'undefined') {
           console.log('No valid transaction ID in URL, checking localStorage for recovery...');
           try {
-            const storedTransaction = localStorage.getItem(LOCAL_TRANSACTION_KEY);
+            const storedTransaction = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (storedTransaction) {
               const parsedTransaction = JSON.parse(storedTransaction);
               
@@ -1161,7 +1051,7 @@ export default function CryptoPaymentPage() {
                 usingRecoveredId = true;
               } else {
                 console.log('Stored transaction too old or invalid, not using for recovery');
-                localStorage.removeItem(LOCAL_TRANSACTION_KEY);
+                localStorage.removeItem(LOCAL_STORAGE_KEY);
               }
             }
           } catch (recoveryError) {
@@ -1177,54 +1067,46 @@ export default function CryptoPaymentPage() {
 
         console.log(`Attempting to load transaction: ${transactionId}${usingRecoveredId ? ' (recovered)' : ''}${method ? ` using method: ${method}` : ''}`);
 
-        // Use the retry function instead of direct calls
+        // Simplified approach using direct array fetch
         try {
-          // If method is specified, we'll try tailored approaches first
-          if (method === 'direct') {
-            console.log('Using direct approach as specified in URL');
-            // Try direct array fetch first
-            try {
-              const { data: arrayData, error: arrayError } = await supabase
-                .from('transactions')
-                .select('*')
-                .eq('id', transactionId)
-                .eq('user_id', user.id);
-                
-              if (!arrayError && arrayData && arrayData.length > 0) {
-                if (!mounted) return;
-                console.log('Direct array fetch successful', arrayData[0].id);
-                setTransaction(arrayData[0]);
-                
-                // If we used a recovered ID, update the URL to match (without reloading)
-                if (usingRecoveredId && typeof window !== 'undefined') {
-                  const url = new URL(window.location.href);
-                  url.searchParams.set('transaction', transactionId);
-                  window.history.replaceState({}, '', url.toString());
-                }
-                
-                // Load saved state if available
-                const savedState = loadStateFromLocalStorage(transactionId);
-                if (savedState?.status && savedState.status !== 'awaiting_payment') {
-                  if (!mounted) return;
-                  
-                  if (savedState.selectedCrypto) setSelectedCrypto(savedState.selectedCrypto);
-                  if (savedState.convertedAmount) setConvertedAmount(savedState.convertedAmount);
-                  if (savedState.foundTransaction) setFoundTransaction(savedState.foundTransaction);
-                  if (savedState.timeRemaining) setTimeRemaining(savedState.timeRemaining);
-                  if (savedState.showPaymentInstructions !== undefined) {
-                    setShowPaymentInstructions(savedState.showPaymentInstructions);
-                  }
-                  
-                  setTransactionStatus(savedState.status);
-                }
-                return;
-              }
-            } catch (directError) {
-              console.error('Direct array fetch failed:', directError);
+          const { data: arrayData, error: arrayError } = await supabase
+            .from('transactions')
+            .select('*')
+            .eq('id', transactionId)
+            .eq('user_id', user.id);
+            
+          // If direct array fetch works, use it
+          if (!arrayError && arrayData && arrayData.length > 0) {
+            if (!mounted) return;
+            console.log('Direct array fetch successful', arrayData[0].id);
+            setTransaction(arrayData[0]);
+            
+            // If we used a recovered ID, update the URL to match (without reloading)
+            if (usingRecoveredId && typeof window !== 'undefined') {
+              const url = new URL(window.location.href);
+              url.searchParams.set('transaction', transactionId);
+              window.history.replaceState({}, '', url.toString());
             }
+            
+            // Load saved state if available
+            const savedState = loadStateFromLocalStorage(transactionId);
+            if (savedState?.status && savedState.status !== 'awaiting_payment') {
+              if (!mounted) return;
+              
+              if (savedState.selectedCrypto) setSelectedCrypto(savedState.selectedCrypto);
+              if (savedState.convertedAmount) setConvertedAmount(savedState.convertedAmount);
+              if (savedState.foundTransaction) setFoundTransaction(savedState.foundTransaction);
+              if (savedState.timeRemaining) setTimeRemaining(savedState.timeRemaining);
+              if (savedState.showPaymentInstructions !== undefined) {
+                setShowPaymentInstructions(savedState.showPaymentInstructions);
+              }
+              
+              setTransactionStatus(savedState.status);
+            }
+            return;
           }
           
-          // Fall back to the regular retry approach
+          // If direct array fetch fails, use the retry approach
           const result = await loadTransactionWithRetry(transactionId, user.id);
           
           if (!mounted) return;
@@ -1266,7 +1148,7 @@ export default function CryptoPaymentPage() {
         // Try one more recovery attempt from localStorage if we haven't already
         if (!searchParams.get('recovered') && typeof window !== 'undefined') {
           try {
-            const storedTransaction = localStorage.getItem(LOCAL_TRANSACTION_KEY);
+            const storedTransaction = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (storedTransaction) {
               const parsedTransaction = JSON.parse(storedTransaction);
               
@@ -1292,12 +1174,14 @@ export default function CryptoPaymentPage() {
                            (typeof window !== 'undefined' && window.location.href.includes('406'));
         
         const enhancedError = is406Error
-          ? "Transaction loading error (406). This is likely a temporary issue with the database connection."
+          ? "Transaction loading error (406). This is likely a temporary issue with the database connection. Try refreshing the page."
           : errorMessage;
         
         setError(enhancedError);
         // Don't redirect immediately on 406, give more time to retry
-        setTimeout(() => router.push('/checkout'), is406Error ? 10000 : 3000);
+        if (!is406Error) {
+          setTimeout(() => router.push('/checkout'), 3000);
+        }
       } finally {
         if (mounted) {
           setIsLoading(false);
