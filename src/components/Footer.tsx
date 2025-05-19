@@ -187,7 +187,7 @@ export default function Footer() {
           <div className="flex items-center justify-center mb-4">
             <img 
               src="/images/$PRODcrypto.png" 
-              alt="$PROD token" 
+              alt="$PROD AI" 
               className="w-10 h-10 mr-3"
             />
             <h3 className="text-xl font-bold">$PROD <span className="text-purple-400">TOKEN</span></h3>
