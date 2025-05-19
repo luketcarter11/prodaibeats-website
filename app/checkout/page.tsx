@@ -53,42 +53,6 @@ export default function CheckoutPage() {
     setError(null)
   }
 
-  // Handle checkout process
-  const handleCheckout = useCallback(async () => {
-    if (isRedirecting) return
-
-    try {
-      if (!user?.id || !user?.email) {
-        setIsSignInOpen(true)
-        return
-      }
-
-      setIsRedirecting(true)
-      setError(null)
-
-      console.log('Starting checkout process with user:', user.id);
-
-      // Create transaction first
-      const transactionData = await createTransaction()
-      
-      if (!transactionData?.id) {
-        throw new Error('No transaction data returned')
-      }
-
-      console.log('Successfully created transaction:', transactionData.id);
-
-      // Navigate immediately after transaction is created
-      router.replace(`/crypto-payment?transaction=${transactionData.id}&method=direct`)
-    } catch (error: any) {
-      console.error('Checkout error:', error)
-      setError({
-        message: error.message || 'Failed to process checkout. Please try again.',
-        field: 'checkout'
-      })
-      setIsRedirecting(false)
-    }
-  }, [isRedirecting, user, router])
-
   // Separate transaction creation logic
   const createTransaction = async () => {
     if (!user?.id || !user?.email) {
@@ -167,12 +131,12 @@ export default function CheckoutPage() {
         
         // Store transaction in localStorage to help with recovery
         if (typeof window !== 'undefined' && rpcData.id) {
-          const storageKey = 'last_created_transaction';
+          const storageKey = 'crypto_payment_transaction';
           const transactionInfo = {
             id: rpcData.id,
             created_at: new Date().toISOString(),
             amount: cartTotal,
-            method: 'crypto'
+            user_id: user.id
           };
           
           try {
@@ -248,14 +212,14 @@ export default function CheckoutPage() {
         
         console.log('Using direct insert (no single) data:', insertDataNoSingle[0]);
         
-        // Store transaction in localStorage to help with recovery
-        if (typeof window !== 'undefined' && insertDataNoSingle[0]?.id) {
-          const storageKey = 'last_created_transaction';
+        // Store transaction in localStorage
+        if (typeof window !== 'undefined') {
+          const storageKey = 'crypto_payment_transaction';
           const transactionInfo = {
             id: insertDataNoSingle[0].id,
             created_at: new Date().toISOString(),
             amount: cartTotal,
-            method: 'crypto'
+            user_id: user.id
           };
           
           try {
@@ -268,17 +232,17 @@ export default function CheckoutPage() {
         
         return insertDataNoSingle[0];
       }
-
+      
       console.log('Using direct insert data:', insertData);
       
-      // Store transaction in localStorage to help with recovery
-      if (typeof window !== 'undefined' && insertData?.id) {
-        const storageKey = 'last_created_transaction';
+      // Store transaction in localStorage
+      if (typeof window !== 'undefined' && insertData) {
+        const storageKey = 'crypto_payment_transaction';
         const transactionInfo = {
           id: insertData.id,
           created_at: new Date().toISOString(),
           amount: cartTotal,
-          method: 'crypto'
+          user_id: user.id
         };
         
         try {
@@ -291,11 +255,51 @@ export default function CheckoutPage() {
       
       return insertData;
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Transaction creation error:', error);
-      throw new Error('Failed to create transaction. Please try again.');
+      throw new Error(`Failed to create transaction: ${error.message}`);
     }
-  };
+  }
+
+  // Handle checkout process
+  const handleCheckout = useCallback(async () => {
+    if (isRedirecting) return
+
+    try {
+      if (!user?.id || !user?.email) {
+        setIsSignInOpen(true)
+        return
+      }
+
+      setIsRedirecting(true)
+      setError(null)
+
+      console.log('Starting checkout process with user:', user.id);
+
+      // Create transaction first
+      const transactionData = await createTransaction()
+      
+      if (!transactionData?.id) {
+        throw new Error('No transaction data returned')
+      }
+
+      console.log('Successfully created transaction:', transactionData.id);
+
+      // Add a small delay to ensure transaction is properly saved in the database
+      // This helps prevent the 406 errors when loading the transaction on the crypto-payment page
+      setTimeout(() => {
+        // Navigate after small delay
+        router.replace(`/crypto-payment?transaction=${transactionData.id}&method=direct`)
+      }, 800)
+    } catch (error: any) {
+      console.error('Checkout error:', error)
+      setError({
+        message: error.message || 'Failed to process checkout. Please try again.',
+        field: 'checkout'
+      })
+      setIsRedirecting(false)
+    }
+  }, [isRedirecting, user, router, cart, cartTotal])
 
   // Cleanup effect
   useEffect(() => {
